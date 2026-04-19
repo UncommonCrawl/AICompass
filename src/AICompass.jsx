@@ -198,14 +198,38 @@ function Compass({
   useEffect(() => {
     const el = svgRef.current?.parentElement;
     if (!el) return;
-    const ro = new ResizeObserver((entries) => {
-      const { width } = entries[0].contentRect;
+    const minHeight = 300;
+    const maxHeight = 560;
+    const aspectRatio = 0.58;
+    const viewportPadding = 24;
+
+    const updateDims = () => {
+      const { width } = el.getBoundingClientRect();
       const nextW = Math.max(320, width);
-      const nextH = Math.max(320, Math.min(560, width * 0.58));
+      const availableViewportHeight = Math.max(
+        minHeight,
+        window.innerHeight - el.getBoundingClientRect().top - viewportPadding,
+      );
+      const naturalHeight = nextW * aspectRatio;
+      const nextH = Math.max(
+        minHeight,
+        Math.min(maxHeight, naturalHeight, availableViewportHeight),
+      );
       setDims({ w: nextW, h: nextH });
+    };
+
+    const ro = new ResizeObserver((entries) => {
+      if (!entries.length) return;
+      updateDims();
     });
     ro.observe(el);
-    return () => ro.disconnect();
+    window.addEventListener("resize", updateDims);
+    updateDims();
+
+    return () => {
+      window.removeEventListener("resize", updateDims);
+      ro.disconnect();
+    };
   }, []);
 
   const cx = dims.w / 2,
@@ -984,19 +1008,26 @@ export default function AICompass() {
     };
 
     try {
-      const docRef = await addDoc(collection(db, "compass-results-v2"), entry);
+      const writePromise = addDoc(collection(db, "compass-results-v2"), entry);
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("submit-timeout")), 10000);
+      });
+      const docRef = await Promise.race([writePromise, timeoutPromise]);
       setUserResult({ ...entry, id: docRef.id });
     } catch (error) {
       console.error("Firestore addDoc error:", error);
       setFirestoreError(
-        error?.code
+        error?.message === "submit-timeout"
+          ? "Unable to submit (timeout)."
+          : error?.code
           ? `Unable to submit (${error.code}).`
           : "Unable to submit right now.",
       );
       setUserResult({ ...entry, id: `local-${Date.now()}` });
+    } finally {
+      setSubmitting(false);
+      setScreen("results");
     }
-    setSubmitting(false);
-    setScreen("results");
   };
 
   const handleDevShortcutSubmit = async () => {
@@ -1062,6 +1093,24 @@ export default function AICompass() {
         )}
       </div>
 
+      {firestoreError && (
+        <div
+          style={{
+            maxWidth: 1000,
+            margin: "0 auto 16px",
+            padding: "10px 12px",
+            borderRadius: 8,
+            border: "1px solid rgba(255,179,0,0.4)",
+            background: "rgba(255,179,0,0.08)",
+            color: "#ffb300",
+            fontSize: 12,
+            fontFamily: "'JetBrains Mono', monospace",
+          }}
+        >
+          {firestoreError}
+        </div>
+      )}
+
       {/* Home Screen */}
       {screen === "home" && (
         <>
@@ -1113,11 +1162,6 @@ export default function AICompass() {
                 >
                   Dev shortcut: place at [2,2]
                 </button>
-              </div>
-            )}
-            {firestoreError && (
-              <div style={{ color: "#ffb300", fontSize: 12, marginTop: 10 }}>
-                {firestoreError}
               </div>
             )}
           </div>
