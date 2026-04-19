@@ -994,7 +994,7 @@ export default function AICompass() {
     setScreen("demographics");
   };
 
-  const handleSubmit = async (demo = {}, overrideScores = null) => {
+  const handleSubmit = (demo = {}, overrideScores = null) => {
     const activeScores = overrideScores || scores;
     if (!activeScores) return;
     setSubmitting(true);
@@ -1006,38 +1006,58 @@ export default function AICompass() {
       occupation: demo.occupation || "",
       ts: Date.now(),
     };
+    const localId = `local-${Date.now()}`;
 
-    try {
-      const writePromise = addDoc(collection(db, "compass-results-v2"), entry);
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("submit-timeout")), 10000);
-      });
-      const docRef = await Promise.race([writePromise, timeoutPromise]);
-      setUserResult({ ...entry, id: docRef.id });
-    } catch (error) {
-      console.error("Firestore addDoc error:", error);
+    setUserResult({ ...entry, id: localId });
+    setScreen("results");
+
+    const stallTimer = setTimeout(() => {
       setFirestoreError(
-        error?.message === "submit-timeout"
-          ? "Unable to submit (timeout)."
-          : error?.code
-          ? `Unable to submit (${error.code}).`
-          : "Unable to submit right now.",
+        "Submit request is taking too long. Check network/firewall and Firestore rules.",
       );
-      setUserResult({ ...entry, id: `local-${Date.now()}` });
-    } finally {
       setSubmitting(false);
-      setScreen("results");
-    }
+    }, 8000);
+
+    addDoc(collection(db, "compass-results-v2"), entry)
+      .then((docRef) => {
+        setFirestoreError("");
+        setUserResult((prev) =>
+          prev?.id === localId ? { ...entry, id: docRef.id } : prev,
+        );
+      })
+      .catch((error) => {
+        console.error("Firestore addDoc error:", error);
+        setFirestoreError(
+          error?.code
+            ? `Unable to submit (${error.code}).`
+            : "Unable to submit right now.",
+        );
+      })
+      .finally(() => {
+        clearTimeout(stallTimer);
+        setSubmitting(false);
+      });
   };
 
-  const handleDevShortcutSubmit = async () => {
+  const handleDevShortcutSubmit = () => {
     const devScores = { x: 1, y: 1 };
     setScores(devScores);
-    await handleSubmit({}, devScores);
+    handleSubmit({}, devScores);
   };
 
   const quadrant = scores ? getQuadrant(scores.x, scores.y) : null;
   const qi = quadrant ? QUADRANT_INFO[quadrant] : null;
+
+  useEffect(() => {
+    if (screen !== "results") return;
+    if (!submitting) return;
+
+    const safety = setTimeout(() => {
+      setSubmitting(false);
+    }, 12000);
+
+    return () => clearTimeout(safety);
+  }, [screen, submitting]);
 
   return (
     <div
