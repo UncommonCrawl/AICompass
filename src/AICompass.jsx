@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import { addDoc, collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import { db } from "./firebase";
 
 const QUESTIONS = [
   // Y-axis: LLM Potential Belief (positive = more belief)
@@ -141,10 +143,6 @@ const AGE_RANGES = [
   "55-64",
   "65+",
 ];
-
-function generateId() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-}
 
 function calculateScores(answers) {
   let xSum = 0,
@@ -933,33 +931,41 @@ export default function AICompass() {
   const [userResult, setUserResult] = useState(null);
   const [selectedDot, setSelectedDot] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [firestoreError, setFirestoreError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Load stored results once on first render.
+  // Subscribe to live Firestore updates once on first render.
   useEffect(() => {
-    let isCancelled = false;
+    const loadingTimeout = setTimeout(() => {
+      setLoading(false);
+    }, 4000);
 
-    const loadResults = async () => {
-      try {
-        const data = await window.storage.get("compass-results-v2", true);
-        if (data && data.value && !isCancelled) {
-          const parsed = JSON.parse(data.value);
-          setResults(Array.isArray(parsed) ? parsed : []);
-        }
-      } catch {
-        if (!isCancelled) {
-          setResults([]);
-        }
-      } finally {
-        if (!isCancelled) {
-          setLoading(false);
-        }
-      }
-    };
+    const resultsQuery = query(
+      collection(db, "compass-results-v2"),
+      orderBy("ts", "asc"),
+    );
 
-    loadResults();
+    const unsubscribe = onSnapshot(
+      resultsQuery,
+      (snapshot) => {
+        const nextResults = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setFirestoreError("");
+        setResults(nextResults);
+        setLoading(false);
+      },
+      () => {
+        setFirestoreError("Live sync unavailable right now.");
+        setResults([]);
+        setLoading(false);
+      },
+    );
+
     return () => {
-      isCancelled = true;
+      clearTimeout(loadingTimeout);
+      unsubscribe();
     };
   }, []);
 
@@ -973,7 +979,6 @@ export default function AICompass() {
     if (!scores) return;
     setSubmitting(true);
     const entry = {
-      id: generateId(),
       x: scores.x,
       y: scores.y,
       age: demo.age || "",
@@ -983,25 +988,10 @@ export default function AICompass() {
     };
 
     try {
-      let current = [];
-      try {
-        const data = await window.storage.get("compass-results-v2", true);
-        if (data && data.value) current = JSON.parse(data.value);
-      } catch {
-        // Ignore read errors and continue with local-only accumulation.
-      }
-      current.push(entry);
-      await window.storage.set(
-        "compass-results-v2",
-        JSON.stringify(current),
-        true,
-      );
-      setResults(current);
-      setUserResult(entry);
+      const docRef = await addDoc(collection(db, "compass-results-v2"), entry);
+      setUserResult({ ...entry, id: docRef.id });
     } catch {
-      // Still show local result even if storage fails
-      setResults((prev) => [...prev, entry]);
-      setUserResult(entry);
+      setUserResult({ ...entry, id: `local-${Date.now()}` });
     }
     setSubmitting(false);
     setScreen("results");
@@ -1068,40 +1058,44 @@ export default function AICompass() {
       {screen === "home" && (
         <>
           <div style={{ textAlign: "center", marginBottom: 0 }}>
-            {loading ? (
-              <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>
+            <button
+              onClick={() => {
+                setScreen("quiz");
+                setScores(null);
+              }}
+              style={{
+                padding: "14px 40px",
+                fontSize: 15,
+                fontFamily: "'Outfit', sans-serif",
+                fontWeight: 600,
+                background: "linear-gradient(135deg, #00e5ff, #66bb6a)",
+                border: "none",
+                color: "#08090d",
+                borderRadius: 10,
+                cursor: "pointer",
+                boxShadow: "0 0 30px rgba(0,229,255,0.15)",
+                transition: "transform 0.15s, box-shadow 0.15s",
+              }}
+              onMouseOver={(e) => {
+                e.target.style.transform = "translateY(-1px)";
+                e.target.style.boxShadow = "0 0 40px rgba(0,229,255,0.25)";
+              }}
+              onMouseOut={(e) => {
+                e.target.style.transform = "none";
+                e.target.style.boxShadow = "0 0 30px rgba(0,229,255,0.15)";
+              }}
+            >
+              Take the Quiz
+            </button>
+            {loading && (
+              <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, marginTop: 10 }}>
                 Loading compass data...
               </div>
-            ) : (
-              <button
-                onClick={() => {
-                  setScreen("quiz");
-                  setScores(null);
-                }}
-                style={{
-                  padding: "14px 40px",
-                  fontSize: 15,
-                  fontFamily: "'Outfit', sans-serif",
-                  fontWeight: 600,
-                  background: "linear-gradient(135deg, #00e5ff, #66bb6a)",
-                  border: "none",
-                  color: "#08090d",
-                  borderRadius: 10,
-                  cursor: "pointer",
-                  boxShadow: "0 0 30px rgba(0,229,255,0.15)",
-                  transition: "transform 0.15s, box-shadow 0.15s",
-                }}
-                onMouseOver={(e) => {
-                  e.target.style.transform = "translateY(-1px)";
-                  e.target.style.boxShadow = "0 0 40px rgba(0,229,255,0.25)";
-                }}
-                onMouseOut={(e) => {
-                  e.target.style.transform = "none";
-                  e.target.style.boxShadow = "0 0 30px rgba(0,229,255,0.15)";
-                }}
-              >
-                Take the Quiz
-              </button>
+            )}
+            {firestoreError && (
+              <div style={{ color: "#ffb300", fontSize: 12, marginTop: 10 }}>
+                {firestoreError}
+              </div>
             )}
           </div>
 
