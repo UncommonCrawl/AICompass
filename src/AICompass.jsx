@@ -930,16 +930,11 @@ export default function AICompass() {
   const [results, setResults] = useState([]);
   const [userResult, setUserResult] = useState(null);
   const [selectedDot, setSelectedDot] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [firestoreError, setFirestoreError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   // Subscribe to live Firestore updates once on first render.
   useEffect(() => {
-    const loadingTimeout = setTimeout(() => {
-      setLoading(false);
-    }, 4000);
-
     const resultsQuery = query(
       collection(db, "compass-results-v2"),
       orderBy("ts", "asc"),
@@ -954,19 +949,19 @@ export default function AICompass() {
         }));
         setFirestoreError("");
         setResults(nextResults);
-        setLoading(false);
       },
-      () => {
-        setFirestoreError("Live sync unavailable right now.");
+      (error) => {
+        console.error("Firestore onSnapshot error:", error);
+        setFirestoreError(
+          error?.code
+            ? `Live sync unavailable (${error.code}).`
+            : "Live sync unavailable right now.",
+        );
         setResults([]);
-        setLoading(false);
       },
     );
 
-    return () => {
-      clearTimeout(loadingTimeout);
-      unsubscribe();
-    };
+    return unsubscribe;
   }, []);
 
   const handleQuizComplete = (ans) => {
@@ -975,12 +970,13 @@ export default function AICompass() {
     setScreen("demographics");
   };
 
-  const handleSubmit = async (demo = {}) => {
-    if (!scores) return;
+  const handleSubmit = async (demo = {}, overrideScores = null) => {
+    const activeScores = overrideScores || scores;
+    if (!activeScores) return;
     setSubmitting(true);
     const entry = {
-      x: scores.x,
-      y: scores.y,
+      x: activeScores.x,
+      y: activeScores.y,
       age: demo.age || "",
       country: demo.country || "",
       occupation: demo.occupation || "",
@@ -990,11 +986,23 @@ export default function AICompass() {
     try {
       const docRef = await addDoc(collection(db, "compass-results-v2"), entry);
       setUserResult({ ...entry, id: docRef.id });
-    } catch {
+    } catch (error) {
+      console.error("Firestore addDoc error:", error);
+      setFirestoreError(
+        error?.code
+          ? `Unable to submit (${error.code}).`
+          : "Unable to submit right now.",
+      );
       setUserResult({ ...entry, id: `local-${Date.now()}` });
     }
     setSubmitting(false);
     setScreen("results");
+  };
+
+  const handleDevShortcutSubmit = async () => {
+    const devScores = { x: 1, y: 1 };
+    setScores(devScores);
+    await handleSubmit({}, devScores);
   };
 
   const quadrant = scores ? getQuadrant(scores.x, scores.y) : null;
@@ -1087,9 +1095,24 @@ export default function AICompass() {
             >
               Take the Quiz
             </button>
-            {loading && (
-              <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, marginTop: 10 }}>
-                Loading compass data...
+            {import.meta.env.DEV && (
+              <div style={{ marginTop: 10 }}>
+                <button
+                  onClick={handleDevShortcutSubmit}
+                  style={{
+                    padding: "8px 14px",
+                    fontSize: 12,
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontWeight: 500,
+                    background: "rgba(255,255,255,0.08)",
+                    border: "1px solid rgba(255,255,255,0.14)",
+                    color: "rgba(255,255,255,0.86)",
+                    borderRadius: 8,
+                    cursor: "pointer",
+                  }}
+                >
+                  Dev shortcut: place at [2,2]
+                </button>
               </div>
             )}
             {firestoreError && (
