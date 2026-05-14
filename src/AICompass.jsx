@@ -119,22 +119,26 @@ const RESPONSE_RANGE = {
 
 const QUADRANT_INFO = {
   topRight: {
-    name: "Singularitarian",
+    name: "The Singulatarian",
+    compassLabel: "Singulatarians",
     desc: "Believes transformative AI is near and wants to accelerate toward it.",
     color: "#1f1a16",
   },
   topLeft: {
-    name: "Sentinel",
+    name: "The Sentinel",
+    compassLabel: "Sentinels",
     desc: "Believes powerful AI is coming but fears what happens without guardrails.",
     color: "#1f1a16",
   },
   bottomRight: {
-    name: "Synergist",
+    name: "The Synergist",
+    compassLabel: "Synergists",
     desc: "Skeptical of grand AI claims but supports continued development freedom.",
     color: "#1f1a16",
   },
   bottomLeft: {
-    name: "Skeptic",
+    name: "The Skeptic",
+    compassLabel: "Skeptics",
     desc: "Doubts transformative potential and favors strong restrictions.",
     color: "#1f1a16",
   },
@@ -302,32 +306,6 @@ function Compass({
           style={{ transition: "opacity 220ms ease" }}
         />
 
-        {/* Grid lines */}
-        {[-0.75, -0.5, -0.25, 0.25, 0.5, 0.75].map((v) => {
-          const { sx } = toSvg(v, 0);
-          const { sy } = toSvg(0, v);
-          return (
-            <g key={v}>
-              <line
-                x1={sx}
-                y1={pad}
-                x2={sx}
-                y2={dims.h - pad}
-                stroke={THEME.SiteBorder}
-                strokeWidth={0.5}
-              />
-              <line
-                x1={pad}
-                y1={sy}
-                x2={dims.w - pad}
-                y2={sy}
-                stroke={THEME.SiteBorder}
-                strokeWidth={0.5}
-              />
-            </g>
-          );
-        })}
-
         {/* Axes */}
         <line
           x1={cx}
@@ -407,46 +385,56 @@ function Compass({
 
         {/* Quadrant labels */}
         <text
-          x={pad + 12}
-          y={pad + 18}
+          x={pad + xRange / 2}
+          y={pad + yRange / 2}
+          textAnchor="middle"
+          dominantBaseline="middle"
           fill={QUADRANT_INFO.topLeft.color}
           fontSize={9}
           fontFamily="'IBM Plex Mono', monospace"
-          opacity={0.5}
+          letterSpacing="0.05em"
+          opacity={0.25}
         >
-          {QUADRANT_INFO.topLeft.name}
+          {QUADRANT_INFO.topLeft.compassLabel.toUpperCase()}
         </text>
         <text
-          x={dims.w - pad - 12}
-          y={pad + 18}
-          textAnchor="end"
+          x={cx + xRange / 2}
+          y={pad + yRange / 2}
+          textAnchor="middle"
+          dominantBaseline="middle"
           fill={QUADRANT_INFO.topRight.color}
           fontSize={9}
           fontFamily="'IBM Plex Mono', monospace"
-          opacity={0.5}
+          letterSpacing="0.05em"
+          opacity={0.25}
         >
-          {QUADRANT_INFO.topRight.name}
+          {QUADRANT_INFO.topRight.compassLabel.toUpperCase()}
         </text>
         <text
-          x={pad + 12}
-          y={dims.h - pad - 10}
+          x={pad + xRange / 2}
+          y={cy + yRange / 2}
+          textAnchor="middle"
+          dominantBaseline="middle"
           fill={QUADRANT_INFO.bottomLeft.color}
           fontSize={9}
           fontFamily="'IBM Plex Mono', monospace"
-          opacity={0.5}
+          letterSpacing="0.05em"
+          opacity={0.25}
         >
-          {QUADRANT_INFO.bottomLeft.name}
+          {QUADRANT_INFO.bottomLeft.compassLabel.toUpperCase()}
         </text>
         <text
-          x={dims.w - pad - 12}
-          y={dims.h - pad - 10}
-          textAnchor="end"
+          x={cx + xRange / 2}
+          y={cy + yRange / 2}
+          textAnchor="middle"
+          dominantBaseline="middle"
           fill={QUADRANT_INFO.bottomRight.color}
           fontSize={9}
           fontFamily="'IBM Plex Mono', monospace"
-          opacity={0.5}
+          letterSpacing="0.05em"
+          opacity={0.25}
         >
-          {QUADRANT_INFO.bottomRight.name}
+          {QUADRANT_INFO.bottomRight.compassLabel.toUpperCase()}
         </text>
 
         {/* Result dots */}
@@ -1216,7 +1204,7 @@ export default function AICompass() {
       }}
     >
       <link
-        href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Newsreader:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
         rel="stylesheet"
       />
 
@@ -1240,9 +1228,10 @@ export default function AICompass() {
         >
           <h1
             style={{
-              fontFamily: "'IBM Plex Mono', monospace",
+              fontFamily: "'Newsreader', serif",
               fontSize: 28,
-              fontWeight: 600,
+              fontWeight: 200,
+              letterSpacing: "0.00em",
               margin: 0,
               color: "#1f1a16",
               lineHeight: 1.3,
