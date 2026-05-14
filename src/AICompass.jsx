@@ -1,5 +1,13 @@
 import { useState, useEffect, useRef } from "react";
-import { addDoc, collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
+} from "firebase/firestore";
 import { db } from "./firebase";
 
 const QUESTIONS = [
@@ -103,34 +111,32 @@ const QUESTIONS = [
   },
 ];
 
-const LIKERT = [
-  { label: "Strongly Disagree", value: -2, short: "SD" },
-  { label: "Disagree", value: -1, short: "D" },
-  { label: "Neutral", value: 0, short: "N" },
-  { label: "Agree", value: 1, short: "A" },
-  { label: "Strongly Agree", value: 2, short: "SA" },
-];
+const RESPONSE_RANGE = {
+  min: -2,
+  max: 2,
+  step: 0.01,
+};
 
 const QUADRANT_INFO = {
   topRight: {
     name: "Singularitarian",
     desc: "Believes transformative AI is near and wants to accelerate toward it.",
-    color: "#00e5ff",
+    color: "#1f1a16",
   },
   topLeft: {
-    name: "Anxious Oracle",
+    name: "Sentinel",
     desc: "Believes powerful AI is coming but fears what happens without guardrails.",
-    color: "#ffb300",
+    color: "#1f1a16",
   },
   bottomRight: {
-    name: "Pragmatic Builder",
+    name: "Synergist",
     desc: "Skeptical of grand AI claims but supports continued development freedom.",
-    color: "#66bb6a",
+    color: "#1f1a16",
   },
   bottomLeft: {
-    name: "AI Skeptic",
+    name: "Skeptic",
     desc: "Doubts transformative potential and favors strong restrictions.",
-    color: "#ef5350",
+    color: "#1f1a16",
   },
 };
 
@@ -143,6 +149,12 @@ const AGE_RANGES = [
   "55-64",
   "65+",
 ];
+
+const THEME = {
+  SiteBG: "#f3ebde",
+  SiteText: "#1f1a16",
+  SiteBorder: "#b8aea2",
+};
 
 function calculateScores(answers) {
   let xSum = 0,
@@ -190,6 +202,7 @@ function Compass({
   onDotClick,
   selectedDot,
   onClearSelection,
+  activeQuadrant,
 }) {
   const svgRef = useRef(null);
   const [dims, setDims] = useState({ w: 960, h: 520 });
@@ -242,12 +255,7 @@ function Compass({
     sy: cy - yVal * yRange,
   });
 
-  const quadColors = {
-    topRight: "rgba(0,229,255,0.06)",
-    topLeft: "rgba(255,179,0,0.06)",
-    bottomRight: "rgba(102,187,106,0.06)",
-    bottomLeft: "rgba(239,83,80,0.06)",
-  };
+  const quadFill = "rgba(31,26,22,0.08)";
 
   return (
     <div style={{ position: "relative", width: "100%", margin: "0 auto" }}>
@@ -262,28 +270,36 @@ function Compass({
           y={pad}
           width={xRange}
           height={yRange}
-          fill={quadColors.topRight}
+          fill={quadFill}
+          opacity={activeQuadrant === "topRight" ? 1 : 0}
+          style={{ transition: "opacity 220ms ease" }}
         />
         <rect
           x={pad}
           y={pad}
           width={xRange}
           height={yRange}
-          fill={quadColors.topLeft}
+          fill={quadFill}
+          opacity={activeQuadrant === "topLeft" ? 1 : 0}
+          style={{ transition: "opacity 220ms ease" }}
         />
         <rect
           x={cx}
           y={cy}
           width={xRange}
           height={yRange}
-          fill={quadColors.bottomRight}
+          fill={quadFill}
+          opacity={activeQuadrant === "bottomRight" ? 1 : 0}
+          style={{ transition: "opacity 220ms ease" }}
         />
         <rect
           x={pad}
           y={cy}
           width={xRange}
           height={yRange}
-          fill={quadColors.bottomLeft}
+          fill={quadFill}
+          opacity={activeQuadrant === "bottomLeft" ? 1 : 0}
+          style={{ transition: "opacity 220ms ease" }}
         />
 
         {/* Grid lines */}
@@ -297,7 +313,7 @@ function Compass({
                 y1={pad}
                 x2={sx}
                 y2={dims.h - pad}
-                stroke="rgba(255,255,255,0.04)"
+                stroke={THEME.SiteBorder}
                 strokeWidth={0.5}
               />
               <line
@@ -305,7 +321,7 @@ function Compass({
                 y1={sy}
                 x2={dims.w - pad}
                 y2={sy}
-                stroke="rgba(255,255,255,0.04)"
+                stroke={THEME.SiteBorder}
                 strokeWidth={0.5}
               />
             </g>
@@ -315,18 +331,18 @@ function Compass({
         {/* Axes */}
         <line
           x1={cx}
-          y1={pad - 10}
+          y1={pad}
           x2={cx}
-          y2={dims.h - pad + 10}
-          stroke="rgba(255,255,255,0.2)"
+          y2={dims.h - pad}
+          stroke={THEME.SiteBorder}
           strokeWidth={1}
         />
         <line
-          x1={pad - 10}
+          x1={pad}
           y1={cy}
-          x2={dims.w - pad + 10}
+          x2={dims.w - pad}
           y2={cy}
-          stroke="rgba(255,255,255,0.2)"
+          stroke={THEME.SiteBorder}
           strokeWidth={1}
         />
 
@@ -337,7 +353,7 @@ function Compass({
           width={xRange * 2}
           height={yRange * 2}
           fill="none"
-          stroke="rgba(255,255,255,0.12)"
+          stroke={THEME.SiteBorder}
           strokeWidth={1}
         />
 
@@ -346,9 +362,9 @@ function Compass({
           x={cx}
           y={pad - 18}
           textAnchor="middle"
-          fill="#00e5ff"
+          fill="#1f1a16"
           fontSize={10}
-          fontFamily="'JetBrains Mono', monospace"
+          fontFamily="'IBM Plex Mono', monospace"
           opacity={0.8}
         >
           HIGH BELIEF IN LLM POTENTIAL
@@ -357,9 +373,9 @@ function Compass({
           x={cx}
           y={dims.h - pad + 28}
           textAnchor="middle"
-          fill="#ef5350"
+          fill="#1f1a16"
           fontSize={10}
-          fontFamily="'JetBrains Mono', monospace"
+          fontFamily="'IBM Plex Mono', monospace"
           opacity={0.8}
         >
           LOW BELIEF IN LLM POTENTIAL
@@ -368,9 +384,9 @@ function Compass({
           x={pad - 14}
           y={cy}
           textAnchor="middle"
-          fill="#ffb300"
+          fill="#1f1a16"
           fontSize={10}
-          fontFamily="'JetBrains Mono', monospace"
+          fontFamily="'IBM Plex Mono', monospace"
           opacity={0.8}
           transform={`rotate(-90,${pad - 14},${cy})`}
         >
@@ -380,9 +396,9 @@ function Compass({
           x={dims.w - pad + 14}
           y={cy}
           textAnchor="middle"
-          fill="#66bb6a"
+          fill="#1f1a16"
           fontSize={10}
-          fontFamily="'JetBrains Mono', monospace"
+          fontFamily="'IBM Plex Mono', monospace"
           opacity={0.8}
           transform={`rotate(90,${dims.w - pad + 14},${cy})`}
         >
@@ -395,7 +411,7 @@ function Compass({
           y={pad + 18}
           fill={QUADRANT_INFO.topLeft.color}
           fontSize={9}
-          fontFamily="'JetBrains Mono', monospace"
+          fontFamily="'IBM Plex Mono', monospace"
           opacity={0.5}
         >
           {QUADRANT_INFO.topLeft.name}
@@ -406,7 +422,7 @@ function Compass({
           textAnchor="end"
           fill={QUADRANT_INFO.topRight.color}
           fontSize={9}
-          fontFamily="'JetBrains Mono', monospace"
+          fontFamily="'IBM Plex Mono', monospace"
           opacity={0.5}
         >
           {QUADRANT_INFO.topRight.name}
@@ -416,7 +432,7 @@ function Compass({
           y={dims.h - pad - 10}
           fill={QUADRANT_INFO.bottomLeft.color}
           fontSize={9}
-          fontFamily="'JetBrains Mono', monospace"
+          fontFamily="'IBM Plex Mono', monospace"
           opacity={0.5}
         >
           {QUADRANT_INFO.bottomLeft.name}
@@ -427,7 +443,7 @@ function Compass({
           textAnchor="end"
           fill={QUADRANT_INFO.bottomRight.color}
           fontSize={9}
-          fontFamily="'JetBrains Mono', monospace"
+          fontFamily="'IBM Plex Mono', monospace"
           opacity={0.5}
         >
           {QUADRANT_INFO.bottomRight.name}
@@ -479,7 +495,7 @@ function Compass({
                 r={isUser ? 5 : 3.5}
                 fill={col}
                 opacity={isUser ? 1 : 0.7}
-                stroke={isSelected ? "#fff" : "none"}
+                stroke={isSelected ? THEME.SiteBG : "none"}
                 strokeWidth={isSelected ? 1.5 : 0}
               />
             </g>
@@ -500,8 +516,8 @@ function Compass({
             left: `${(sx / dims.w) * 100}%`,
             top: `${(sy / dims.h) * 100}%`,
             transform: `translate(${isRight ? "calc(-100% - 12px)" : "12px"}, ${isBottom ? "calc(-100% - 8px)" : "8px"})`,
-            background: "rgba(12,13,20,0.95)",
-            border: `1px solid ${qi.color}40`,
+            background: THEME.SiteText,
+            border: `1px solid ${THEME.SiteBorder}`,
             borderRadius: 8,
             padding: "12px 16px",
             minWidth: 180,
@@ -520,8 +536,8 @@ function Compass({
               >
                 <span
                   style={{
-                    color: qi.color,
-                    fontFamily: "'JetBrains Mono', monospace",
+                    color: THEME.SiteBG,
+                    fontFamily: "'IBM Plex Mono', monospace",
                     fontSize: 11,
                     fontWeight: 600,
                   }}
@@ -533,7 +549,7 @@ function Compass({
                   style={{
                     background: "none",
                     border: "none",
-                    color: "rgba(255,255,255,0.4)",
+                    color: THEME.SiteBG,
                     cursor: "pointer",
                     fontSize: 16,
                     padding: 0,
@@ -546,8 +562,8 @@ function Compass({
               <div
                 style={{
                   fontSize: 12,
-                  color: "rgba(255,255,255,0.5)",
-                  fontFamily: "'JetBrains Mono', monospace",
+                  color: THEME.SiteBG,
+                  fontFamily: "'IBM Plex Mono', monospace",
                   marginBottom: 6,
                 }}
               >
@@ -557,7 +573,7 @@ function Compass({
                 <div
                   style={{
                     fontSize: 12,
-                    color: "rgba(255,255,255,0.7)",
+                    color: THEME.SiteBG,
                     marginBottom: 2,
                   }}
                 >
@@ -568,7 +584,7 @@ function Compass({
                 <div
                   style={{
                     fontSize: 12,
-                    color: "rgba(255,255,255,0.7)",
+                    color: THEME.SiteBG,
                     marginBottom: 2,
                   }}
                 >
@@ -576,7 +592,7 @@ function Compass({
                 </div>
               )}
               {selectedDot.occupation && (
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                <div style={{ fontSize: 12, color: THEME.SiteBG }}>
                   Occupation: {selectedDot.occupation}
                 </div>
               )}
@@ -586,7 +602,7 @@ function Compass({
                   <div
                     style={{
                       fontSize: 12,
-                      color: "rgba(255,255,255,0.35)",
+                      color: THEME.SiteBG,
                       fontStyle: "italic",
                     }}
                   >
@@ -598,8 +614,8 @@ function Compass({
                   style={{
                     marginTop: 6,
                     fontSize: 10,
-                    color: qi.color,
-                    fontFamily: "'JetBrains Mono', monospace",
+                    color: THEME.SiteBG,
+                    fontFamily: "'IBM Plex Mono', monospace",
                     opacity: 0.7,
                   }}
                 >
@@ -623,13 +639,90 @@ function QuizPage({ onComplete }) {
 
   return (
     <div style={{ maxWidth: 640, margin: "0 auto" }}>
+      <style>{`
+        .response-slider-wrap {
+          position: relative;
+          width: 100%;
+          height: 18px;
+          display: flex;
+          align-items: center;
+        }
+
+        .response-slider-rail {
+          position: absolute;
+          left: 0;
+          right: 0;
+          top: 50%;
+          transform: translateY(-50%);
+          height: 6px;
+          border: 1px solid ${THEME.SiteText};
+          border-radius: 999px;
+          background: transparent;
+          pointer-events: none;
+          box-sizing: border-box;
+          z-index: 1;
+        }
+
+        .response-slider {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 100%;
+          margin: 0;
+          height: 18px;
+          background: transparent;
+          border: 0;
+          padding: 0;
+          cursor: pointer;
+          outline: none;
+          overflow: visible;
+          position: relative;
+          z-index: 2;
+        }
+
+        .response-slider::-webkit-slider-runnable-track {
+          height: 6px;
+          border-radius: 999px;
+          background: transparent;
+          border: 0;
+        }
+
+        .response-slider::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 18px;
+          height: 18px;
+          margin-top: -6px;
+          border-radius: 50%;
+          background: ${THEME.SiteText};
+          border: 2px solid ${THEME.SiteText};
+          box-shadow: none;
+          box-sizing: border-box;
+        }
+
+        .response-slider::-moz-range-track {
+          height: 6px;
+          border-radius: 999px;
+          background: transparent;
+          border: 0;
+        }
+
+        .response-slider::-moz-range-thumb {
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          background: ${THEME.SiteText};
+          border: 2px solid ${THEME.SiteText};
+          box-shadow: none;
+          box-sizing: border-box;
+        }
+      `}</style>
       {/* Progress */}
       <div
         style={{
           position: "sticky",
           top: 0,
           zIndex: 5,
-          background: "#08090d",
+          background: "#f3ebde",
           paddingBottom: 16,
           paddingTop: 4,
         }}
@@ -643,9 +736,9 @@ function QuizPage({ onComplete }) {
         >
           <span
             style={{
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "'IBM Plex Mono', monospace",
               fontSize: 12,
-              color: "rgba(255,255,255,0.4)",
+              color: "#1f1a16",
             }}
           >
             {Object.keys(answers).length} / {shuffledQuestions.length} answered
@@ -656,11 +749,11 @@ function QuizPage({ onComplete }) {
               style={{
                 padding: "6px 20px",
                 fontSize: 12,
-                fontFamily: "'Outfit', sans-serif",
+                fontFamily: "'Newsreader', serif",
                 fontWeight: 600,
-                background: "linear-gradient(135deg, #00e5ff, #66bb6a)",
+                background: "linear-gradient(135deg, #6f8f7a, #8da67f)",
                 border: "none",
-                color: "#08090d",
+                color: "#1f1a16",
                 borderRadius: 6,
                 cursor: "pointer",
               }}
@@ -672,7 +765,7 @@ function QuizPage({ onComplete }) {
         <div
           style={{
             height: 3,
-            background: "rgba(255,255,255,0.06)",
+            background: "rgba(31,26,22,0.06)",
             borderRadius: 2,
           }}
         >
@@ -680,7 +773,7 @@ function QuizPage({ onComplete }) {
             style={{
               height: "100%",
               width: `${(Object.keys(answers).length / shuffledQuestions.length) * 100}%`,
-              background: "linear-gradient(90deg, #00e5ff, #66bb6a)",
+              background: "linear-gradient(90deg, #6f8f7a, #8da67f)",
               borderRadius: 2,
               transition: "width 0.3s",
             }}
@@ -694,15 +787,15 @@ function QuizPage({ onComplete }) {
           key={q.id}
           style={{
             marginBottom: 20,
-            padding: "20px 24px",
+            padding: "80px 40px",
             background:
               answers[q.id] !== undefined
-                ? "rgba(255,255,255,0.015)"
-                : "rgba(255,255,255,0.02)",
+                ? "rgba(31,26,22,0.015)"
+                : "rgba(31,26,22,0.02)",
             border:
               answers[q.id] !== undefined
-                ? "1px solid rgba(0,229,255,0.08)"
-                : "1px solid rgba(255,255,255,0.06)",
+                ? `1px solid ${THEME.SiteBorder}`
+                : `1px solid ${THEME.SiteBorder}`,
             borderRadius: 10,
             transition: "border-color 0.2s",
           }}
@@ -710,8 +803,8 @@ function QuizPage({ onComplete }) {
           <div
             style={{
               fontSize: 11,
-              color: "rgba(255,255,255,0.3)",
-              fontFamily: "'JetBrains Mono', monospace",
+              color: "#1f1a16",
+              fontFamily: "'IBM Plex Mono', monospace",
               marginBottom: 8,
             }}
           >
@@ -720,45 +813,45 @@ function QuizPage({ onComplete }) {
           <div
             style={{
               fontSize: 15,
-              color: "rgba(255,255,255,0.88)",
+              color: "#1f1a16",
               lineHeight: 1.55,
               marginBottom: 16,
-              fontFamily: "'Outfit', sans-serif",
+              fontFamily: "'Newsreader', serif",
             }}
           >
             {q.text}
           </div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {LIKERT.map((opt) => {
-              const selected = answers[q.id] === opt.value;
-              return (
-                <button
-                  key={opt.value}
-                  onClick={() =>
-                    setAnswers((prev) => ({ ...prev, [q.id]: opt.value }))
-                  }
-                  style={{
-                    flex: "1 1 0",
-                    minWidth: 80,
-                    padding: "8px 4px",
-                    fontSize: 11,
-                    fontFamily: "'Outfit', sans-serif",
-                    border: selected
-                      ? "1px solid #00e5ff"
-                      : "1px solid rgba(255,255,255,0.1)",
-                    background: selected
-                      ? "rgba(0,229,255,0.12)"
-                      : "rgba(255,255,255,0.03)",
-                    color: selected ? "#00e5ff" : "rgba(255,255,255,0.55)",
-                    borderRadius: 6,
-                    cursor: "pointer",
-                    transition: "all 0.15s",
-                  }}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div className="response-slider-wrap">
+              <div className="response-slider-rail" />
+              <input
+                className="response-slider"
+                type="range"
+                min={RESPONSE_RANGE.min}
+                max={RESPONSE_RANGE.max}
+                step={RESPONSE_RANGE.step}
+                value={answers[q.id] ?? 0}
+                aria-label={`Response slider for question ${i + 1}`}
+                onChange={(e) =>
+                  setAnswers((prev) => ({
+                    ...prev,
+                    [q.id]: Number(e.target.value),
+                  }))
+                }
+              />
+            </div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: 11,
+                fontFamily: "'IBM Plex Mono', monospace",
+                color: "#1f1a16",
+              }}
+            >
+              <span>Strongly Disagree</span>
+              <span>Strongly Agree</span>
+            </div>
           </div>
         </div>
       ))}
@@ -771,13 +864,13 @@ function QuizPage({ onComplete }) {
           style={{
             padding: "14px 40px",
             fontSize: 15,
-            fontFamily: "'Outfit', sans-serif",
+            fontFamily: "'Newsreader', serif",
             fontWeight: 600,
             background: allAnswered
-              ? "linear-gradient(135deg, #00e5ff, #66bb6a)"
-              : "rgba(255,255,255,0.03)",
+              ? "linear-gradient(135deg, #6f8f7a, #8da67f)"
+              : "rgba(31,26,22,0.03)",
             border: "none",
-            color: allAnswered ? "#08090d" : "rgba(255,255,255,0.2)",
+            color: allAnswered ? "#1f1a16" : "rgba(31,26,22,0.35)",
             borderRadius: 10,
             cursor: allAnswered ? "pointer" : "default",
             transition: "all 0.3s",
@@ -802,10 +895,10 @@ function DemographicsPage({ onSubmit, onSkip }) {
     width: "100%",
     padding: "10px 14px",
     fontSize: 14,
-    fontFamily: "'Outfit', sans-serif",
-    background: "rgba(255,255,255,0.04)",
-    border: "1px solid rgba(255,255,255,0.1)",
-    color: "#e0e0e8",
+    fontFamily: "'Newsreader', serif",
+    background: "rgba(31,26,22,0.04)",
+    border: "1px solid rgba(31,26,22,0.1)",
+    color: "#1f1a16",
     borderRadius: 8,
     outline: "none",
     boxSizing: "border-box",
@@ -815,9 +908,9 @@ function DemographicsPage({ onSubmit, onSkip }) {
     <div style={{ maxWidth: 440, margin: "0 auto", textAlign: "center" }}>
       <h2
         style={{
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: "'IBM Plex Mono', monospace",
           fontSize: 18,
-          color: "#e0e0e8",
+          color: "#1f1a16",
           fontWeight: 500,
           marginBottom: 8,
         }}
@@ -826,9 +919,9 @@ function DemographicsPage({ onSubmit, onSkip }) {
       </h2>
       <p
         style={{
-          color: "rgba(255,255,255,0.45)",
+          color: "#1f1a16",
           fontSize: 14,
-          fontFamily: "'Outfit', sans-serif",
+          fontFamily: "'Newsreader', serif",
           marginBottom: 32,
         }}
       >
@@ -849,8 +942,8 @@ function DemographicsPage({ onSubmit, onSkip }) {
           <label
             style={{
               fontSize: 12,
-              color: "rgba(255,255,255,0.4)",
-              fontFamily: "'JetBrains Mono', monospace",
+              color: "#1f1a16",
+              fontFamily: "'IBM Plex Mono', monospace",
               display: "block",
               marginBottom: 6,
             }}
@@ -874,8 +967,8 @@ function DemographicsPage({ onSubmit, onSkip }) {
           <label
             style={{
               fontSize: 12,
-              color: "rgba(255,255,255,0.4)",
-              fontFamily: "'JetBrains Mono', monospace",
+              color: "#1f1a16",
+              fontFamily: "'IBM Plex Mono', monospace",
               display: "block",
               marginBottom: 6,
             }}
@@ -893,8 +986,8 @@ function DemographicsPage({ onSubmit, onSkip }) {
           <label
             style={{
               fontSize: 12,
-              color: "rgba(255,255,255,0.4)",
-              fontFamily: "'JetBrains Mono', monospace",
+              color: "#1f1a16",
+              fontFamily: "'IBM Plex Mono', monospace",
               display: "block",
               marginBottom: 6,
             }}
@@ -916,10 +1009,10 @@ function DemographicsPage({ onSubmit, onSkip }) {
           style={{
             padding: "10px 24px",
             fontSize: 13,
-            fontFamily: "'Outfit', sans-serif",
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.1)",
-            color: "rgba(255,255,255,0.5)",
+            fontFamily: "'Newsreader', serif",
+            background: "rgba(31,26,22,0.05)",
+            border: "1px solid rgba(31,26,22,0.1)",
+            color: "#1f1a16",
             borderRadius: 8,
             cursor: "pointer",
           }}
@@ -931,11 +1024,11 @@ function DemographicsPage({ onSubmit, onSkip }) {
           style={{
             padding: "10px 28px",
             fontSize: 13,
-            fontFamily: "'Outfit', sans-serif",
+            fontFamily: "'Newsreader', serif",
             fontWeight: 600,
-            background: "linear-gradient(135deg, #00e5ff, #66bb6a)",
+            background: "linear-gradient(135deg, #6f8f7a, #8da67f)",
             border: "none",
-            color: "#08090d",
+            color: "#1f1a16",
             borderRadius: 8,
             cursor: "pointer",
           }}
@@ -954,8 +1047,11 @@ export default function AICompass() {
   const [results, setResults] = useState([]);
   const [userResult, setUserResult] = useState(null);
   const [selectedDot, setSelectedDot] = useState(null);
+  const [hoveredQuadrant, setHoveredQuadrant] = useState(null);
+  const [pinnedQuadrant, setPinnedQuadrant] = useState(null);
   const [firestoreError, setFirestoreError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [clearingDevDots, setClearingDevDots] = useState(false);
 
   // Subscribe to live Firestore updates once on first render.
   useEffect(() => {
@@ -994,7 +1090,7 @@ export default function AICompass() {
     setScreen("demographics");
   };
 
-  const handleSubmit = (demo = {}, overrideScores = null) => {
+  const handleSubmit = (demo = {}, overrideScores = null, options = {}) => {
     const activeScores = overrideScores || scores;
     if (!activeScores) return;
     setSubmitting(true);
@@ -1004,6 +1100,7 @@ export default function AICompass() {
       age: demo.age || "",
       country: demo.country || "",
       occupation: demo.occupation || "",
+      isDev: options.isDev === true,
       ts: Date.now(),
     };
     const localId = `local-${Date.now()}`;
@@ -1040,13 +1137,44 @@ export default function AICompass() {
   };
 
   const handleDevShortcutSubmit = () => {
-    const devScores = { x: 1, y: 1 };
+    const devScores = {
+      x: Number((Math.random() * 2 - 1).toFixed(4)),
+      y: Number((Math.random() * 2 - 1).toFixed(4)),
+    };
     setScores(devScores);
-    handleSubmit({}, devScores);
+    handleSubmit({}, devScores, { isDev: true });
+  };
+
+  const handleClearDevDots = async () => {
+    setClearingDevDots(true);
+    try {
+      const allDocsSnap = await getDocs(collection(db, "compass-results-v2"));
+
+      const docsToDelete = allDocsSnap.docs.filter((docSnap) => {
+        const data = docSnap.data();
+        return data?.isDev === true;
+      });
+
+      await Promise.all(docsToDelete.map((docSnap) => deleteDoc(docSnap.ref)));
+      setResults((prev) => prev.filter((r) => r.isDev !== true));
+      setSelectedDot((prev) => (prev?.isDev === true ? null : prev));
+      setUserResult((prev) => (prev?.isDev === true ? null : prev));
+      setFirestoreError("");
+    } catch (error) {
+      console.error("Clear dev dots error:", error);
+      setFirestoreError(
+        error?.code
+          ? `Unable to clear dev dots (${error.code}).`
+          : "Unable to clear dev dots right now.",
+      );
+    } finally {
+      setClearingDevDots(false);
+    }
   };
 
   const quadrant = scores ? getQuadrant(scores.x, scores.y) : null;
   const qi = quadrant ? QUADRANT_INFO[quadrant] : null;
+  const activeQuadrant = pinnedQuadrant || hoveredQuadrant;
 
   useEffect(() => {
     if (screen !== "results") return;
@@ -1063,14 +1191,14 @@ export default function AICompass() {
     <div
       style={{
         minHeight: "100vh",
-        background: "#08090d",
-        color: "#e0e0e8",
-        fontFamily: "'Outfit', sans-serif",
+        background: THEME.SiteBG,
+        color: THEME.SiteText,
+        fontFamily: "'Newsreader', serif",
         padding: "24px 16px 60px",
       }}
     >
       <link
-        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
         rel="stylesheet"
       />
 
@@ -1082,24 +1210,33 @@ export default function AICompass() {
           paddingTop: 0,
         }}
       >
-        <h1
+        <button
+          onClick={() => setScreen("home")}
+          aria-label="Go to AI Compass home"
           style={{
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: 28,
-            fontWeight: 600,
-            margin: 0,
-            background: "linear-gradient(135deg, #00e5ff, #66bb6a, #ffb300)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            lineHeight: 1.3,
+            background: "none",
+            border: "none",
+            padding: 0,
+            cursor: "pointer",
           }}
         >
-          The AI Compass
-        </h1>
+          <h1
+            style={{
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: 28,
+              fontWeight: 600,
+              margin: 0,
+              color: "#1f1a16",
+              lineHeight: 1.3,
+            }}
+          >
+            The AI Compass
+          </h1>
+        </button>
         {screen === "home" && (
           <p
             style={{
-              color: "rgba(255,255,255,0.4)",
+              color: "#1f1a16",
               fontSize: 14,
               maxWidth: 1000,
               margin: "12px auto 0",
@@ -1121,10 +1258,10 @@ export default function AICompass() {
             padding: "10px 12px",
             borderRadius: 8,
             border: "1px solid rgba(255,179,0,0.4)",
-            background: "rgba(255,179,0,0.08)",
-            color: "#ffb300",
+            background: "rgba(31,26,22,0.08)",
+            color: "#1f1a16",
             fontSize: 12,
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: "'IBM Plex Mono', monospace",
           }}
         >
           {firestoreError}
@@ -1143,44 +1280,61 @@ export default function AICompass() {
               style={{
                 padding: "14px 40px",
                 fontSize: 15,
-                fontFamily: "'Outfit', sans-serif",
+                fontFamily: "'Newsreader', serif",
                 fontWeight: 600,
-                background: "linear-gradient(135deg, #00e5ff, #66bb6a)",
-                border: "none",
-                color: "#08090d",
+                background: "#f3ebde",
+                border: "1px solid rgba(31,26,22,0.2)",
+                color: "#1f1a16",
                 borderRadius: 10,
                 cursor: "pointer",
-                boxShadow: "0 0 30px rgba(0,229,255,0.15)",
-                transition: "transform 0.15s, box-shadow 0.15s",
-              }}
-              onMouseOver={(e) => {
-                e.target.style.transform = "translateY(-1px)";
-                e.target.style.boxShadow = "0 0 40px rgba(0,229,255,0.25)";
-              }}
-              onMouseOut={(e) => {
-                e.target.style.transform = "none";
-                e.target.style.boxShadow = "0 0 30px rgba(0,229,255,0.15)";
               }}
             >
               Take the Quiz
             </button>
             {import.meta.env.DEV && (
-              <div style={{ marginTop: 10 }}>
+              <div
+                style={{
+                  marginTop: 10,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                  flexWrap: "wrap",
+                }}
+              >
                 <button
                   onClick={handleDevShortcutSubmit}
                   style={{
                     padding: "8px 14px",
                     fontSize: 12,
-                    fontFamily: "'JetBrains Mono', monospace",
+                    fontFamily: "'IBM Plex Mono', monospace",
                     fontWeight: 500,
-                    background: "rgba(255,255,255,0.08)",
-                    border: "1px solid rgba(255,255,255,0.14)",
-                    color: "rgba(255,255,255,0.86)",
+                    background: "rgba(31,26,22,0.08)",
+                    border: "1px solid rgba(31,26,22,0.14)",
+                    color: "#1f1a16",
                     borderRadius: 8,
                     cursor: "pointer",
                   }}
                 >
-                  Dev shortcut: place at [2,2]
+                  Dev shortcut: random dot
+                </button>
+                <button
+                  onClick={handleClearDevDots}
+                  disabled={clearingDevDots}
+                  style={{
+                    padding: "8px 14px",
+                    fontSize: 12,
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontWeight: 500,
+                    background: "rgba(31,26,22,0.08)",
+                    border: "1px solid rgba(31,26,22,0.14)",
+                    color: "#1f1a16",
+                    borderRadius: 8,
+                    cursor: clearingDevDots ? "wait" : "pointer",
+                    opacity: clearingDevDots ? 0.7 : 1,
+                  }}
+                >
+                  {clearingDevDots ? "Clearing dev dots..." : "Reset dev dots"}
                 </button>
               </div>
             )}
@@ -1193,6 +1347,7 @@ export default function AICompass() {
               selectedDot={selectedDot}
               onDotClick={setSelectedDot}
               onClearSelection={() => setSelectedDot(null)}
+              activeQuadrant={activeQuadrant}
             />
           </div>
 
@@ -1200,9 +1355,9 @@ export default function AICompass() {
             {results.length > 0 && (
               <div
                 style={{
-                  fontFamily: "'JetBrains Mono', monospace",
+                  fontFamily: "'IBM Plex Mono', monospace",
                   fontSize: 11,
-                  color: "rgba(255,255,255,0.3)",
+                  color: "#1f1a16",
                 }}
               >
                 {results.length} response{results.length !== 1 ? "s" : ""}{" "}
@@ -1224,17 +1379,35 @@ export default function AICompass() {
             {Object.entries(QUADRANT_INFO).map(([key, val]) => (
               <div
                 key={key}
+                onMouseEnter={() => {
+                  if (!pinnedQuadrant) setHoveredQuadrant(key);
+                }}
+                onMouseLeave={() => {
+                  if (!pinnedQuadrant) setHoveredQuadrant(null);
+                }}
+                onClick={() =>
+                  setPinnedQuadrant((prev) => {
+                    if (prev === key) return null;
+                    setHoveredQuadrant(null);
+                    return key;
+                  })
+                }
                 style={{
                   padding: "12px 14px",
-                  background: "rgba(255,255,255,0.02)",
-                  border: "1px solid rgba(255,255,255,0.06)",
+                  background: "rgba(31,26,22,0.02)",
+                  border:
+                    activeQuadrant === key
+                      ? "1px solid rgba(31,26,22,0.35)"
+                      : "1px solid rgba(31,26,22,0.06)",
                   borderRadius: 8,
+                  cursor: "pointer",
+                  transition: "border-color 220ms ease",
                 }}
               >
                 <div
                   style={{
                     color: val.color,
-                    fontFamily: "'JetBrains Mono', monospace",
+                    fontFamily: "'IBM Plex Mono', monospace",
                     fontSize: 12,
                     fontWeight: 600,
                     marginBottom: 4,
@@ -1244,7 +1417,7 @@ export default function AICompass() {
                 </div>
                 <div
                   style={{
-                    color: "rgba(255,255,255,0.4)",
+                    color: "#1f1a16",
                     fontSize: 12,
                     lineHeight: 1.45,
                   }}
@@ -1260,21 +1433,6 @@ export default function AICompass() {
       {/* Quiz Screen */}
       {screen === "quiz" && (
         <div>
-          <button
-            onClick={() => setScreen("home")}
-            style={{
-              display: "block",
-              margin: "0 auto 20px",
-              background: "none",
-              border: "none",
-              color: "rgba(255,255,255,0.35)",
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 12,
-              cursor: "pointer",
-            }}
-          >
-            &larr; Back to compass
-          </button>
           <QuizPage onComplete={handleQuizComplete} />
         </div>
       )}
@@ -1293,9 +1451,9 @@ export default function AICompass() {
           <div style={{ textAlign: "center", marginBottom: 28 }}>
             <div
               style={{
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: "'IBM Plex Mono', monospace",
                 fontSize: 11,
-                color: "rgba(255,255,255,0.3)",
+                color: "#1f1a16",
                 letterSpacing: 2,
                 marginBottom: 8,
               }}
@@ -1304,7 +1462,7 @@ export default function AICompass() {
             </div>
             <div
               style={{
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: "'IBM Plex Mono', monospace",
                 fontSize: 24,
                 color: qi.color,
                 fontWeight: 600,
@@ -1315,7 +1473,7 @@ export default function AICompass() {
             </div>
             <p
               style={{
-                color: "rgba(255,255,255,0.5)",
+                color: "#1f1a16",
                 fontSize: 14,
                 maxWidth: 400,
                 margin: "0 auto 16px",
@@ -1326,9 +1484,9 @@ export default function AICompass() {
             </p>
             <div
               style={{
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: "'IBM Plex Mono', monospace",
                 fontSize: 12,
-                color: "rgba(255,255,255,0.35)",
+                color: "#1f1a16",
               }}
             >
               Advancement: {scores.x > 0 ? "+" : ""}
@@ -1363,10 +1521,10 @@ export default function AICompass() {
               style={{
                 padding: "10px 24px",
                 fontSize: 13,
-                fontFamily: "'Outfit', sans-serif",
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                color: "rgba(255,255,255,0.6)",
+                fontFamily: "'Newsreader', serif",
+                background: "rgba(31,26,22,0.05)",
+                border: "1px solid rgba(31,26,22,0.1)",
+                color: "#1f1a16",
                 borderRadius: 8,
                 cursor: "pointer",
               }}
@@ -1382,10 +1540,10 @@ export default function AICompass() {
               style={{
                 padding: "10px 24px",
                 fontSize: 13,
-                fontFamily: "'Outfit', sans-serif",
+                fontFamily: "'Newsreader', serif",
                 background: "rgba(0,229,255,0.1)",
                 border: "1px solid rgba(0,229,255,0.3)",
-                color: "#00e5ff",
+                color: "#1f1a16",
                 borderRadius: 8,
                 cursor: "pointer",
               }}
@@ -1401,7 +1559,7 @@ export default function AICompass() {
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(8,9,13,0.8)",
+            background: "rgba(243,235,222,0.8)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -1410,9 +1568,9 @@ export default function AICompass() {
         >
           <div
             style={{
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "'IBM Plex Mono', monospace",
               fontSize: 14,
-              color: "#00e5ff",
+              color: "#1f1a16",
             }}
           >
             Plotting your position...
