@@ -694,9 +694,12 @@ function QuizPage({ onComplete }) {
           margin-top: -6px;
           border-radius: 50%;
           background: ${THEME.SiteText};
-          border: 2px solid ${THEME.SiteText};
+          border: 1px solid ${THEME.SiteText};
           box-shadow: none;
           box-sizing: border-box;
+          transition:
+            background-color 1s ease,
+            border-color 1s ease;
         }
 
         .response-slider::-moz-range-track {
@@ -711,9 +714,22 @@ function QuizPage({ onComplete }) {
           height: 18px;
           border-radius: 50%;
           background: ${THEME.SiteText};
-          border: 2px solid ${THEME.SiteText};
+          border: 1px solid ${THEME.SiteText};
           box-shadow: none;
           box-sizing: border-box;
+          transition:
+            background-color 1s ease,
+            border-color 1s ease;
+        }
+
+        .response-slider.is-unanswered::-webkit-slider-thumb {
+          background: ${THEME.SiteBG};
+          border: 1px solid ${THEME.SiteText};
+        }
+
+        .response-slider.is-unanswered::-moz-range-thumb {
+          background: ${THEME.SiteBG};
+          border: 1px solid ${THEME.SiteText};
         }
       `}</style>
       {/* Progress */}
@@ -791,13 +807,13 @@ function QuizPage({ onComplete }) {
             background:
               answers[q.id] !== undefined
                 ? "rgba(31,26,22,0.015)"
-                : "rgba(31,26,22,0.02)",
+                : THEME.SiteBG,
             border:
               answers[q.id] !== undefined
-                ? `1px solid ${THEME.SiteBorder}`
+                ? `1px solid ${THEME.SiteText}`
                 : `1px solid ${THEME.SiteBorder}`,
             borderRadius: 10,
-            transition: "border-color 0.2s",
+            transition: "background-color 1s ease, border-color 1s ease",
           }}
         >
           <div
@@ -825,7 +841,9 @@ function QuizPage({ onComplete }) {
             <div className="response-slider-wrap">
               <div className="response-slider-rail" />
               <input
-                className="response-slider"
+                className={`response-slider ${
+                  answers[q.id] === undefined ? "is-unanswered" : ""
+                }`}
                 type="range"
                 min={RESPONSE_RANGE.min}
                 max={RESPONSE_RANGE.max}
