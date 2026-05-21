@@ -22,3 +22,25 @@ When updating visual styles, verify the active React entrypoint and rendered roo
 - `src/main.jsx` defines the mounted root component.
 - If styles are inline in that component tree, update those styles directly (not only shared CSS files).
 - Run a quick literal scan for stale palette/font values before finishing.
+
+## Duplicate Submission Handling
+
+The survey submit path now expects a Firebase HTTPS function endpoint.
+
+1. Deploy function from `functions/index.js` with secret `COMPASS_HASH_SECRET`.
+2. Set web env var `VITE_COMPASS_SUBMIT_ENDPOINT` to the deployed function URL.
+3. Deploy `firestore.rules` so direct client writes to `compass-results-v2` are blocked.
+
+Submission behavior:
+
+- users can retake freely,
+- every submission is saved,
+- repeats within 24h (same IP hash or device hash) are marked,
+- `include_in_default_aggregate` is automatically set by backend logic (`repeat IP OR repeat device` excludes),
+- `include_in_device_priority_aggregate` is also stored (`repeat device` excludes; IP-only repeats remain included).
+
+Analytics-friendly fields:
+
+- `repeat_classification`: `first_or_stale`, `repeat_ip_24h_only`, `repeat_device_24h`
+- `include_in_default_aggregate`: strict default map
+- `include_in_device_priority_aggregate`: device-priority map

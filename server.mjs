@@ -7,6 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const distDir = path.join(__dirname, "dist");
 const port = Number(process.env.PORT || 8080);
+const host = process.env.HOST || "127.0.0.1";
 
 const mimeTypes = {
   ".css": "text/css; charset=utf-8",
@@ -51,6 +52,12 @@ const server = http.createServer((req, res) => {
   });
 });
 
-server.listen(port, "0.0.0.0", () => {
-  console.log(`AICompass server listening on port ${port}`);
+server.on("error", (err) => {
+  console.error(`Failed to start server on ${host}:${port}`);
+  console.error(err);
+  process.exitCode = 1;
+});
+
+server.listen(port, host, () => {
+  console.log(`AICompass server listening on http://${host}:${port}`);
 });

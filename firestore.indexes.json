@@ -1,0 +1,100 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "compass-results-v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "include_in_default_aggregate", "order": "ASCENDING" },
+        { "fieldPath": "ts", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "compass-results-v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "include_in_device_priority_aggregate",
+          "order": "ASCENDING"
+        },
+        { "fieldPath": "ts", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "compass-results-v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "is_repeat_device_24h", "order": "ASCENDING" },
+        { "fieldPath": "ts", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "compass-results-v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "include_in_default_aggregate", "order": "ASCENDING" },
+        { "fieldPath": "archetype", "order": "ASCENDING" },
+        { "fieldPath": "ts", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "compass-results-v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "include_in_device_priority_aggregate",
+          "order": "ASCENDING"
+        },
+        { "fieldPath": "archetype", "order": "ASCENDING" },
+        { "fieldPath": "ts", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "compass-results-v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "include_in_default_aggregate", "order": "ASCENDING" },
+        { "fieldPath": "age", "order": "ASCENDING" },
+        { "fieldPath": "ts", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "compass-results-v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "include_in_default_aggregate", "order": "ASCENDING" },
+        { "fieldPath": "country", "order": "ASCENDING" },
+        { "fieldPath": "ts", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "compass-results-v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "include_in_default_aggregate", "order": "ASCENDING" },
+        { "fieldPath": "industry", "order": "ASCENDING" },
+        { "fieldPath": "ts", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "compass-results-v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "include_in_default_aggregate", "order": "ASCENDING" },
+        { "fieldPath": "country", "order": "ASCENDING" },
+        { "fieldPath": "industry", "order": "ASCENDING" },
+        { "fieldPath": "ts", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "compass-results-v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "include_in_default_aggregate", "order": "ASCENDING" },
+        { "fieldPath": "age", "order": "ASCENDING" },
+        { "fieldPath": "industry", "order": "ASCENDING" },
+        { "fieldPath": "ts", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

@@ -1,6 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import {
-  addDoc,
   collection,
   deleteDoc,
   getDocs,
@@ -9,6 +8,7 @@ import {
   query,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import { ISO_COUNTRIES } from "./isoCountries";
 
 const QUESTIONS = [
   // Y-axis: LLM Potential Belief (positive = more belief)
@@ -117,6 +117,17 @@ const RESPONSE_RANGE = {
   step: 0.01,
 };
 
+const RESULT_SCHEMA_VERSION = 3;
+const COMPASS_RESULTS_COLLECTION = "compass-results-v2";
+const COMPASS_SUBMIT_ENDPOINT =
+  import.meta.env.VITE_COMPASS_SUBMIT_ENDPOINT || "";
+const DEVICE_ID_STORAGE_KEY = "ai_compass_device_id_v1";
+const SESSION_ID_STORAGE_KEY = "ai_compass_session_id_v1";
+const UNKNOWN_SEGMENT_VALUE = "__UNSPECIFIED__";
+const QUESTION_MEDIAN_BY_ID = Object.fromEntries(
+  QUESTIONS.map((question) => [question.id, 0]),
+);
+
 const QUADRANT_INFO = {
   topRight: {
     name: "The Singulatarian",
@@ -131,9 +142,9 @@ const QUADRANT_INFO = {
     color: "#1f1a16",
   },
   bottomRight: {
-    name: "The Synergist",
-    compassLabel: "Synergists",
-    desc: "Skeptical of grand AI claims but supports continued development freedom.",
+    name: "The Synthesist",
+    compassLabel: "Synthesists",
+    desc: "Wary of grand AI claims while believing in real-world applications.",
     color: "#1f1a16",
   },
   bottomLeft: {
@@ -154,11 +165,70 @@ const AGE_RANGES = [
   "65+",
 ];
 
+const INDUSTRY_OPTIONS = [
+  "Agriculture & Forestry",
+  "Architecture & Construction",
+  "Arts & Entertainment",
+  "Automotive & Transportation",
+  "Banking & Finance",
+  "Consumer Goods & Retail",
+  "Education & Academia",
+  "Energy & Utilities",
+  "Government",
+  "Healthcare",
+  "Hospitality & Tourism",
+  "IT & Software",
+  "Insurance",
+  "Legal Services",
+  "Logistics Manufacturing",
+  "Media & Journalism",
+  "Military & Defense",
+  "Non-Profit",
+  "Professional Services",
+  "Real Estate",
+  "Science & Research",
+  "Telecommunications",
+  "Other",
+];
+
+const COUNTRY_OPTIONS = ISO_COUNTRIES;
+
+function formatCountryName(name) {
+  return name.replace(/\s*\(the\)/gi, ", The");
+}
+
+const COUNTRY_NAME_BY_CODE = Object.fromEntries(
+  COUNTRY_OPTIONS.map((country) => [
+    country.code,
+    formatCountryName(country.name),
+  ]),
+);
+const PREFER_NOT_TO_SAY_VALUE = "__PREFER_NOT_TO_SAY__";
+const OCCUPATION_CHAR_LIMIT = 24;
+const NOTES_CHAR_LIMIT = 120;
+const HEADER_ACTION_HEIGHT = 44;
+const HEADER_BAR_HEIGHT = 118;
+const HOME_SECTION_GAP = 20;
+const ARCHETYPE_BG_SOLID = "#efe6da";
+const UNSPECIFIED_FILTER_VALUE = "__UNSPECIFIED__";
+const DROPDOWN_VIEWPORT_BUFFER = 10;
+const DROPDOWN_MENU_MAX_HEIGHT = 200;
+const DEV_SAMPLE_OCCUPATION = "Lead Social Media Strategy Supervisor";
+const DEV_SAMPLE_NOTES =
+  "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
+
 const THEME = {
   SiteBG: "#f3ebde",
   SiteText: "#1f1a16",
   SiteBorder: "#b8aea2",
 };
+
+const ARCHETYPE_GRID_ORDER = [
+  "topLeft",
+  "topRight",
+  "bottomLeft",
+  "bottomRight",
+];
 
 function calculateScores(answers) {
   let xSum = 0,
@@ -183,6 +253,54 @@ function calculateScores(answers) {
   };
 }
 
+function normalizeAnswerValue(value) {
+  if (typeof value !== "number" || Number.isNaN(value)) return null;
+  return Number(value.toFixed(2));
+}
+
+function buildQuestionAnalyticsPayload(answers, questionOrder = []) {
+  const valuesByQuestionId = {};
+  const responses = [];
+
+  for (const question of QUESTIONS) {
+    const rawValue = normalizeAnswerValue(answers?.[question.id]);
+    if (rawValue === null) continue;
+
+    const weightedValue = Number((rawValue * question.direction).toFixed(4));
+    valuesByQuestionId[question.id] = rawValue;
+    responses.push({
+      questionId: question.id,
+      questionText: question.text,
+      axis: question.axis,
+      direction: question.direction,
+      value: rawValue,
+      weightedValue,
+      median: QUESTION_MEDIAN_BY_ID[question.id] ?? 0,
+    });
+  }
+
+  return {
+    questionOrder:
+      questionOrder.length > 0 ? questionOrder : QUESTIONS.map((q) => q.id),
+    questionValues: valuesByQuestionId,
+    questionResponses: responses,
+    questionMedians: QUESTION_MEDIAN_BY_ID,
+  };
+}
+
+function normalizeSegmentValue(value) {
+  const cleaned = typeof value === "string" ? value.trim() : "";
+  return cleaned !== "" ? cleaned : UNKNOWN_SEGMENT_VALUE;
+}
+
+function buildDemographicSegments(demo) {
+  return {
+    age: normalizeSegmentValue(demo.age),
+    country: normalizeSegmentValue(demo.country),
+    industry: normalizeSegmentValue(demo.industry),
+  };
+}
+
 function getQuadrant(x, y) {
   if (y >= 0 && x >= 0) return "topRight";
   if (y >= 0 && x < 0) return "topLeft";
@@ -199,18 +317,517 @@ function shuffleArray(arr) {
   return shuffled;
 }
 
+function normalizeFilterValue(value) {
+  return typeof value === "string" && value.trim() !== ""
+    ? value
+    : UNSPECIFIED_FILTER_VALUE;
+}
+
+function useDropdownMenuLayout(open, rootRef) {
+  const [menuPlacement, setMenuPlacement] = useState("down");
+  const [menuMaxHeight, setMenuMaxHeight] = useState(DROPDOWN_MENU_MAX_HEIGHT);
+
+  const updateMenuLayout = () => {
+    const root = rootRef.current;
+    if (!root) return;
+    const rect = root.getBoundingClientRect();
+    const vv = window.visualViewport;
+    const viewportTop = (vv?.offsetTop ?? 0) + DROPDOWN_VIEWPORT_BUFFER;
+    const viewportBottom =
+      (vv ? vv.offsetTop + vv.height : window.innerHeight) -
+      DROPDOWN_VIEWPORT_BUFFER;
+    const spaceAbove = rect.top - viewportTop;
+    const spaceBelow = viewportBottom - rect.bottom;
+    const openUp = spaceAbove > spaceBelow;
+    const maxHeight = Math.max(
+      0,
+      Math.min(
+        DROPDOWN_MENU_MAX_HEIGHT,
+        Math.floor(openUp ? spaceAbove : spaceBelow),
+      ),
+    );
+    setMenuPlacement(openUp ? "up" : "down");
+    setMenuMaxHeight(maxHeight);
+  };
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    updateMenuLayout();
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleResizeOrScroll = () => updateMenuLayout();
+    window.addEventListener("resize", handleResizeOrScroll);
+    window.addEventListener("scroll", handleResizeOrScroll, true);
+    return () => {
+      window.removeEventListener("resize", handleResizeOrScroll);
+      window.removeEventListener("scroll", handleResizeOrScroll, true);
+    };
+  }, [open]);
+
+  return { menuPlacement, menuMaxHeight, updateMenuLayout };
+}
+
+function createAnonymousUuid() {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+function getOrCreateStorageId(storageType, key) {
+  try {
+    const storage =
+      storageType === "session" ? window.sessionStorage : window.localStorage;
+    const existing = storage.getItem(key);
+    if (existing) return existing;
+    const next = createAnonymousUuid();
+    storage.setItem(key, next);
+    return next;
+  } catch {
+    return createAnonymousUuid();
+  }
+}
+
+function getClientCountryHint() {
+  if (typeof navigator === "undefined") return "";
+  const locales = navigator.languages?.length
+    ? navigator.languages
+    : [navigator.language];
+  for (const locale of locales) {
+    if (typeof locale !== "string") continue;
+    const parts = locale.split(/[-_]/);
+    const maybeCode = parts[1]?.toUpperCase();
+    if (maybeCode && COUNTRY_NAME_BY_CODE[maybeCode]) return maybeCode;
+  }
+  return "";
+}
+
+async function submitCompassResult(payload) {
+  if (!COMPASS_SUBMIT_ENDPOINT) {
+    throw new Error(
+      "Submission endpoint missing. Set VITE_COMPASS_SUBMIT_ENDPOINT.",
+    );
+  }
+  const response = await fetch(COMPASS_SUBMIT_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message =
+      typeof body?.error === "string" && body.error.trim() !== ""
+        ? body.error
+        : `HTTP ${response.status}`;
+    throw new Error(message);
+  }
+  return body;
+}
+
+function MultiSelectFilter({
+  label,
+  options,
+  disabledValues,
+  setDisabledValues,
+}) {
+  const disabledSet = new Set(disabledValues);
+  const enabledCount = options.length - disabledValues.length;
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef(null);
+  const menuRef = useRef(null);
+  const { menuPlacement, menuMaxHeight, updateMenuLayout } =
+    useDropdownMenuLayout(open, rootRef);
+  const enabledOptions = options.filter((opt) => !disabledSet.has(opt.value));
+  const previewLabel =
+    enabledCount === options.length
+      ? "All"
+      : enabledCount === 0
+        ? "N/A"
+        : enabledCount === 1
+          ? enabledOptions[0].label
+          : "Custom...";
+  const selectionState =
+    enabledCount === options.length
+      ? "plus"
+      : enabledCount === 0
+        ? "minus"
+        : "mixed";
+  const allEnabled = enabledCount === options.length;
+  const selectionGlyph =
+    selectionState === "plus" ? "+" : selectionState === "minus" ? "-" : "";
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handlePointerDown = (event) => {
+      if (!menuRef.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [open]);
+
+  return (
+    <div
+      ref={rootRef}
+      style={{
+        position: "relative",
+        border: "1px solid rgba(31,26,22,0.1)",
+        borderRadius: 8,
+        background: "rgba(31,26,22,0.02)",
+        padding: "8px 10px",
+      }}
+    >
+      <label
+        style={{
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontSize: 12,
+          color: "#1f1a16",
+          display: "flex",
+          justifyContent: "space-between",
+          marginBottom: 8,
+        }}
+      >
+        <span>{label}</span>
+      </label>
+      <style>
+        {`
+          .filter-menu-scroll::-webkit-scrollbar {
+            display: none;
+          }
+        `}
+      </style>
+      <button
+        type="button"
+        onPointerDown={(e) => {
+          if (open) e.stopPropagation();
+        }}
+        onClick={() => {
+          if (!open) {
+            updateMenuLayout();
+            setOpen(true);
+            return;
+          }
+          setOpen(false);
+        }}
+        style={{
+          width: "100%",
+          height: 34,
+          padding: "8px 10px",
+          fontSize: 12,
+          fontFamily: "'Newsreader', serif",
+          background: "rgba(31,26,22,0.02)",
+          border: "1px solid rgba(31,26,22,0.14)",
+          color: "#1f1a16",
+          borderRadius: 6,
+          outline: "none",
+          boxSizing: "border-box",
+          cursor: "pointer",
+          textAlign: "left",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "flex-start",
+        }}
+      >
+        <span>{previewLabel}</span>
+      </button>
+      {open && (
+        <div
+          ref={menuRef}
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            ...(menuPlacement === "up" ? { bottom: "100%" } : { top: "100%" }),
+            background: ARCHETYPE_BG_SOLID,
+            border: "1px solid rgba(31,26,22,0.2)",
+            borderRadius: 8,
+            boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+            padding: 8,
+            zIndex: 30,
+          }}
+        >
+          <div
+            className="filter-menu-scroll"
+            style={{
+              maxHeight: menuMaxHeight,
+              overflowY: "auto",
+              display: "grid",
+              gap: 0,
+              scrollbarWidth: "none",
+              msOverflowStyle: "none",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() =>
+                setDisabledValues(allEnabled ? options.map((o) => o.value) : [])
+              }
+              style={{
+                width: "100%",
+                textAlign: "left",
+                padding: "8px 8px",
+                border: "none",
+                background: "transparent",
+                color: "#1f1a16",
+                fontFamily: "'Newsreader', serif",
+                fontSize: 12,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <span
+                style={{
+                  width: 16,
+                  height: 16,
+                  border: "1px solid rgba(31,26,22,0.45)",
+                  borderRadius: 4,
+                  background: THEME.SiteBG,
+                  color: THEME.SiteText,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 11,
+                  lineHeight: 1,
+                }}
+              >
+                {selectionGlyph}
+              </span>
+              <span>Select/Deselect All</span>
+            </button>
+            {options.map((option) => {
+              const enabled = !disabledSet.has(option.value);
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() =>
+                    setDisabledValues((prev) =>
+                      prev.includes(option.value)
+                        ? prev.filter((v) => v !== option.value)
+                        : [...prev, option.value],
+                    )
+                  }
+                  style={{
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "8px 8px",
+                    border: "none",
+                    background: "transparent",
+                    color: "#1f1a16",
+                    fontFamily: "'Newsreader', serif",
+                    fontSize: 12,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 16,
+                      height: 16,
+                      border: "1px solid rgba(31,26,22,0.45)",
+                      borderRadius: 4,
+                      background: THEME.SiteBG,
+                      color: THEME.SiteText,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 11,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {enabled ? "+" : ""}
+                  </span>
+                  <span>{option.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SingleSelectDropdown({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef(null);
+  const menuRef = useRef(null);
+  const { menuPlacement, menuMaxHeight, updateMenuLayout } =
+    useDropdownMenuLayout(open, rootRef);
+  const previewLabel =
+    options.find((option) => option.value === value)?.label || placeholder;
+
+  useEffect(() => {
+    if (!open) return;
+    const handlePointerDown = (event) => {
+      if (!menuRef.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [open]);
+
+  return (
+    <div
+      ref={rootRef}
+      style={{
+        position: "relative",
+        border: "1px solid rgba(31,26,22,0.1)",
+        borderRadius: 8,
+        background: "rgba(31,26,22,0.02)",
+        padding: "8px 10px",
+      }}
+    >
+      <label
+        style={{
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontSize: 12,
+          color: "#1f1a16",
+          display: "flex",
+          justifyContent: "space-between",
+          marginBottom: 8,
+        }}
+      >
+        <span>{label}</span>
+      </label>
+      <style>
+        {`
+          .filter-menu-scroll::-webkit-scrollbar {
+            display: none;
+          }
+        `}
+      </style>
+      <button
+        type="button"
+        onPointerDown={(e) => {
+          if (open) e.stopPropagation();
+        }}
+        onClick={() => {
+          if (!open) {
+            updateMenuLayout();
+            setOpen(true);
+            return;
+          }
+          setOpen(false);
+        }}
+        style={{
+          width: "100%",
+          height: 34,
+          padding: "8px 10px",
+          fontSize: 12,
+          fontFamily: "'Newsreader', serif",
+          background: "rgba(31,26,22,0.02)",
+          border: "1px solid rgba(31,26,22,0.14)",
+          color: "#1f1a16",
+          borderRadius: 6,
+          outline: "none",
+          boxSizing: "border-box",
+          cursor: "pointer",
+          textAlign: "left",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "flex-start",
+        }}
+      >
+        <span>{previewLabel}</span>
+      </button>
+      {open && (
+        <div
+          ref={menuRef}
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            ...(menuPlacement === "up" ? { bottom: "100%" } : { top: "100%" }),
+            background: ARCHETYPE_BG_SOLID,
+            border: "1px solid rgba(31,26,22,0.2)",
+            borderRadius: 8,
+            boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+            padding: 8,
+            zIndex: 30,
+          }}
+        >
+          <div
+            className="filter-menu-scroll"
+            style={{
+              maxHeight: menuMaxHeight,
+              overflowY: "auto",
+              display: "grid",
+              gap: 0,
+              scrollbarWidth: "none",
+              msOverflowStyle: "none",
+            }}
+          >
+            {options.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                }}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "8px 8px",
+                  border: "none",
+                  background: "transparent",
+                  color: "#1f1a16",
+                  fontFamily: "'Newsreader', serif",
+                  fontSize: 12,
+                  cursor: "pointer",
+                }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // --- Compass Visualization ---
 function Compass({
   results,
   userResult,
-  onDotClick,
-  selectedDot,
-  onClearSelection,
   activeQuadrant,
+  disabledAges,
+  disabledCountries,
+  disabledIndustries,
 }) {
   const svgRef = useRef(null);
   const [dims, setDims] = useState({ w: 960, h: 520 });
-  const pad = 60;
+  const [hoveredDot, setHoveredDot] = useState(null);
+  const axisLabelGap = 10;
+  const axisLabelFontSize = 10;
+  const pad = axisLabelGap + axisLabelFontSize + 2;
 
   useEffect(() => {
     const el = svgRef.current?.parentElement;
@@ -260,6 +877,76 @@ function Compass({
   });
 
   const quadFill = "rgba(31,26,22,0.08)";
+  const quadrantFillRects = [
+    { key: "topRight", x: cx, y: pad },
+    { key: "topLeft", x: pad, y: pad },
+    { key: "bottomRight", x: cx, y: cy },
+    { key: "bottomLeft", x: pad, y: cy },
+  ];
+  const axisLabelTextStyle = {
+    textAnchor: "middle",
+    fill: "#1f1a16",
+    fontSize: axisLabelFontSize,
+    fontFamily: "'IBM Plex Mono', monospace",
+    opacity: 0.8,
+  };
+  const axisLabels = [
+    {
+      key: "top",
+      x: cx,
+      y: pad - axisLabelGap,
+      text: "HIGH BELIEF IN LLM POTENTIAL",
+    },
+    {
+      key: "bottom",
+      x: cx,
+      y: dims.h - pad + axisLabelGap + axisLabelFontSize,
+      text: "LOW BELIEF IN LLM POTENTIAL",
+    },
+    {
+      key: "left",
+      x: pad - axisLabelGap,
+      y: cy,
+      text: "RESTRICT ADVANCEMENT",
+      transform: `rotate(-90,${pad - axisLabelGap},${cy})`,
+    },
+    {
+      key: "right",
+      x: dims.w - pad + axisLabelGap,
+      y: cy,
+      text: "ACCELERATE ADVANCEMENT",
+      transform: `rotate(90,${dims.w - pad + axisLabelGap},${cy})`,
+    },
+  ];
+  const compassLabelTextStyle = {
+    textAnchor: "middle",
+    dominantBaseline: "middle",
+    fontSize: 9,
+    fontFamily: "'IBM Plex Mono', monospace",
+    letterSpacing: "0.15em",
+    opacity: 0.25,
+  };
+  const compassLabelPositions = [
+    { key: "topLeft", x: pad + xRange / 2, y: pad + yRange / 2 },
+    { key: "topRight", x: cx + xRange / 2, y: pad + yRange / 2 },
+    { key: "bottomLeft", x: pad + xRange / 2, y: cy + yRange / 2 },
+    { key: "bottomRight", x: cx + xRange / 2, y: cy + yRange / 2 },
+  ];
+  const disabledAgeSet = useMemo(() => new Set(disabledAges), [disabledAges]);
+  const disabledCountrySet = useMemo(
+    () => new Set(disabledCountries),
+    [disabledCountries],
+  );
+  const disabledIndustrySet = useMemo(
+    () => new Set(disabledIndustries),
+    [disabledIndustries],
+  );
+  const isDotEnabled = (dot) =>
+    !disabledAgeSet.has(normalizeFilterValue(dot.age)) &&
+    !disabledCountrySet.has(normalizeFilterValue(dot.country)) &&
+    !disabledIndustrySet.has(normalizeFilterValue(dot.industry));
+  const activeHoveredDot =
+    hoveredDot && isDotEnabled(hoveredDot) ? hoveredDot : null;
 
   return (
     <div style={{ position: "relative", width: "100%", margin: "0 auto" }}>
@@ -269,42 +956,18 @@ function Compass({
         style={{ width: "100%", height: "auto", display: "block" }}
       >
         {/* Quadrant fills */}
-        <rect
-          x={cx}
-          y={pad}
-          width={xRange}
-          height={yRange}
-          fill={quadFill}
-          opacity={activeQuadrant === "topRight" ? 1 : 0}
-          style={{ transition: "opacity 220ms ease" }}
-        />
-        <rect
-          x={pad}
-          y={pad}
-          width={xRange}
-          height={yRange}
-          fill={quadFill}
-          opacity={activeQuadrant === "topLeft" ? 1 : 0}
-          style={{ transition: "opacity 220ms ease" }}
-        />
-        <rect
-          x={cx}
-          y={cy}
-          width={xRange}
-          height={yRange}
-          fill={quadFill}
-          opacity={activeQuadrant === "bottomRight" ? 1 : 0}
-          style={{ transition: "opacity 220ms ease" }}
-        />
-        <rect
-          x={pad}
-          y={cy}
-          width={xRange}
-          height={yRange}
-          fill={quadFill}
-          opacity={activeQuadrant === "bottomLeft" ? 1 : 0}
-          style={{ transition: "opacity 220ms ease" }}
-        />
+        {quadrantFillRects.map(({ key, x, y }) => (
+          <rect
+            key={key}
+            x={x}
+            y={y}
+            width={xRange}
+            height={yRange}
+            fill={quadFill}
+            opacity={activeQuadrant === key ? 1 : 0}
+            style={{ transition: "opacity 220ms ease" }}
+          />
+        ))}
 
         {/* Axes */}
         <line
@@ -336,106 +999,56 @@ function Compass({
         />
 
         {/* Axis labels */}
-        <text
-          x={cx}
-          y={pad - 18}
-          textAnchor="middle"
-          fill="#1f1a16"
-          fontSize={10}
-          fontFamily="'IBM Plex Mono', monospace"
-          opacity={0.8}
-        >
-          HIGH BELIEF IN LLM POTENTIAL
-        </text>
-        <text
-          x={cx}
-          y={dims.h - pad + 28}
-          textAnchor="middle"
-          fill="#1f1a16"
-          fontSize={10}
-          fontFamily="'IBM Plex Mono', monospace"
-          opacity={0.8}
-        >
-          LOW BELIEF IN LLM POTENTIAL
-        </text>
-        <text
-          x={pad - 14}
-          y={cy}
-          textAnchor="middle"
-          fill="#1f1a16"
-          fontSize={10}
-          fontFamily="'IBM Plex Mono', monospace"
-          opacity={0.8}
-          transform={`rotate(-90,${pad - 14},${cy})`}
-        >
-          RESTRICT ADVANCEMENT
-        </text>
-        <text
-          x={dims.w - pad + 14}
-          y={cy}
-          textAnchor="middle"
-          fill="#1f1a16"
-          fontSize={10}
-          fontFamily="'IBM Plex Mono', monospace"
-          opacity={0.8}
-          transform={`rotate(90,${dims.w - pad + 14},${cy})`}
-        >
-          ACCELERATE ADVANCEMENT
-        </text>
+        {axisLabels.map(({ key, x, y, text, transform }) => (
+          <text
+            key={key}
+            x={x}
+            y={y}
+            transform={transform}
+            {...axisLabelTextStyle}
+          >
+            {text}
+          </text>
+        ))}
 
         {/* Quadrant labels */}
-        <text
-          x={pad + xRange / 2}
-          y={pad + yRange / 2}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fill={QUADRANT_INFO.topLeft.color}
-          fontSize={9}
-          fontFamily="'IBM Plex Mono', monospace"
-          letterSpacing="0.05em"
-          opacity={0.25}
-        >
-          {QUADRANT_INFO.topLeft.compassLabel.toUpperCase()}
-        </text>
-        <text
-          x={cx + xRange / 2}
-          y={pad + yRange / 2}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fill={QUADRANT_INFO.topRight.color}
-          fontSize={9}
-          fontFamily="'IBM Plex Mono', monospace"
-          letterSpacing="0.05em"
-          opacity={0.25}
-        >
-          {QUADRANT_INFO.topRight.compassLabel.toUpperCase()}
-        </text>
-        <text
-          x={pad + xRange / 2}
-          y={cy + yRange / 2}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fill={QUADRANT_INFO.bottomLeft.color}
-          fontSize={9}
-          fontFamily="'IBM Plex Mono', monospace"
-          letterSpacing="0.05em"
-          opacity={0.25}
-        >
-          {QUADRANT_INFO.bottomLeft.compassLabel.toUpperCase()}
-        </text>
-        <text
-          x={cx + xRange / 2}
-          y={cy + yRange / 2}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fill={QUADRANT_INFO.bottomRight.color}
-          fontSize={9}
-          fontFamily="'IBM Plex Mono', monospace"
-          letterSpacing="0.05em"
-          opacity={0.25}
-        >
-          {QUADRANT_INFO.bottomRight.compassLabel.toUpperCase()}
-        </text>
+        {compassLabelPositions.map(({ key, x, y }) => (
+          <text
+            key={key}
+            x={x}
+            y={y}
+            fill={QUADRANT_INFO[key].color}
+            {...compassLabelTextStyle}
+          >
+            {QUADRANT_INFO[key].compassLabel.toUpperCase()}
+          </text>
+        ))}
+
+        {/* Larger hover hitboxes (2x dot radius), rendered beneath visible dots */}
+        {results.map((r, i) => {
+          const { sx, sy } = toSvg(r.x, r.y);
+          const isUser = userResult && r.id === userResult.id;
+          const dotRadius = isUser ? 5 : 3.5;
+          const enabled = isDotEnabled(r);
+          return (
+            <circle
+              key={`hitbox-${r.id || i}`}
+              cx={sx}
+              cy={sy}
+              r={dotRadius * 2}
+              fill="transparent"
+              stroke="none"
+              pointerEvents={enabled ? "all" : "none"}
+              onMouseEnter={enabled ? () => setHoveredDot(r) : undefined}
+              onMouseLeave={
+                enabled
+                  ? () =>
+                      setHoveredDot((prev) => (prev?.id === r.id ? null : prev))
+                  : undefined
+              }
+            />
+          );
+        })}
 
         {/* Result dots */}
         {results.map((r, i) => {
@@ -443,17 +1056,12 @@ function Compass({
           const q = getQuadrant(r.x, r.y);
           const col = QUADRANT_INFO[q].color;
           const isUser = userResult && r.id === userResult.id;
-          const isSelected = selectedDot && r.id === selectedDot.id;
+          const isHovered = activeHoveredDot && r.id === activeHoveredDot.id;
+          const enabled = isDotEnabled(r);
+          const baseOpacity = isUser ? 1 : 0.7;
           return (
-            <g
-              key={r.id || i}
-              style={{ cursor: "pointer" }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onDotClick(r);
-              }}
-            >
-              {(isUser || isSelected) && (
+            <g key={r.id || i}>
+              {enabled && (isUser || isHovered) && (
                 <circle
                   cx={sx}
                   cy={sy}
@@ -462,6 +1070,7 @@ function Compass({
                   stroke={col}
                   strokeWidth={1.5}
                   opacity={0.6}
+                  pointerEvents="none"
                 >
                   <animate
                     attributeName="r"
@@ -482,23 +1091,31 @@ function Compass({
                 cy={sy}
                 r={isUser ? 5 : 3.5}
                 fill={col}
-                opacity={isUser ? 1 : 0.7}
-                stroke={isSelected ? THEME.SiteBG : "none"}
-                strokeWidth={isSelected ? 1.5 : 0}
+                opacity={enabled ? baseOpacity : 0.2}
+                stroke={isHovered ? THEME.SiteBG : "none"}
+                strokeWidth={isHovered ? 1.5 : 0}
+                style={{ cursor: enabled ? "pointer" : "default" }}
+                onMouseEnter={enabled ? () => setHoveredDot(r) : undefined}
+                onMouseLeave={
+                  enabled
+                    ? () =>
+                        setHoveredDot((prev) =>
+                          prev?.id === r.id ? null : prev,
+                        )
+                    : undefined
+                }
               />
             </g>
           );
         })}
       </svg>
 
-      {/* Tooltip for selected dot */}
-      {selectedDot &&
+      {/* Tooltip for hovered dot */}
+      {activeHoveredDot &&
         (() => {
-          const { sx, sy } = toSvg(selectedDot.x, selectedDot.y);
+          const { sx, sy } = toSvg(activeHoveredDot.x, activeHoveredDot.y);
           const isRight = sx > cx;
           const isBottom = sy > cy;
-          const q = getQuadrant(selectedDot.x, selectedDot.y);
-          const qi = QUADRANT_INFO[q];
           const tooltipStyle = {
             position: "absolute",
             left: `${(sx / dims.w) * 100}%`,
@@ -511,103 +1128,37 @@ function Compass({
             minWidth: 180,
             zIndex: 10,
             backdropFilter: "blur(12px)",
+            lineHeight: 1.2,
           };
           return (
-            <div style={tooltipStyle} onClick={(e) => e.stopPropagation()}>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: 8,
-                }}
-              >
-                <span
-                  style={{
-                    color: THEME.SiteBG,
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    fontSize: 11,
-                    fontWeight: 600,
-                  }}
-                >
-                  {qi.name}
-                </span>
-                <button
-                  onClick={onClearSelection}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: THEME.SiteBG,
-                    cursor: "pointer",
-                    fontSize: 16,
-                    padding: 0,
-                    lineHeight: 1,
-                  }}
-                >
-                  &times;
-                </button>
-              </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: THEME.SiteBG,
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  marginBottom: 6,
-                }}
-              >
-                x: {selectedDot.x.toFixed(2)} / y: {selectedDot.y.toFixed(2)}
-              </div>
-              {selectedDot.age && (
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: THEME.SiteBG,
-                    marginBottom: 2,
-                  }}
-                >
-                  Age: {selectedDot.age}
-                </div>
-              )}
-              {selectedDot.country && (
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: THEME.SiteBG,
-                    marginBottom: 2,
-                  }}
-                >
-                  Country: {selectedDot.country}
-                </div>
-              )}
-              {selectedDot.occupation && (
-                <div style={{ fontSize: 12, color: THEME.SiteBG }}>
-                  Occupation: {selectedDot.occupation}
-                </div>
-              )}
-              {!selectedDot.age &&
-                !selectedDot.country &&
-                !selectedDot.occupation && (
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: THEME.SiteBG,
-                      fontStyle: "italic",
-                    }}
-                  >
-                    Anonymous
+            <div style={tooltipStyle}>
+              {(() => {
+                const title =
+                  activeHoveredDot.occupation?.trim() || "Anonymous";
+                const country =
+                  activeHoveredDot.country &&
+                  COUNTRY_NAME_BY_CODE[activeHoveredDot.country]
+                    ? COUNTRY_NAME_BY_CODE[activeHoveredDot.country]
+                    : "";
+                const age = activeHoveredDot.age?.trim() || "";
+                const details = [country, age].filter(Boolean).join(", ");
+                return (
+                  <div style={{ fontSize: 12, color: THEME.SiteBG }}>
+                    <strong>{title}</strong>
+                    {details ? `, ${details}` : ""}
                   </div>
-                )}
-              {userResult && selectedDot.id === userResult.id && (
+                );
+              })()}
+              {activeHoveredDot.notes && (
                 <div
                   style={{
-                    marginTop: 6,
-                    fontSize: 10,
+                    fontSize: 12,
                     color: THEME.SiteBG,
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    opacity: 0.7,
+                    marginTop: 4,
+                    fontStyle: "italic",
                   }}
                 >
-                  This is you
+                  "{activeHoveredDot.notes}"
                 </div>
               )}
             </div>
@@ -618,12 +1169,91 @@ function Compass({
 }
 
 // --- Quiz Page ---
-function QuizPage({ onComplete }) {
+function QuizPage({ onComplete, onProgressChange }) {
   const [shuffledQuestions] = useState(() => shuffleArray(QUESTIONS));
   const [answers, setAnswers] = useState({});
+  const [ageRange, setAgeRange] = useState("");
+  const [countryCode, setCountryCode] = useState("");
+  const [ipCountryCode] = useState(() => getClientCountryHint());
+  const [industry, setIndustry] = useState("");
+  const [jobTitle, setJobTitle] = useState("");
+  const [notes, setNotes] = useState("");
   const allAnswered = shuffledQuestions.every(
     (q) => answers[q.id] !== undefined,
   );
+  const answeredCount = Object.keys(answers).length;
+  const hasDemographicSelections =
+    ageRange !== "" && countryCode !== "" && industry !== "";
+  const canSubmit = allAnswered && hasDemographicSelections;
+  const normalizedCountry =
+    countryCode === PREFER_NOT_TO_SAY_VALUE ? "" : countryCode;
+  const normalizedAge = ageRange === PREFER_NOT_TO_SAY_VALUE ? "" : ageRange;
+  const normalizedIndustry =
+    industry === PREFER_NOT_TO_SAY_VALUE ? "" : industry;
+  const quizAgeOptions = useMemo(
+    () => [
+      { value: PREFER_NOT_TO_SAY_VALUE, label: "Prefer not to say" },
+      ...AGE_RANGES.map((age) => ({ value: age, label: age })),
+    ],
+    [],
+  );
+  const quizCountryOptions = useMemo(() => {
+    const orderedCountries = COUNTRY_OPTIONS.filter(
+      (country) => country.code !== ipCountryCode,
+    ).map((country) => ({
+      value: country.code,
+      label:
+        COUNTRY_NAME_BY_CODE[country.code] || formatCountryName(country.name),
+    }));
+    const ipOption =
+      ipCountryCode && COUNTRY_NAME_BY_CODE[ipCountryCode]
+        ? [{ value: ipCountryCode, label: COUNTRY_NAME_BY_CODE[ipCountryCode] }]
+        : [];
+    return [
+      { value: PREFER_NOT_TO_SAY_VALUE, label: "Prefer not to say" },
+      ...ipOption,
+      ...orderedCountries,
+    ];
+  }, [ipCountryCode]);
+  const quizIndustryOptions = useMemo(
+    () => [
+      { value: PREFER_NOT_TO_SAY_VALUE, label: "Prefer not to say" },
+      ...INDUSTRY_OPTIONS.map((option) => ({ value: option, label: option })),
+    ],
+    [],
+  );
+  const trimmedJobTitle = jobTitle.slice(0, OCCUPATION_CHAR_LIMIT);
+  const trimmedNotes = notes.slice(0, NOTES_CHAR_LIMIT);
+  const inputStyle = {
+    width: "100%",
+    padding: "10px 14px",
+    fontSize: 14,
+    fontFamily: "'Newsreader', serif",
+    background: "rgba(31,26,22,0.04)",
+    border: "1px solid rgba(31,26,22,0.1)",
+    color: "#1f1a16",
+    borderRadius: 8,
+    outline: "none",
+    boxSizing: "border-box",
+  };
+  const fieldLabelStyle = {
+    fontSize: 12,
+    color: "#1f1a16",
+    fontFamily: "'IBM Plex Mono', monospace",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+    textAlign: "left",
+  };
+
+  useEffect(() => {
+    onProgressChange?.({
+      answered: answeredCount,
+      total: shuffledQuestions.length,
+      canSubmit,
+    });
+  }, [answeredCount, shuffledQuestions.length, canSubmit, onProgressChange]);
 
   return (
     <div style={{ maxWidth: 640, margin: "0 auto" }}>
@@ -720,76 +1350,12 @@ function QuizPage({ onComplete }) {
           border: 1px solid ${THEME.SiteText};
         }
       `}</style>
-      {/* Progress */}
-      <div
-        style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 5,
-          background: "#f3ebde",
-          paddingBottom: 16,
-          paddingTop: 4,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            marginBottom: 8,
-          }}
-        >
-          <span
-            style={{
-              fontFamily: "'IBM Plex Mono', monospace",
-              fontSize: 12,
-              color: "#1f1a16",
-            }}
-          >
-            {Object.keys(answers).length} / {shuffledQuestions.length} answered
-          </span>
-          {allAnswered && (
-            <button
-              onClick={() => onComplete(answers)}
-              style={{
-                padding: "6px 20px",
-                fontSize: 12,
-                fontFamily: "'Newsreader', serif",
-                fontWeight: 600,
-                background: "linear-gradient(135deg, #6f8f7a, #8da67f)",
-                border: "none",
-                color: "#1f1a16",
-                borderRadius: 6,
-                cursor: "pointer",
-              }}
-            >
-              See Results
-            </button>
-          )}
-        </div>
-        <div
-          style={{
-            height: 3,
-            background: "rgba(31,26,22,0.06)",
-            borderRadius: 2,
-          }}
-        >
-          <div
-            style={{
-              height: "100%",
-              width: `${(Object.keys(answers).length / shuffledQuestions.length) * 100}%`,
-              background: "linear-gradient(90deg, #6f8f7a, #8da67f)",
-              borderRadius: 2,
-              transition: "width 0.3s",
-            }}
-          />
-        </div>
-      </div>
-
       {/* Questions */}
       {shuffledQuestions.map((q, i) => (
         <div
           key={q.id}
           style={{
+            marginTop: i === 0 ? 0 : 0,
             marginBottom: 20,
             padding: "80px 40px",
             background:
@@ -862,184 +1428,133 @@ function QuizPage({ onComplete }) {
         </div>
       ))}
 
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+          marginBottom: 18,
+        }}
+      >
+        {allAnswered && !hasDemographicSelections && (
+          <div
+            style={{
+              color: "#b00020",
+              fontSize: 12,
+              fontFamily: "'IBM Plex Mono', monospace",
+              textAlign: "right",
+            }}
+          >
+            Please select Age Range, Country, and Industry.
+          </div>
+        )}
+        <div>
+          <SingleSelectDropdown
+            label="Age Range"
+            value={ageRange}
+            onChange={setAgeRange}
+            options={quizAgeOptions}
+            placeholder="Select..."
+          />
+        </div>
+        <div>
+          <SingleSelectDropdown
+            label="Country"
+            value={countryCode}
+            onChange={setCountryCode}
+            options={quizCountryOptions}
+            placeholder="Select..."
+          />
+        </div>
+        <div>
+          <SingleSelectDropdown
+            label="Industry"
+            value={industry}
+            onChange={setIndustry}
+            options={quizIndustryOptions}
+            placeholder="Select..."
+          />
+        </div>
+        <div>
+          <label style={fieldLabelStyle}>
+            <span>Job Title</span>
+            <span>
+              {trimmedJobTitle.length}/{OCCUPATION_CHAR_LIMIT}
+            </span>
+          </label>
+          <input
+            value={jobTitle}
+            onChange={(e) => setJobTitle(e.target.value)}
+            placeholder="e.g. Software Engineer"
+            maxLength={OCCUPATION_CHAR_LIMIT}
+            style={inputStyle}
+          />
+        </div>
+        <div>
+          <label style={fieldLabelStyle}>
+            <span>Additional Notes</span>
+            <span>
+              {trimmedNotes.length}/{NOTES_CHAR_LIMIT}
+            </span>
+          </label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value.replace(/[\r\n]+/g, " "))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.preventDefault();
+            }}
+            placeholder="Anything else you'd like to share"
+            maxLength={NOTES_CHAR_LIMIT}
+            rows={3}
+            style={{
+              ...inputStyle,
+              height: 88,
+              minHeight: 88,
+              maxHeight: 88,
+              resize: "none",
+            }}
+          />
+        </div>
+      </div>
+
       {/* Bottom submit */}
       <div style={{ textAlign: "center", marginTop: 16, paddingBottom: 20 }}>
         <button
-          onClick={() => allAnswered && onComplete(answers)}
-          disabled={!allAnswered}
+          onClick={() =>
+            canSubmit &&
+            onComplete({
+              answers,
+              questionOrder: shuffledQuestions.map((question) => question.id),
+              demographics: {
+                age: normalizedAge,
+                country: normalizedCountry,
+                industry: normalizedIndustry,
+                occupation: trimmedJobTitle,
+                notes: trimmedNotes,
+              },
+            })
+          }
+          disabled={!canSubmit}
           style={{
             padding: "14px 40px",
             fontSize: 15,
             fontFamily: "'Newsreader', serif",
             fontWeight: 600,
-            background: allAnswered
+            background: canSubmit
               ? "linear-gradient(135deg, #6f8f7a, #8da67f)"
               : "rgba(31,26,22,0.03)",
             border: "none",
-            color: allAnswered ? "#1f1a16" : "rgba(31,26,22,0.35)",
+            color: canSubmit ? "#1f1a16" : "rgba(31,26,22,0.35)",
             borderRadius: 10,
-            cursor: allAnswered ? "pointer" : "default",
+            cursor: canSubmit ? "pointer" : "default",
             transition: "all 0.3s",
           }}
         >
-          {allAnswered
+          {canSubmit
             ? "See Results"
-            : `Answer all ${shuffledQuestions.length} questions to continue`}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// --- Demographics ---
-function DemographicsPage({ onSubmit, onSkip }) {
-  const [age, setAge] = useState("");
-  const [country, setCountry] = useState("");
-  const [occupation, setOccupation] = useState("");
-
-  const inputStyle = {
-    width: "100%",
-    padding: "10px 14px",
-    fontSize: 14,
-    fontFamily: "'Newsreader', serif",
-    background: "rgba(31,26,22,0.04)",
-    border: "1px solid rgba(31,26,22,0.1)",
-    color: "#1f1a16",
-    borderRadius: 8,
-    outline: "none",
-    boxSizing: "border-box",
-  };
-
-  return (
-    <div style={{ maxWidth: 440, margin: "0 auto", textAlign: "center" }}>
-      <h2
-        style={{
-          fontFamily: "'IBM Plex Mono', monospace",
-          fontSize: 18,
-          color: "#1f1a16",
-          fontWeight: 500,
-          marginBottom: 8,
-        }}
-      >
-        Before we plot you...
-      </h2>
-      <p
-        style={{
-          color: "#1f1a16",
-          fontSize: 14,
-          fontFamily: "'Newsreader', serif",
-          marginBottom: 32,
-        }}
-      >
-        Optionally share a bit about yourself. This info will be visible when
-        others click your dot on the compass.
-      </p>
-
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 16,
-          textAlign: "left",
-          marginBottom: 32,
-        }}
-      >
-        <div>
-          <label
-            style={{
-              fontSize: 12,
-              color: "#1f1a16",
-              fontFamily: "'IBM Plex Mono', monospace",
-              display: "block",
-              marginBottom: 6,
-            }}
-          >
-            Age Range
-          </label>
-          <select
-            value={age}
-            onChange={(e) => setAge(e.target.value)}
-            style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}
-          >
-            <option value="">Prefer not to say</option>
-            {AGE_RANGES.map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label
-            style={{
-              fontSize: 12,
-              color: "#1f1a16",
-              fontFamily: "'IBM Plex Mono', monospace",
-              display: "block",
-              marginBottom: 6,
-            }}
-          >
-            Country
-          </label>
-          <input
-            value={country}
-            onChange={(e) => setCountry(e.target.value)}
-            placeholder="e.g. United States"
-            style={inputStyle}
-          />
-        </div>
-        <div>
-          <label
-            style={{
-              fontSize: 12,
-              color: "#1f1a16",
-              fontFamily: "'IBM Plex Mono', monospace",
-              display: "block",
-              marginBottom: 6,
-            }}
-          >
-            Occupation
-          </label>
-          <input
-            value={occupation}
-            onChange={(e) => setOccupation(e.target.value)}
-            placeholder="e.g. Software Engineer"
-            style={inputStyle}
-          />
-        </div>
-      </div>
-
-      <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-        <button
-          onClick={() => onSkip()}
-          style={{
-            padding: "10px 24px",
-            fontSize: 13,
-            fontFamily: "'Newsreader', serif",
-            background: "rgba(31,26,22,0.05)",
-            border: "1px solid rgba(31,26,22,0.1)",
-            color: "#1f1a16",
-            borderRadius: 8,
-            cursor: "pointer",
-          }}
-        >
-          Skip
-        </button>
-        <button
-          onClick={() => onSubmit({ age, country, occupation })}
-          style={{
-            padding: "10px 28px",
-            fontSize: 13,
-            fontFamily: "'Newsreader', serif",
-            fontWeight: 600,
-            background: "linear-gradient(135deg, #6f8f7a, #8da67f)",
-            border: "none",
-            color: "#1f1a16",
-            borderRadius: 8,
-            cursor: "pointer",
-          }}
-        >
-          Plot Me
+            : !allAnswered
+              ? `Answer all ${shuffledQuestions.length} questions to continue`
+              : "Select Age Range, Country, and Industry to continue"}
         </button>
       </div>
     </div>
@@ -1048,21 +1563,35 @@ function DemographicsPage({ onSubmit, onSkip }) {
 
 // --- Main App ---
 export default function AICompass() {
-  const [screen, setScreen] = useState("home"); // home, quiz, demographics, results
+  const [screen, setScreen] = useState("home"); // home, quiz, results
   const [scores, setScores] = useState(null);
+  const [quizProgress, setQuizProgress] = useState({
+    answered: 0,
+    total: QUESTIONS.length,
+    canSubmit: false,
+  });
   const [results, setResults] = useState([]);
   const [userResult, setUserResult] = useState(null);
-  const [selectedDot, setSelectedDot] = useState(null);
   const [hoveredQuadrant, setHoveredQuadrant] = useState(null);
   const [pinnedQuadrant, setPinnedQuadrant] = useState(null);
   const [firestoreError, setFirestoreError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [clearingDevDots, setClearingDevDots] = useState(false);
+  const [disabledAges, setDisabledAges] = useState([]);
+  const [disabledCountries, setDisabledCountries] = useState([]);
+  const [disabledIndustries, setDisabledIndustries] = useState([]);
+  const [filterIpCountryCode] = useState(() => getClientCountryHint());
+  const resetQuizProgress = () =>
+    setQuizProgress({
+      answered: 0,
+      total: QUESTIONS.length,
+      canSubmit: false,
+    });
 
   // Subscribe to live Firestore updates once on first render.
   useEffect(() => {
     const resultsQuery = query(
-      collection(db, "compass-results-v2"),
+      collection(db, COMPASS_RESULTS_COLLECTION),
       orderBy("ts", "asc"),
     );
 
@@ -1090,24 +1619,71 @@ export default function AICompass() {
     return unsubscribe;
   }, []);
 
-  const handleQuizComplete = (ans) => {
-    const s = calculateScores(ans);
+  const handleQuizComplete = ({
+    answers,
+    questionOrder = [],
+    demographics = {},
+  }) => {
+    const s = calculateScores(answers);
     setScores(s);
-    setScreen("demographics");
+    handleSubmit(
+      demographics,
+      s,
+      {
+        answers,
+        questionOrder,
+      },
+      {},
+    );
   };
 
-  const handleSubmit = (demo = {}, overrideScores = null, options = {}) => {
+  const handleSubmit = (
+    demo = {},
+    overrideScores = null,
+    questionData = {},
+    options = {},
+  ) => {
     const activeScores = overrideScores || scores;
     if (!activeScores) return;
     setSubmitting(true);
+    const questionAnalytics = buildQuestionAnalyticsPayload(
+      questionData.answers || {},
+      questionData.questionOrder || [],
+    );
+    const demographicSegments = buildDemographicSegments(demo);
+    const quadrantKey = getQuadrant(activeScores.x, activeScores.y);
+    const archetype = QUADRANT_INFO[quadrantKey]?.name || "";
+    const clientCreatedAt = Date.now();
     const entry = {
       x: activeScores.x,
       y: activeScores.y,
+      x_score: activeScores.x,
+      y_score: activeScores.y,
+      archetype,
       age: demo.age || "",
       country: demo.country || "",
+      industry: demo.industry || "",
       occupation: demo.occupation || "",
+      notes: demo.notes || "",
+      demographics: {
+        age: demo.age || "",
+        country: demo.country || "",
+        industry: demo.industry || "",
+        occupation: demo.occupation || "",
+        notes: demo.notes || "",
+      },
+      resultSchemaVersion: RESULT_SCHEMA_VERSION,
+      ...questionAnalytics,
+      segments: demographicSegments,
+      is_repeat_ip_24h: false,
+      is_repeat_device_24h: false,
+      include_in_default_aggregate: true,
+      include_in_device_priority_aggregate: true,
+      repeat_classification: "first_or_stale",
+      repeat_group_id: "",
+      created_at: clientCreatedAt,
       isDev: options.isDev === true,
-      ts: Date.now(),
+      ts: clientCreatedAt,
     };
     const localId = `local-${Date.now()}`;
 
@@ -1121,18 +1697,46 @@ export default function AICompass() {
       setSubmitting(false);
     }, 8000);
 
-    addDoc(collection(db, "compass-results-v2"), entry)
-      .then((docRef) => {
+    const payload = {
+      x_score: activeScores.x,
+      y_score: activeScores.y,
+      archetype,
+      demographics: entry.demographics,
+      question_order: questionAnalytics.questionOrder,
+      question_values: questionAnalytics.questionValues,
+      question_responses: questionAnalytics.questionResponses,
+      question_medians: questionAnalytics.questionMedians,
+      segments: demographicSegments,
+      result_schema_version: RESULT_SCHEMA_VERSION,
+      is_dev: options.isDev === true,
+      client_created_at: clientCreatedAt,
+      device_uuid: getOrCreateStorageId("local", DEVICE_ID_STORAGE_KEY),
+      session_uuid: getOrCreateStorageId("session", SESSION_ID_STORAGE_KEY),
+      user_agent: navigator.userAgent || "",
+    };
+
+    submitCompassResult(payload)
+      .then((responseBody) => {
+        const saved = responseBody?.submission;
+        if (!saved || typeof saved !== "object") {
+          throw new Error("Invalid submit response");
+        }
         setFirestoreError("");
         setUserResult((prev) =>
-          prev?.id === localId ? { ...entry, id: docRef.id } : prev,
+          prev?.id === localId
+            ? {
+                ...entry,
+                ...saved,
+                id: saved.submission_id || saved.id || prev.id,
+              }
+            : prev,
         );
       })
       .catch((error) => {
-        console.error("Firestore addDoc error:", error);
+        console.error("Survey submission error:", error);
         setFirestoreError(
-          error?.code
-            ? `Unable to submit (${error.code}).`
+          error?.message
+            ? `Unable to submit (${error.message}).`
             : "Unable to submit right now.",
         );
       })
@@ -1148,13 +1752,47 @@ export default function AICompass() {
       y: Number((Math.random() * 2 - 1).toFixed(4)),
     };
     setScores(devScores);
-    handleSubmit({}, devScores, { isDev: true });
+    const randomAge = AGE_RANGES[Math.floor(Math.random() * AGE_RANGES.length)];
+    const randomCountry =
+      COUNTRY_OPTIONS[Math.floor(Math.random() * COUNTRY_OPTIONS.length)]
+        ?.code || "";
+    const randomIndustry =
+      INDUSTRY_OPTIONS[Math.floor(Math.random() * INDUSTRY_OPTIONS.length)] ||
+      "";
+    const devAnswers = Object.fromEntries(
+      QUESTIONS.map((question) => [
+        question.id,
+        Number(
+          (
+            Math.random() * (RESPONSE_RANGE.max - RESPONSE_RANGE.min) +
+            RESPONSE_RANGE.min
+          ).toFixed(2),
+        ),
+      ]),
+    );
+    handleSubmit(
+      {
+        age: randomAge,
+        country: randomCountry,
+        industry: randomIndustry,
+        occupation: DEV_SAMPLE_OCCUPATION.slice(0, OCCUPATION_CHAR_LIMIT),
+        notes: DEV_SAMPLE_NOTES.slice(0, NOTES_CHAR_LIMIT),
+      },
+      devScores,
+      {
+        answers: devAnswers,
+        questionOrder: QUESTIONS.map((question) => question.id),
+      },
+      { isDev: true },
+    );
   };
 
   const handleClearDevDots = async () => {
     setClearingDevDots(true);
     try {
-      const allDocsSnap = await getDocs(collection(db, "compass-results-v2"));
+      const allDocsSnap = await getDocs(
+        collection(db, COMPASS_RESULTS_COLLECTION),
+      );
 
       const docsToDelete = allDocsSnap.docs.filter((docSnap) => {
         const data = docSnap.data();
@@ -1163,7 +1801,6 @@ export default function AICompass() {
 
       await Promise.all(docsToDelete.map((docSnap) => deleteDoc(docSnap.ref)));
       setResults((prev) => prev.filter((r) => r.isDev !== true));
-      setSelectedDot((prev) => (prev?.isDev === true ? null : prev));
       setUserResult((prev) => (prev?.isDev === true ? null : prev));
       setFirestoreError("");
     } catch (error) {
@@ -1181,6 +1818,49 @@ export default function AICompass() {
   const quadrant = scores ? getQuadrant(scores.x, scores.y) : null;
   const qi = quadrant ? QUADRANT_INFO[quadrant] : null;
   const activeQuadrant = pinnedQuadrant || hoveredQuadrant;
+  const ageFilterOptions = useMemo(
+    () => [
+      ...AGE_RANGES.map((age) => ({ value: age, label: age })),
+      { value: UNSPECIFIED_FILTER_VALUE, label: "Unspecified" },
+    ],
+    [],
+  );
+  const industryFilterOptions = useMemo(
+    () => [
+      ...INDUSTRY_OPTIONS.map((industry) => ({
+        value: industry,
+        label: industry,
+      })),
+      { value: UNSPECIFIED_FILTER_VALUE, label: "Unspecified" },
+    ],
+    [],
+  );
+  const countryFilterOptions = useMemo(() => {
+    const options = COUNTRY_OPTIONS.map((country) => ({
+      value: country.code,
+      label:
+        COUNTRY_NAME_BY_CODE[country.code] || formatCountryName(country.name),
+    }));
+    if (filterIpCountryCode) {
+      const pinned = options.find(
+        (option) => option.value === filterIpCountryCode,
+      );
+      if (pinned) {
+        const rest = options.filter(
+          (option) => option.value !== filterIpCountryCode,
+        );
+        return [
+          pinned,
+          ...rest,
+          { value: UNSPECIFIED_FILTER_VALUE, label: "Unspecified" },
+        ];
+      }
+    }
+    return [
+      ...options,
+      { value: UNSPECIFIED_FILTER_VALUE, label: "Unspecified" },
+    ];
+  }, [filterIpCountryCode]);
 
   useEffect(() => {
     if (screen !== "results") return;
@@ -1200,7 +1880,8 @@ export default function AICompass() {
         background: THEME.SiteBG,
         color: THEME.SiteText,
         fontFamily: "'Newsreader', serif",
-        padding: "24px 16px 60px",
+        padding: `${HEADER_BAR_HEIGHT + 24}px 48px 48px`,
+        overscrollBehaviorY: "none",
       }}
     >
       <link
@@ -1211,9 +1892,17 @@ export default function AICompass() {
       {/* Header */}
       <div
         style={{
-          textAlign: "center",
-          marginBottom: screen === "home" ? 24 : 24,
-          paddingTop: 0,
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 20,
+          boxSizing: "border-box",
+          padding: "14px 16px",
+          background: THEME.SiteText,
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
         }}
       >
         <button
@@ -1224,37 +1913,110 @@ export default function AICompass() {
             border: "none",
             padding: 0,
             cursor: "pointer",
+            alignSelf: "center",
           }}
         >
           <h1
             style={{
-              fontFamily: "'Newsreader', serif",
-              fontSize: 28,
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: 26,
               fontWeight: 200,
-              letterSpacing: "0.00em",
+              letterSpacing: "0.2em",
               margin: 0,
-              color: "#1f1a16",
+              color: THEME.SiteBG,
               lineHeight: 1.3,
             }}
           >
-            The AI Compass
+            THE AI COMPASS
           </h1>
         </button>
-        {screen === "home" && (
-          <p
-            style={{
-              color: "#1f1a16",
-              fontSize: 14,
-              maxWidth: 1000,
-              margin: "12px auto 0",
-              lineHeight: 1,
-            }}
-          >
-            A 16-question survey that maps your position on two axes: how much
-            you believe in LLM potential, and how much you support unrestricted
-            AI advancement.
-          </p>
-        )}
+        <div
+          style={{
+            height: HEADER_ACTION_HEIGHT,
+            maxWidth: 640,
+            width: "100%",
+            margin: "0 auto",
+          }}
+        >
+          {screen === "home" && (
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <button
+                onClick={() => {
+                  setScreen("quiz");
+                  setScores(null);
+                  resetQuizProgress();
+                }}
+                style={{
+                  width: "fit-content",
+                  height: "100%",
+                  padding: "0 14px",
+                  fontSize: 12,
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontWeight: 500,
+                  background: THEME.SiteBG,
+                  border: "1px solid rgba(243,235,222,0.65)",
+                  color: THEME.SiteText,
+                  borderRadius: 10,
+                  cursor: "pointer",
+                }}
+              >
+                TAKE THE QUIZ
+              </button>
+            </div>
+          )}
+          {screen === "quiz" && (
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                gap: 6,
+              }}
+            >
+              <div
+                style={{
+                  width: "100%",
+                  height: HEADER_ACTION_HEIGHT * 0.25,
+                  background: "rgba(243,235,222,0.2)",
+                  borderRadius: 999,
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${(quizProgress.answered / quizProgress.total) * 100}%`,
+                    height: "100%",
+                    background: THEME.SiteBG,
+                    transition: "width 0.3s",
+                  }}
+                />
+              </div>
+              <div
+                style={{
+                  height: HEADER_ACTION_HEIGHT * 0.75 - 6,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: 11,
+                  color: THEME.SiteBG,
+                }}
+              >
+                {quizProgress.answered} / {quizProgress.total} ANSWERED
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {firestoreError && (
@@ -1278,178 +2040,167 @@ export default function AICompass() {
       {/* Home Screen */}
       {screen === "home" && (
         <>
-          <div style={{ textAlign: "center", marginBottom: 0 }}>
-            <button
-              onClick={() => {
-                setScreen("quiz");
-                setScores(null);
-              }}
-              style={{
-                padding: "14px 40px",
-                fontSize: 15,
-                fontFamily: "'Newsreader', serif",
-                fontWeight: 600,
-                background: "#f3ebde",
-                border: "1px solid rgba(31,26,22,0.2)",
-                color: "#1f1a16",
-                borderRadius: 10,
-                cursor: "pointer",
-              }}
-            >
-              Take the Quiz
-            </button>
-            {import.meta.env.DEV && (
-              <div
-                style={{
-                  marginTop: 10,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8,
-                  flexWrap: "wrap",
-                }}
-              >
-                <button
-                  onClick={handleDevShortcutSubmit}
-                  style={{
-                    padding: "8px 14px",
-                    fontSize: 12,
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    fontWeight: 500,
-                    background: "rgba(31,26,22,0.08)",
-                    border: "1px solid rgba(31,26,22,0.14)",
-                    color: "#1f1a16",
-                    borderRadius: 8,
-                    cursor: "pointer",
-                  }}
-                >
-                  Dev shortcut: random dot
-                </button>
-                <button
-                  onClick={handleClearDevDots}
-                  disabled={clearingDevDots}
-                  style={{
-                    padding: "8px 14px",
-                    fontSize: 12,
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    fontWeight: 500,
-                    background: "rgba(31,26,22,0.08)",
-                    border: "1px solid rgba(31,26,22,0.14)",
-                    color: "#1f1a16",
-                    borderRadius: 8,
-                    cursor: clearingDevDots ? "wait" : "pointer",
-                    opacity: clearingDevDots ? 0.7 : 1,
-                  }}
-                >
-                  {clearingDevDots ? "Clearing dev dots..." : "Reset dev dots"}
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div onClick={() => setSelectedDot(null)}>
+          <div style={{ marginTop: HOME_SECTION_GAP }}>
             <Compass
               results={results}
               userResult={userResult}
-              selectedDot={selectedDot}
-              onDotClick={setSelectedDot}
-              onClearSelection={() => setSelectedDot(null)}
               activeQuadrant={activeQuadrant}
+              disabledAges={disabledAges}
+              disabledCountries={disabledCountries}
+              disabledIndustries={disabledIndustries}
             />
           </div>
 
-          <div style={{ textAlign: "center", marginTop: 0 }}>
-            {results.length > 0 && (
-              <div
-                style={{
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  fontSize: 11,
-                  color: "#1f1a16",
-                }}
-              >
-                {results.length} response{results.length !== 1 ? "s" : ""}{" "}
-                plotted
-              </div>
-            )}
+          <div
+            style={{
+              marginTop: HOME_SECTION_GAP,
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+              gap: 10,
+            }}
+          >
+            <MultiSelectFilter
+              label="AGE"
+              options={ageFilterOptions}
+              disabledValues={disabledAges}
+              setDisabledValues={setDisabledAges}
+            />
+            <MultiSelectFilter
+              label="LOCATION"
+              options={countryFilterOptions}
+              disabledValues={disabledCountries}
+              setDisabledValues={setDisabledCountries}
+            />
+            <MultiSelectFilter
+              label="INDUSTRY"
+              options={industryFilterOptions}
+              disabledValues={disabledIndustries}
+              setDisabledValues={setDisabledIndustries}
+            />
           </div>
 
           {/* Quadrant legend */}
           <div
             style={{
               width: "100%",
-              margin: "36px auto 0",
+              margin: `${HOME_SECTION_GAP}px auto 0`,
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
               gap: 12,
             }}
           >
-            {Object.entries(QUADRANT_INFO).map(([key, val]) => (
-              <div
-                key={key}
-                onMouseEnter={() => {
-                  if (!pinnedQuadrant) setHoveredQuadrant(key);
-                }}
-                onMouseLeave={() => {
-                  if (!pinnedQuadrant) setHoveredQuadrant(null);
-                }}
-                onClick={() =>
-                  setPinnedQuadrant((prev) => {
-                    if (prev === key) return null;
-                    setHoveredQuadrant(null);
-                    return key;
-                  })
-                }
+            {ARCHETYPE_GRID_ORDER.map((key) => {
+              const val = QUADRANT_INFO[key];
+              return (
+                <div
+                  key={key}
+                  onMouseEnter={() => {
+                    if (!pinnedQuadrant) setHoveredQuadrant(key);
+                  }}
+                  onMouseLeave={() => {
+                    if (!pinnedQuadrant) setHoveredQuadrant(null);
+                  }}
+                  onClick={() =>
+                    setPinnedQuadrant((prev) => {
+                      if (prev === key) return null;
+                      setHoveredQuadrant(null);
+                      return key;
+                    })
+                  }
+                  style={{
+                    padding: "12px 14px",
+                    background: "rgba(31,26,22,0.02)",
+                    border:
+                      activeQuadrant === key
+                        ? "1px solid rgba(31,26,22,0.35)"
+                        : "1px solid rgba(31,26,22,0.06)",
+                    borderRadius: 8,
+                    cursor: "pointer",
+                    transition: "border-color 220ms ease",
+                  }}
+                >
+                  <div
+                    style={{
+                      color: val.color,
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      marginBottom: 4,
+                    }}
+                  >
+                    {val.name}
+                  </div>
+                  <div
+                    style={{
+                      color: "#1f1a16",
+                      fontSize: 12,
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    {val.desc}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {import.meta.env.DEV && (
+            <div
+              style={{
+                marginTop: 18,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                flexWrap: "wrap",
+              }}
+            >
+              <button
+                onClick={handleDevShortcutSubmit}
                 style={{
-                  padding: "12px 14px",
-                  background: "rgba(31,26,22,0.02)",
-                  border:
-                    activeQuadrant === key
-                      ? "1px solid rgba(31,26,22,0.35)"
-                      : "1px solid rgba(31,26,22,0.06)",
+                  padding: "8px 14px",
+                  fontSize: 12,
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontWeight: 500,
+                  background: "rgba(31,26,22,0.08)",
+                  border: "1px solid rgba(31,26,22,0.14)",
+                  color: "#1f1a16",
                   borderRadius: 8,
                   cursor: "pointer",
-                  transition: "border-color 220ms ease",
                 }}
               >
-                <div
-                  style={{
-                    color: val.color,
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    marginBottom: 4,
-                  }}
-                >
-                  {val.name}
-                </div>
-                <div
-                  style={{
-                    color: "#1f1a16",
-                    fontSize: 12,
-                    lineHeight: 1.45,
-                  }}
-                >
-                  {val.desc}
-                </div>
-              </div>
-            ))}
-          </div>
+                Dev shortcut: random dot
+              </button>
+              <button
+                onClick={handleClearDevDots}
+                disabled={clearingDevDots}
+                style={{
+                  padding: "8px 14px",
+                  fontSize: 12,
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontWeight: 500,
+                  background: "rgba(31,26,22,0.08)",
+                  border: "1px solid rgba(31,26,22,0.14)",
+                  color: "#1f1a16",
+                  borderRadius: 8,
+                  cursor: clearingDevDots ? "wait" : "pointer",
+                  opacity: clearingDevDots ? 0.7 : 1,
+                }}
+              >
+                {clearingDevDots ? "Clearing dev dots..." : "Reset dev dots"}
+              </button>
+            </div>
+          )}
         </>
       )}
 
       {/* Quiz Screen */}
       {screen === "quiz" && (
         <div>
-          <QuizPage onComplete={handleQuizComplete} />
+          <QuizPage
+            onComplete={handleQuizComplete}
+            onProgressChange={setQuizProgress}
+          />
         </div>
-      )}
-
-      {/* Demographics Screen */}
-      {screen === "demographics" && (
-        <DemographicsPage
-          onSubmit={(demo) => handleSubmit(demo)}
-          onSkip={() => handleSubmit({})}
-        />
       )}
 
       {/* Results Screen */}
@@ -1503,15 +2254,7 @@ export default function AICompass() {
             </div>
           </div>
 
-          <div onClick={() => setSelectedDot(null)}>
-            <Compass
-              results={results}
-              userResult={userResult}
-              selectedDot={selectedDot}
-              onDotClick={setSelectedDot}
-              onClearSelection={() => setSelectedDot(null)}
-            />
-          </div>
+          <Compass results={results} userResult={userResult} />
 
           <div
             style={{
@@ -1524,7 +2267,10 @@ export default function AICompass() {
             }}
           >
             <button
-              onClick={() => setScreen("home")}
+              onClick={() => {
+                setScreen("home");
+                resetQuizProgress();
+              }}
               style={{
                 padding: "10px 24px",
                 fontSize: 13,
@@ -1543,6 +2289,7 @@ export default function AICompass() {
                 setScreen("quiz");
                 setScores(null);
                 setUserResult(null);
+                resetQuizProgress();
               }}
               style={{
                 padding: "10px 24px",
