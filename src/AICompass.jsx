@@ -2061,6 +2061,7 @@ export default function AICompass() {
 
   const quadrant = scores ? getQuadrant(scores.x, scores.y) : null;
   const qi = quadrant ? QUADRANT_INFO[quadrant] : null;
+  const showCompassView = screen === "home" || (screen === "results" && scores && qi);
   const activeQuadrant = pinnedQuadrant || hoveredQuadrant;
   const homeBodyReady = hasInitialResultsSnapshot && homeCanvasDrawn;
   useEffect(() => {
@@ -2190,7 +2191,7 @@ export default function AICompass() {
             margin: "0 auto",
           }}
         >
-          {screen === "home" && (
+          {(screen === "home" || screen === "results") && (
             <div
               style={{
                 width: "100%",
@@ -2289,8 +2290,8 @@ export default function AICompass() {
         </div>
       )}
 
-      {/* Home Screen */}
-      {screen === "home" && (
+      {/* Home + Results Screen */}
+      {showCompassView && (
         <div
           style={{
             position: "relative",
@@ -2324,6 +2325,55 @@ export default function AICompass() {
               pointerEvents: homeBodyReady ? "auto" : "none",
             }}
           >
+            {screen === "results" && scores && qi && (
+              <div style={{ textAlign: "center", marginBottom: 28 }}>
+                <div
+                  style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: 11,
+                    color: "#1f1a16",
+                    letterSpacing: 2,
+                    marginBottom: 8,
+                  }}
+                >
+                  YOUR RESULT SECTION
+                </div>
+                <div
+                  style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: 24,
+                    color: qi.color,
+                    fontWeight: 600,
+                    marginBottom: 8,
+                  }}
+                >
+                  {qi.name}
+                </div>
+                <p
+                  style={{
+                    color: "#1f1a16",
+                    fontSize: 14,
+                    maxWidth: 400,
+                    margin: "0 auto 16px",
+                    lineHeight: 1.55,
+                  }}
+                >
+                  {qi.desc}
+                </p>
+                <div
+                  style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: 12,
+                    color: "#1f1a16",
+                  }}
+                >
+                  Advancement: {scores.x > 0 ? "+" : ""}
+                  {(scores.x * 100).toFixed(0)}% &nbsp;|&nbsp; LLM Belief:{" "}
+                  {scores.y > 0 ? "+" : ""}
+                  {(scores.y * 100).toFixed(0)}%
+                </div>
+              </div>
+            )}
             <div style={{ marginTop: 0 }}>
               <Compass
                 results={results}
@@ -2486,111 +2536,6 @@ export default function AICompass() {
             onComplete={handleQuizComplete}
             onProgressChange={setQuizProgress}
           />
-        </div>
-      )}
-
-      {/* Results Screen */}
-      {screen === "results" && scores && qi && (
-        <div>
-          <div style={{ textAlign: "center", marginBottom: 28 }}>
-            <div
-              style={{
-                fontFamily: "'IBM Plex Mono', monospace",
-                fontSize: 11,
-                color: "#1f1a16",
-                letterSpacing: 2,
-                marginBottom: 8,
-              }}
-            >
-              YOUR RESULT
-            </div>
-            <div
-              style={{
-                fontFamily: "'IBM Plex Mono', monospace",
-                fontSize: 24,
-                color: qi.color,
-                fontWeight: 600,
-                marginBottom: 8,
-              }}
-            >
-              {qi.name}
-            </div>
-            <p
-              style={{
-                color: "#1f1a16",
-                fontSize: 14,
-                maxWidth: 400,
-                margin: "0 auto 16px",
-                lineHeight: 1.55,
-              }}
-            >
-              {qi.desc}
-            </p>
-            <div
-              style={{
-                fontFamily: "'IBM Plex Mono', monospace",
-                fontSize: 12,
-                color: "#1f1a16",
-              }}
-            >
-              Advancement: {scores.x > 0 ? "+" : ""}
-              {(scores.x * 100).toFixed(0)}% &nbsp;|&nbsp; LLM Belief:{" "}
-              {scores.y > 0 ? "+" : ""}
-              {(scores.y * 100).toFixed(0)}%
-            </div>
-          </div>
-
-          <Compass results={results} userResult={userResult} />
-
-          <div
-            style={{
-              textAlign: "center",
-              marginTop: 24,
-              display: "flex",
-              gap: 12,
-              justifyContent: "center",
-              flexWrap: "wrap",
-            }}
-          >
-            <button
-              onClick={() => {
-                setScreen("home");
-                resetQuizProgress();
-              }}
-              style={{
-                padding: "10px 24px",
-                fontSize: 13,
-                fontFamily: "'Newsreader', serif",
-                background: "rgba(31,26,22,0.05)",
-                border: "1px solid rgba(31,26,22,0.1)",
-                color: "#1f1a16",
-                borderRadius: 8,
-                cursor: "pointer",
-              }}
-            >
-              View Compass
-            </button>
-            <button
-              onClick={() => {
-                setScreen("quiz");
-                setScores(null);
-                setUserResult(null);
-                resetQuizProgress();
-              }}
-              style={{
-                padding: "10px 24px",
-                fontSize: 13,
-                fontFamily: "'Newsreader', serif",
-                background: "rgba(0,229,255,0.1)",
-                border: "1px solid rgba(0,229,255,0.3)",
-                color: "#1f1a16",
-                borderRadius: 8,
-                cursor: "pointer",
-              }}
-            >
-              Retake Quiz
-            </button>
-          </div>
         </div>
       )}
 
