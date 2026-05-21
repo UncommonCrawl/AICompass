@@ -126,8 +126,9 @@ const RESPONSE_RANGE = {
 
 const RESULT_SCHEMA_VERSION = 3;
 const COMPASS_RESULTS_COLLECTION = "compass-results-v2";
-const COMPASS_SUBMIT_ENDPOINT =
-  (import.meta.env.VITE_COMPASS_SUBMIT_ENDPOINT || "").trim();
+const COMPASS_SUBMIT_ENDPOINT = (
+  import.meta.env.VITE_COMPASS_SUBMIT_ENDPOINT || ""
+).trim();
 const DEVICE_ID_STORAGE_KEY = "ai_compass_device_id_v1";
 const SESSION_ID_STORAGE_KEY = "ai_compass_session_id_v1";
 const UNKNOWN_SEGMENT_VALUE = "__UNSPECIFIED__";
@@ -449,23 +450,30 @@ async function submitCompassResult(payload) {
           y_score: yScore,
           x: xScore,
           y: yScore,
-          archetype: typeof payload.archetype === "string" ? payload.archetype : "",
+          archetype:
+            typeof payload.archetype === "string" ? payload.archetype : "",
           demographics,
           age: typeof demographics.age === "string" ? demographics.age : "",
           country:
-            typeof demographics.country === "string" ? demographics.country : "",
+            typeof demographics.country === "string"
+              ? demographics.country
+              : "",
           industry:
-            typeof demographics.industry === "string" ? demographics.industry : "",
+            typeof demographics.industry === "string"
+              ? demographics.industry
+              : "",
           occupation:
             typeof demographics.occupation === "string"
               ? demographics.occupation
               : "",
-          notes: typeof demographics.notes === "string" ? demographics.notes : "",
+          notes:
+            typeof demographics.notes === "string" ? demographics.notes : "",
           question_order: Array.isArray(payload.question_order)
             ? payload.question_order
             : [],
           question_values:
-            payload.question_values && typeof payload.question_values === "object"
+            payload.question_values &&
+            typeof payload.question_values === "object"
               ? payload.question_values
               : {},
           question_responses: Array.isArray(payload.question_responses)
@@ -1093,7 +1101,9 @@ function Compass({
     ? plotPointById.get(hoveredDotId) || null
     : null;
   const activeHoveredDot =
-    activeHoveredPoint && activeHoveredPoint.enabled ? activeHoveredPoint.dot : null;
+    activeHoveredPoint && activeHoveredPoint.enabled
+      ? activeHoveredPoint.dot
+      : null;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -1331,7 +1341,10 @@ function Compass({
         {[userPoint, activeHoveredPoint]
           .filter((point, index, list) => {
             if (!point || !point.enabled) return false;
-            return list.findIndex((candidate) => candidate?.id === point.id) === index;
+            return (
+              list.findIndex((candidate) => candidate?.id === point.id) ===
+              index
+            );
           })
           .map((point) => (
             <circle
@@ -1366,6 +1379,11 @@ function Compass({
           const { sx, sy } = toSvg(activeHoveredDot.x, activeHoveredDot.y);
           const isRight = sx > cx;
           const isBottom = sy > cy;
+          const noteText =
+            typeof activeHoveredDot.notes === "string"
+              ? activeHoveredDot.notes.trim()
+              : "";
+          const hasNotes = noteText.length > 0;
           const tooltipStyle = {
             position: "absolute",
             left: `${(sx / dims.w) * 100}%`,
@@ -1374,10 +1392,9 @@ function Compass({
             background: THEME.SiteText,
             border: `1px solid ${THEME.SiteBorder}`,
             borderRadius: 8,
-            padding: "12px 16px",
+            padding: hasNotes ? "12px 16px" : "14px 16px 11px",
             minWidth: 180,
             zIndex: 10,
-            lineHeight: 1.2,
           };
           return (
             <div style={tooltipStyle}>
@@ -1392,22 +1409,29 @@ function Compass({
                 const age = activeHoveredDot.age?.trim() || "";
                 const details = [country, age].filter(Boolean).join(", ");
                 return (
-                  <div style={{ fontSize: 12, color: THEME.SiteBG }}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: THEME.SiteBG,
+                      lineHeight: hasNotes ? 1.15 : 1.05,
+                    }}
+                  >
                     <strong>{title}</strong>
                     {details ? `, ${details}` : ""}
                   </div>
                 );
               })()}
-              {activeHoveredDot.notes && (
+              {hasNotes && (
                 <div
                   style={{
                     fontSize: 12,
                     color: THEME.SiteBG,
                     marginTop: 4,
+                    lineHeight: 1.2,
                     fontStyle: "italic",
                   }}
                 >
-                  "{activeHoveredDot.notes}"
+                  "{noteText}"
                 </div>
               )}
             </div>
@@ -1851,7 +1875,8 @@ export default function AICompass() {
   const [disabledCountries, setDisabledCountries] = useState([]);
   const [disabledIndustries, setDisabledIndustries] = useState([]);
   const [filterIpCountryCode] = useState(() => getClientCountryHint());
-  const [hasInitialResultsSnapshot, setHasInitialResultsSnapshot] = useState(false);
+  const [hasInitialResultsSnapshot, setHasInitialResultsSnapshot] =
+    useState(false);
   const [homeCanvasDrawn, setHomeCanvasDrawn] = useState(false);
   const [showHomeLoading, setShowHomeLoading] = useState(true);
   const resetQuizProgress = () =>
@@ -2106,7 +2131,8 @@ export default function AICompass() {
 
   const quadrant = scores ? getQuadrant(scores.x, scores.y) : null;
   const qi = quadrant ? QUADRANT_INFO[quadrant] : null;
-  const showCompassView = screen === "home" || (screen === "results" && scores && qi);
+  const showCompassView =
+    screen === "home" || (screen === "results" && scores && qi);
   const activeQuadrant = pinnedQuadrant || hoveredQuadrant;
   const homeBodyReady = hasInitialResultsSnapshot && homeCanvasDrawn;
   useEffect(() => {
