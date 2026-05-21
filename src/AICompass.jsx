@@ -219,6 +219,7 @@ const HOME_SECTION_GAP = 20;
 const UNSPECIFIED_FILTER_VALUE = "__UNSPECIFIED__";
 const DROPDOWN_VIEWPORT_BUFFER = 10;
 const DROPDOWN_MENU_MAX_HEIGHT = 200;
+const COMPASS_CANVAS_DPR_CAP = 1.5;
 const DEV_SAMPLE_OCCUPATION = "Lead Social Media Strategy Supervisor";
 const DEV_SAMPLE_NOTES =
   "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
@@ -1099,7 +1100,7 @@ function Compass({
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const dpr = 1;
+    const dpr = Math.min(window.devicePixelRatio || 1, COMPASS_CANVAS_DPR_CAP);
     const pixelWidth = Math.max(1, Math.round(dims.w * dpr));
     const pixelHeight = Math.max(1, Math.round(dims.h * dpr));
     if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
