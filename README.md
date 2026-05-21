@@ -30,6 +30,7 @@ The survey submit path now expects a Firebase HTTPS function endpoint.
 1. Deploy function from `functions/index.js` with secret `COMPASS_HASH_SECRET`.
 2. Set web env var `VITE_COMPASS_SUBMIT_ENDPOINT` to the deployed function URL.
 3. Deploy `firestore.rules` so direct client writes to `compass-results-v2` are blocked.
+4. Production builds now fail fast if `VITE_COMPASS_SUBMIT_ENDPOINT` is missing.
 
 Submission behavior:
 

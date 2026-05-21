@@ -127,7 +127,7 @@ const RESPONSE_RANGE = {
 const RESULT_SCHEMA_VERSION = 3;
 const COMPASS_RESULTS_COLLECTION = "compass-results-v2";
 const COMPASS_SUBMIT_ENDPOINT =
-  import.meta.env.VITE_COMPASS_SUBMIT_ENDPOINT || "";
+  (import.meta.env.VITE_COMPASS_SUBMIT_ENDPOINT || "").trim();
 const DEVICE_ID_STORAGE_KEY = "ai_compass_device_id_v1";
 const SESSION_ID_STORAGE_KEY = "ai_compass_session_id_v1";
 const UNKNOWN_SEGMENT_VALUE = "__UNSPECIFIED__";
@@ -430,6 +430,68 @@ function getClientCountryHint() {
 
 async function submitCompassResult(payload) {
   if (!COMPASS_SUBMIT_ENDPOINT) {
+    if (payload?.is_dev === true) {
+      const createdAt = Number(payload.client_created_at) || Date.now();
+      const xScore = Number(payload.x_score) || 0;
+      const yScore = Number(payload.y_score) || 0;
+      const demographics =
+        payload.demographics && typeof payload.demographics === "object"
+          ? payload.demographics
+          : {};
+      return {
+        ok: true,
+        submission: {
+          submission_id: `local_dev_${createdAt}_${Math.random().toString(36).slice(2, 8)}`,
+          created_at: createdAt,
+          ts: createdAt,
+          x_score: xScore,
+          y_score: yScore,
+          x: xScore,
+          y: yScore,
+          archetype: typeof payload.archetype === "string" ? payload.archetype : "",
+          demographics,
+          age: typeof demographics.age === "string" ? demographics.age : "",
+          country:
+            typeof demographics.country === "string" ? demographics.country : "",
+          industry:
+            typeof demographics.industry === "string" ? demographics.industry : "",
+          occupation:
+            typeof demographics.occupation === "string"
+              ? demographics.occupation
+              : "",
+          notes: typeof demographics.notes === "string" ? demographics.notes : "",
+          question_order: Array.isArray(payload.question_order)
+            ? payload.question_order
+            : [],
+          question_values:
+            payload.question_values && typeof payload.question_values === "object"
+              ? payload.question_values
+              : {},
+          question_responses: Array.isArray(payload.question_responses)
+            ? payload.question_responses
+            : [],
+          question_medians:
+            payload.question_medians &&
+            typeof payload.question_medians === "object"
+              ? payload.question_medians
+              : {},
+          result_schema_version: Number(payload.result_schema_version) || 3,
+          resultSchemaVersion: Number(payload.result_schema_version) || 3,
+          segments:
+            payload.segments && typeof payload.segments === "object"
+              ? payload.segments
+              : {},
+          is_repeat_ip_24h: false,
+          is_repeat_device_24h: false,
+          repeat_group_id: "",
+          include_in_default_aggregate: true,
+          include_in_device_priority_aggregate: true,
+          repeat_classification: "first_or_stale",
+          is_dev: true,
+          isDev: true,
+        },
+      };
+    }
     throw new Error(
       "Submission endpoint missing. Set VITE_COMPASS_SUBMIT_ENDPOINT.",
     );
@@ -1892,13 +1954,24 @@ export default function AICompass() {
         if (!saved || typeof saved !== "object") {
           throw new Error("Invalid submit response");
         }
+        const savedId = saved.submission_id || saved.id || localId;
         setFirestoreError("");
+        if (options.isDev === true && !COMPASS_SUBMIT_ENDPOINT) {
+          setResults((prev) => {
+            const next = {
+              ...entry,
+              ...saved,
+              id: savedId,
+            };
+            return [...prev.filter((dot) => dot.id !== savedId), next];
+          });
+        }
         setUserResult((prev) =>
           prev?.id === localId
             ? {
                 ...entry,
                 ...saved,
-                id: saved.submission_id || saved.id || prev.id,
+                id: savedId,
               }
             : prev,
         );
