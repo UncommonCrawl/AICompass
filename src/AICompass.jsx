@@ -922,6 +922,7 @@ function Compass({
   const pendingPointerRef = useRef(null);
   const [dims, setDims] = useState({ w: 960, h: 520 });
   const [hoveredDotId, setHoveredDotId] = useState(null);
+  const [devFps, setDevFps] = useState(0);
   const axisLabelGap = 10;
   const axisLabelFontSize = 10;
   const xAxisLetterSpacingEm = 0.1;
@@ -1098,7 +1099,7 @@ function Compass({
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = 1;
     const pixelWidth = Math.max(1, Math.round(dims.w * dpr));
     const pixelHeight = Math.max(1, Math.round(dims.h * dpr));
     if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
@@ -1127,6 +1128,28 @@ function Compass({
     },
     [],
   );
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    let rafId = 0;
+    let frameCount = 0;
+    let sampleStart = performance.now();
+
+    const tick = (now) => {
+      frameCount += 1;
+      const elapsed = now - sampleStart;
+      if (elapsed >= 500) {
+        const nextFps = (frameCount * 1000) / elapsed;
+        setDevFps(nextFps);
+        frameCount = 0;
+        sampleStart = now;
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, []);
 
   const updateHoveredPointFromPointer = (clientX, clientY) => {
     const plotElement = plotRef.current;
@@ -1389,6 +1412,27 @@ function Compass({
             </div>
           );
         })()}
+      {import.meta.env.DEV && (
+        <div
+          style={{
+            position: "absolute",
+            right: 8,
+            bottom: 8,
+            padding: "4px 6px",
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 10,
+            letterSpacing: "0.08em",
+            color: "#1f1a16",
+            background: "rgba(243,235,222,0.88)",
+            border: "1px solid rgba(31,26,22,0.22)",
+            borderRadius: 6,
+            pointerEvents: "none",
+            zIndex: 12,
+          }}
+        >
+          FPS {Math.round(devFps)} · PTS {plotPoints.length}
+        </div>
+      )}
     </div>
   );
 }
