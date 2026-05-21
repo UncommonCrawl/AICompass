@@ -14,9 +14,22 @@
     rgba(47, 41, 35, 0.12) 0 10px 15px -3px,
     rgba(47, 41, 35, 0.08) 0 4px 6px -2px;
 
-  --sans: 'IBM Plex Mono', monospace;
-  --heading: 'Newsreader', 'Iowan Old Style', 'Palatino Linotype', serif;
-  --mono: 'IBM Plex Mono', monospace;
+  --font-ibm-plex-mono: 'IBM Plex Mono', monospace;
+  --font-newsreader: 'Newsreader', 'Iowan Old Style', 'Palatino Linotype', serif;
+
+  --tab-bg-outer: rgba(31, 26, 22, 0.02);
+  --tab-bg-form: rgba(31, 26, 22, 0.02);
+  --tab-bg-menu: rgba(243, 235, 222, 1);
+  --tab-border-width: 1px;
+  --tab-border-style: solid;
+  --tab-border-color: rgba(31, 26, 22, 0.14);
+  --tab-border-color-strong: rgba(31, 26, 22, 0.35);
+  --tab-border-color-subtle: rgba(31, 26, 22, 0.14);
+  --tab-radius: 8px;
+
+  --sans: var(--font-ibm-plex-mono);
+  --heading: var(--font-newsreader);
+  --mono: var(--font-ibm-plex-mono);
 
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;

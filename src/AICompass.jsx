@@ -209,7 +209,6 @@ const NOTES_CHAR_LIMIT = 120;
 const HEADER_ACTION_HEIGHT = 44;
 const HEADER_BAR_HEIGHT = 118;
 const HOME_SECTION_GAP = 20;
-const ARCHETYPE_BG_SOLID = "#efe6da";
 const UNSPECIFIED_FILTER_VALUE = "__UNSPECIFIED__";
 const DROPDOWN_VIEWPORT_BUFFER = 10;
 const DROPDOWN_MENU_MAX_HEIGHT = 200;
@@ -222,6 +221,19 @@ const THEME = {
   SiteText: "#1f1a16",
   SiteBorder: "#b8aea2",
 };
+
+const TAB_STYLE_VARS = {
+  outerBackground: "var(--tab-bg-outer)",
+  formBackground: "var(--tab-bg-form)",
+  menuBackground: "var(--tab-bg-menu)",
+  borderColor: "var(--tab-border-color)",
+  borderColorStrong: "var(--tab-border-color-strong)",
+  borderColorSubtle: "var(--tab-border-color-subtle)",
+  borderRadius: "var(--tab-radius)",
+};
+
+const tabBorder = (color = TAB_STYLE_VARS.borderColor) =>
+  `var(--tab-border-width) var(--tab-border-style) ${color}`;
 
 const ARCHETYPE_GRID_ORDER = [
   "topLeft",
@@ -483,9 +495,9 @@ function MultiSelectFilter({
       ref={rootRef}
       style={{
         position: "relative",
-        border: "1px solid rgba(31,26,22,0.1)",
-        borderRadius: 8,
-        background: "rgba(31,26,22,0.02)",
+        border: tabBorder(),
+        borderRadius: TAB_STYLE_VARS.borderRadius,
+        background: TAB_STYLE_VARS.outerBackground,
         padding: "8px 10px",
       }}
     >
@@ -527,10 +539,10 @@ function MultiSelectFilter({
           padding: "8px 10px",
           fontSize: 12,
           fontFamily: "'Newsreader', serif",
-          background: "rgba(31,26,22,0.02)",
-          border: "1px solid rgba(31,26,22,0.14)",
+          background: TAB_STYLE_VARS.outerBackground,
+          border: tabBorder(),
           color: "#1f1a16",
-          borderRadius: 6,
+          borderRadius: TAB_STYLE_VARS.borderRadius,
           outline: "none",
           boxSizing: "border-box",
           cursor: "pointer",
@@ -550,9 +562,9 @@ function MultiSelectFilter({
             left: 0,
             right: 0,
             ...(menuPlacement === "up" ? { bottom: "100%" } : { top: "100%" }),
-            background: ARCHETYPE_BG_SOLID,
-            border: "1px solid rgba(31,26,22,0.2)",
-            borderRadius: 8,
+            background: TAB_STYLE_VARS.menuBackground,
+            border: tabBorder(),
+            borderRadius: TAB_STYLE_VARS.borderRadius,
             boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
             padding: 8,
             zIndex: 30,
@@ -567,7 +579,11 @@ function MultiSelectFilter({
               gap: 0,
               scrollbarWidth: "none",
               msOverflowStyle: "none",
+              overscrollBehavior: "contain",
+              WebkitOverflowScrolling: "touch",
             }}
+            onWheel={(e) => e.stopPropagation()}
+            onTouchMove={(e) => e.stopPropagation()}
           >
             <button
               type="button"
@@ -697,9 +713,9 @@ function SingleSelectDropdown({
       ref={rootRef}
       style={{
         position: "relative",
-        border: "1px solid rgba(31,26,22,0.1)",
-        borderRadius: 8,
-        background: "rgba(31,26,22,0.02)",
+        border: tabBorder(),
+        borderRadius: TAB_STYLE_VARS.borderRadius,
+        background: TAB_STYLE_VARS.outerBackground,
         padding: "8px 10px",
       }}
     >
@@ -741,10 +757,10 @@ function SingleSelectDropdown({
           padding: "8px 10px",
           fontSize: 12,
           fontFamily: "'Newsreader', serif",
-          background: "rgba(31,26,22,0.02)",
-          border: "1px solid rgba(31,26,22,0.14)",
+          background: TAB_STYLE_VARS.outerBackground,
+          border: tabBorder(),
           color: "#1f1a16",
-          borderRadius: 6,
+          borderRadius: TAB_STYLE_VARS.borderRadius,
           outline: "none",
           boxSizing: "border-box",
           cursor: "pointer",
@@ -764,9 +780,9 @@ function SingleSelectDropdown({
             left: 0,
             right: 0,
             ...(menuPlacement === "up" ? { bottom: "100%" } : { top: "100%" }),
-            background: ARCHETYPE_BG_SOLID,
-            border: "1px solid rgba(31,26,22,0.2)",
-            borderRadius: 8,
+            background: TAB_STYLE_VARS.menuBackground,
+            border: tabBorder(),
+            borderRadius: TAB_STYLE_VARS.borderRadius,
             boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
             padding: 8,
             zIndex: 30,
@@ -781,7 +797,11 @@ function SingleSelectDropdown({
               gap: 0,
               scrollbarWidth: "none",
               msOverflowStyle: "none",
+              overscrollBehavior: "contain",
+              WebkitOverflowScrolling: "touch",
             }}
+            onWheel={(e) => e.stopPropagation()}
+            onTouchMove={(e) => e.stopPropagation()}
           >
             {options.map((option) => (
               <button
@@ -827,6 +847,8 @@ function Compass({
   const [hoveredDot, setHoveredDot] = useState(null);
   const axisLabelGap = 10;
   const axisLabelFontSize = 10;
+  const xAxisLetterSpacingEm = 0.1;
+  const yAxisLetterSpacingEm = xAxisLetterSpacingEm * 0.5;
   const pad = axisLabelGap + axisLabelFontSize + 2;
 
   useEffect(() => {
@@ -893,18 +915,21 @@ function Compass({
   const axisLabels = [
     {
       key: "top",
+      axis: "y",
       x: cx,
       y: pad - axisLabelGap,
       text: "HIGH BELIEF IN LLM POTENTIAL",
     },
     {
       key: "bottom",
+      axis: "y",
       x: cx,
       y: dims.h - pad + axisLabelGap + axisLabelFontSize,
       text: "LOW BELIEF IN LLM POTENTIAL",
     },
     {
       key: "left",
+      axis: "x",
       x: pad - axisLabelGap,
       y: cy,
       text: "RESTRICT ADVANCEMENT",
@@ -912,6 +937,7 @@ function Compass({
     },
     {
       key: "right",
+      axis: "x",
       x: dims.w - pad + axisLabelGap,
       y: cy,
       text: "ACCELERATE ADVANCEMENT",
@@ -999,12 +1025,15 @@ function Compass({
         />
 
         {/* Axis labels */}
-        {axisLabels.map(({ key, x, y, text, transform }) => (
+        {axisLabels.map(({ key, axis, x, y, text, transform }) => (
           <text
             key={key}
             x={x}
             y={y}
             transform={transform}
+            letterSpacing={`${
+              axis === "y" ? yAxisLetterSpacingEm : xAxisLetterSpacingEm
+            }em`}
             {...axisLabelTextStyle}
           >
             {text}
@@ -1229,10 +1258,10 @@ function QuizPage({ onComplete, onProgressChange }) {
     padding: "10px 14px",
     fontSize: 14,
     fontFamily: "'Newsreader', serif",
-    background: "rgba(31,26,22,0.04)",
-    border: "1px solid rgba(31,26,22,0.1)",
+    background: TAB_STYLE_VARS.formBackground,
+    border: tabBorder(),
     color: "#1f1a16",
-    borderRadius: 8,
+    borderRadius: TAB_STYLE_VARS.borderRadius,
     outline: "none",
     boxSizing: "border-box",
   };
@@ -2040,7 +2069,7 @@ export default function AICompass() {
       {/* Home Screen */}
       {screen === "home" && (
         <>
-          <div style={{ marginTop: HOME_SECTION_GAP }}>
+          <div style={{ marginTop: 0 }}>
             <Compass
               results={results}
               userResult={userResult}
@@ -2109,12 +2138,12 @@ export default function AICompass() {
                   }
                   style={{
                     padding: "12px 14px",
-                    background: "rgba(31,26,22,0.02)",
+                    background: TAB_STYLE_VARS.outerBackground,
                     border:
                       activeQuadrant === key
-                        ? "1px solid rgba(31,26,22,0.35)"
-                        : "1px solid rgba(31,26,22,0.06)",
-                    borderRadius: 8,
+                        ? tabBorder(TAB_STYLE_VARS.borderColorStrong)
+                        : tabBorder(TAB_STYLE_VARS.borderColorSubtle),
+                    borderRadius: TAB_STYLE_VARS.borderRadius,
                     cursor: "pointer",
                     transition: "border-color 220ms ease",
                   }}
