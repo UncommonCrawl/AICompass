@@ -1,4 +1,11 @@
-import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from "react";
 import {
   collection,
   deleteDoc,
@@ -339,7 +346,7 @@ function useDropdownMenuLayout(open, rootRef) {
   const [menuPlacement, setMenuPlacement] = useState("down");
   const [menuMaxHeight, setMenuMaxHeight] = useState(DROPDOWN_MENU_MAX_HEIGHT);
 
-  const updateMenuLayout = () => {
+  const updateMenuLayout = useCallback(() => {
     const root = rootRef.current;
     if (!root) return;
     const rect = root.getBoundingClientRect();
@@ -360,23 +367,25 @@ function useDropdownMenuLayout(open, rootRef) {
     );
     setMenuPlacement(openUp ? "up" : "down");
     setMenuMaxHeight(maxHeight);
-  };
+  }, [rootRef]);
 
   useLayoutEffect(() => {
     if (!open) return;
     updateMenuLayout();
-  }, [open]);
+  }, [open, updateMenuLayout]);
 
   useEffect(() => {
     if (!open) return;
-    const handleResizeOrScroll = () => updateMenuLayout();
-    window.addEventListener("resize", handleResizeOrScroll);
-    window.addEventListener("scroll", handleResizeOrScroll, true);
+    const handleResize = () => updateMenuLayout();
+    window.addEventListener("resize", handleResize);
+    window.visualViewport?.addEventListener("resize", handleResize);
+    window.visualViewport?.addEventListener("scroll", handleResize);
     return () => {
-      window.removeEventListener("resize", handleResizeOrScroll);
-      window.removeEventListener("scroll", handleResizeOrScroll, true);
+      window.removeEventListener("resize", handleResize);
+      window.visualViewport?.removeEventListener("resize", handleResize);
+      window.visualViewport?.removeEventListener("scroll", handleResize);
     };
-  }, [open]);
+  }, [open, updateMenuLayout]);
 
   return { menuPlacement, menuMaxHeight, updateMenuLayout };
 }
@@ -841,10 +850,16 @@ function Compass({
   disabledAges,
   disabledCountries,
   disabledIndustries,
+  onCanvasDraw,
 }) {
   const svgRef = useRef(null);
+  const plotRef = useRef(null);
+  const canvasRef = useRef(null);
+  const hoveredDotIdRef = useRef(null);
+  const hoverFrameRef = useRef(0);
+  const pendingPointerRef = useRef(null);
   const [dims, setDims] = useState({ w: 960, h: 520 });
-  const [hoveredDot, setHoveredDot] = useState(null);
+  const [hoveredDotId, setHoveredDotId] = useState(null);
   const axisLabelGap = 10;
   const axisLabelFontSize = 10;
   const xAxisLetterSpacingEm = 0.1;
@@ -852,7 +867,7 @@ function Compass({
   const pad = axisLabelGap + axisLabelFontSize + 2;
 
   useEffect(() => {
-    const el = svgRef.current?.parentElement;
+    const el = plotRef.current;
     if (!el) return;
     const minHeight = 300;
     const maxHeight = 560;
@@ -967,19 +982,157 @@ function Compass({
     () => new Set(disabledIndustries),
     [disabledIndustries],
   );
-  const isDotEnabled = (dot) =>
-    !disabledAgeSet.has(normalizeFilterValue(dot.age)) &&
-    !disabledCountrySet.has(normalizeFilterValue(dot.country)) &&
-    !disabledIndustrySet.has(normalizeFilterValue(dot.industry));
+  const plotPoints = useMemo(
+    () =>
+      results.map((dot, i) => {
+        const sx = cx + dot.x * xRange;
+        const sy = cy - dot.y * yRange;
+        const isUser = Boolean(userResult && dot.id === userResult.id);
+        const dotRadius = isUser ? 5 : 3.5;
+        const quadrant = getQuadrant(dot.x, dot.y);
+        return {
+          id: dot.id || `idx-${i}`,
+          dot,
+          sx,
+          sy,
+          color: QUADRANT_INFO[quadrant].color,
+          isUser,
+          dotRadius,
+          hitRadius: dotRadius * 2,
+          enabled:
+            !disabledAgeSet.has(normalizeFilterValue(dot.age)) &&
+            !disabledCountrySet.has(normalizeFilterValue(dot.country)) &&
+            !disabledIndustrySet.has(normalizeFilterValue(dot.industry)),
+        };
+      }),
+    [
+      results,
+      userResult,
+      cx,
+      cy,
+      xRange,
+      yRange,
+      disabledAgeSet,
+      disabledCountrySet,
+      disabledIndustrySet,
+    ],
+  );
+  const plotPointById = useMemo(
+    () => new Map(plotPoints.map((point) => [point.id, point])),
+    [plotPoints],
+  );
+  const userPoint = useMemo(
+    () => plotPoints.find((point) => point.isUser && point.enabled) || null,
+    [plotPoints],
+  );
+  const activeHoveredPoint = hoveredDotId
+    ? plotPointById.get(hoveredDotId) || null
+    : null;
   const activeHoveredDot =
-    hoveredDot && isDotEnabled(hoveredDot) ? hoveredDot : null;
+    activeHoveredPoint && activeHoveredPoint.enabled ? activeHoveredPoint.dot : null;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const dpr = window.devicePixelRatio || 1;
+    const pixelWidth = Math.max(1, Math.round(dims.w * dpr));
+    const pixelHeight = Math.max(1, Math.round(dims.h * dpr));
+    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+      canvas.width = pixelWidth;
+      canvas.height = pixelHeight;
+    }
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, dims.w, dims.h);
+    for (const point of plotPoints) {
+      ctx.globalAlpha = point.enabled ? (point.isUser ? 1 : 0.7) : 0.2;
+      ctx.fillStyle = point.color;
+      ctx.beginPath();
+      ctx.arc(point.sx, point.sy, point.dotRadius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    onCanvasDraw?.();
+  }, [plotPoints, dims.w, dims.h, onCanvasDraw]);
+
+  useEffect(
+    () => () => {
+      if (hoverFrameRef.current) {
+        cancelAnimationFrame(hoverFrameRef.current);
+      }
+    },
+    [],
+  );
+
+  const updateHoveredPointFromPointer = (clientX, clientY) => {
+    const plotElement = plotRef.current;
+    if (!plotElement) return;
+    const rect = plotElement.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+
+    const pointerX = ((clientX - rect.left) / rect.width) * dims.w;
+    const pointerY = ((clientY - rect.top) / rect.height) * dims.h;
+
+    let bestMatch = null;
+    let bestDistanceSq = Infinity;
+    for (const point of plotPoints) {
+      if (!point.enabled) continue;
+      const dx = pointerX - point.sx;
+      const dy = pointerY - point.sy;
+      const radius = point.hitRadius + 2;
+      const distanceSq = dx * dx + dy * dy;
+      if (distanceSq <= radius * radius && distanceSq < bestDistanceSq) {
+        bestDistanceSq = distanceSq;
+        bestMatch = point;
+      }
+    }
+
+    const nextHoveredDotId = bestMatch ? bestMatch.id : null;
+    if (hoveredDotIdRef.current !== nextHoveredDotId) {
+      hoveredDotIdRef.current = nextHoveredDotId;
+      setHoveredDotId(nextHoveredDotId);
+    }
+  };
+
+  const handlePlotMouseMove = (event) => {
+    pendingPointerRef.current = {
+      clientX: event.clientX,
+      clientY: event.clientY,
+    };
+    if (hoverFrameRef.current) return;
+    hoverFrameRef.current = requestAnimationFrame(() => {
+      hoverFrameRef.current = 0;
+      const pointer = pendingPointerRef.current;
+      if (!pointer) return;
+      updateHoveredPointFromPointer(pointer.clientX, pointer.clientY);
+    });
+  };
+
+  const handlePlotMouseLeave = () => {
+    pendingPointerRef.current = null;
+    if (hoverFrameRef.current) {
+      cancelAnimationFrame(hoverFrameRef.current);
+      hoverFrameRef.current = 0;
+    }
+    if (hoveredDotIdRef.current !== null) {
+      hoveredDotIdRef.current = null;
+      setHoveredDotId(null);
+    }
+  };
 
   return (
-    <div style={{ position: "relative", width: "100%", margin: "0 auto" }}>
+    <div
+      ref={plotRef}
+      onMouseMove={handlePlotMouseMove}
+      onMouseLeave={handlePlotMouseLeave}
+      style={{ position: "relative", width: "100%", margin: "0 auto" }}
+    >
       <svg
         ref={svgRef}
         viewBox={`0 0 ${dims.w} ${dims.h}`}
-        style={{ width: "100%", height: "auto", display: "block" }}
+        style={{ width: "100%", height: "auto", display: "block", zIndex: 1 }}
       >
         {/* Quadrant fills */}
         {quadrantFillRects.map(({ key, x, y }) => (
@@ -1052,91 +1205,73 @@ function Compass({
             {QUADRANT_INFO[key].compassLabel.toUpperCase()}
           </text>
         ))}
+      </svg>
 
-        {/* Larger hover hitboxes (2x dot radius), rendered beneath visible dots */}
-        {results.map((r, i) => {
-          const { sx, sy } = toSvg(r.x, r.y);
-          const isUser = userResult && r.id === userResult.id;
-          const dotRadius = isUser ? 5 : 3.5;
-          const enabled = isDotEnabled(r);
-          return (
+      <canvas
+        ref={canvasRef}
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          pointerEvents: "none",
+          zIndex: 2,
+        }}
+      />
+
+      <svg
+        viewBox={`0 0 ${dims.w} ${dims.h}`}
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          pointerEvents: "none",
+          zIndex: 3,
+        }}
+      >
+        {activeHoveredPoint && activeHoveredPoint.enabled && (
+          <circle
+            cx={activeHoveredPoint.sx}
+            cy={activeHoveredPoint.sy}
+            r={activeHoveredPoint.dotRadius}
+            fill="none"
+            stroke={THEME.SiteBG}
+            strokeWidth={1.5}
+          />
+        )}
+        {[userPoint, activeHoveredPoint]
+          .filter((point, index, list) => {
+            if (!point || !point.enabled) return false;
+            return list.findIndex((candidate) => candidate?.id === point.id) === index;
+          })
+          .map((point) => (
             <circle
-              key={`hitbox-${r.id || i}`}
-              cx={sx}
-              cy={sy}
-              r={dotRadius * 2}
-              fill="transparent"
-              stroke="none"
-              pointerEvents={enabled ? "all" : "none"}
-              onMouseEnter={enabled ? () => setHoveredDot(r) : undefined}
-              onMouseLeave={
-                enabled
-                  ? () =>
-                      setHoveredDot((prev) => (prev?.id === r.id ? null : prev))
-                  : undefined
-              }
-            />
-          );
-        })}
-
-        {/* Result dots */}
-        {results.map((r, i) => {
-          const { sx, sy } = toSvg(r.x, r.y);
-          const q = getQuadrant(r.x, r.y);
-          const col = QUADRANT_INFO[q].color;
-          const isUser = userResult && r.id === userResult.id;
-          const isHovered = activeHoveredDot && r.id === activeHoveredDot.id;
-          const enabled = isDotEnabled(r);
-          const baseOpacity = isUser ? 1 : 0.7;
-          return (
-            <g key={r.id || i}>
-              {enabled && (isUser || isHovered) && (
-                <circle
-                  cx={sx}
-                  cy={sy}
-                  r={isUser ? 8 : 7}
-                  fill="none"
-                  stroke={col}
-                  strokeWidth={1.5}
-                  opacity={0.6}
-                  pointerEvents="none"
-                >
-                  <animate
-                    attributeName="r"
-                    values={isUser ? "8;12;8" : "7;10;7"}
-                    dur="2s"
-                    repeatCount="indefinite"
-                  />
-                  <animate
-                    attributeName="opacity"
-                    values="0.6;0.2;0.6"
-                    dur="2s"
-                    repeatCount="indefinite"
-                  />
-                </circle>
-              )}
-              <circle
-                cx={sx}
-                cy={sy}
-                r={isUser ? 5 : 3.5}
-                fill={col}
-                opacity={enabled ? baseOpacity : 0.2}
-                stroke={isHovered ? THEME.SiteBG : "none"}
-                strokeWidth={isHovered ? 1.5 : 0}
-                style={{ cursor: enabled ? "pointer" : "default" }}
-                onMouseEnter={enabled ? () => setHoveredDot(r) : undefined}
-                onMouseLeave={
-                  enabled
-                    ? () =>
-                        setHoveredDot((prev) =>
-                          prev?.id === r.id ? null : prev,
-                        )
-                    : undefined
-                }
+              key={`pulse-${point.id}`}
+              cx={point.sx}
+              cy={point.sy}
+              r={point.isUser ? 8 : 7}
+              fill="none"
+              stroke={point.color}
+              strokeWidth={1.5}
+              opacity={0.6}
+            >
+              <animate
+                attributeName="r"
+                values={point.isUser ? "8;12;8" : "7;10;7"}
+                dur="2s"
+                repeatCount="indefinite"
               />
-            </g>
-          );
-        })}
+              <animate
+                attributeName="opacity"
+                values="0.6;0.2;0.6"
+                dur="2s"
+                repeatCount="indefinite"
+              />
+            </circle>
+          ))}
       </svg>
 
       {/* Tooltip for hovered dot */}
@@ -1156,7 +1291,6 @@ function Compass({
             padding: "12px 16px",
             minWidth: 180,
             zIndex: 10,
-            backdropFilter: "blur(12px)",
             lineHeight: 1.2,
           };
           return (
@@ -1610,6 +1744,9 @@ export default function AICompass() {
   const [disabledCountries, setDisabledCountries] = useState([]);
   const [disabledIndustries, setDisabledIndustries] = useState([]);
   const [filterIpCountryCode] = useState(() => getClientCountryHint());
+  const [hasInitialResultsSnapshot, setHasInitialResultsSnapshot] = useState(false);
+  const [homeCanvasDrawn, setHomeCanvasDrawn] = useState(false);
+  const [showHomeLoading, setShowHomeLoading] = useState(true);
   const resetQuizProgress = () =>
     setQuizProgress({
       answered: 0,
@@ -1631,11 +1768,13 @@ export default function AICompass() {
           id: doc.id,
           ...doc.data(),
         }));
+        setHasInitialResultsSnapshot(true);
         setFirestoreError("");
         setResults(nextResults);
       },
       (error) => {
         console.error("Firestore onSnapshot error:", error);
+        setHasInitialResultsSnapshot(true);
         setFirestoreError(
           error?.code
             ? `Live sync unavailable (${error.code}).`
@@ -1646,6 +1785,9 @@ export default function AICompass() {
     );
 
     return unsubscribe;
+  }, []);
+  const handleHomeCanvasDraw = useCallback(() => {
+    setHomeCanvasDrawn((prev) => (prev ? prev : true));
   }, []);
 
   const handleQuizComplete = ({
@@ -1847,6 +1989,14 @@ export default function AICompass() {
   const quadrant = scores ? getQuadrant(scores.x, scores.y) : null;
   const qi = quadrant ? QUADRANT_INFO[quadrant] : null;
   const activeQuadrant = pinnedQuadrant || hoveredQuadrant;
+  const homeBodyReady = hasInitialResultsSnapshot && homeCanvasDrawn;
+  useEffect(() => {
+    if (!homeBodyReady || !showHomeLoading) return;
+    const timeoutId = setTimeout(() => {
+      setShowHomeLoading(false);
+    }, 1000);
+    return () => clearTimeout(timeoutId);
+  }, [homeBodyReady, showHomeLoading]);
   const ageFilterOptions = useMemo(
     () => [
       ...AGE_RANGES.map((age) => ({ value: age, label: age })),
@@ -2068,158 +2218,192 @@ export default function AICompass() {
 
       {/* Home Screen */}
       {screen === "home" && (
-        <>
-          <div style={{ marginTop: 0 }}>
-            <Compass
-              results={results}
-              userResult={userResult}
-              activeQuadrant={activeQuadrant}
-              disabledAges={disabledAges}
-              disabledCountries={disabledCountries}
-              disabledIndustries={disabledIndustries}
-            />
-          </div>
-
-          <div
-            style={{
-              marginTop: HOME_SECTION_GAP,
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-              gap: 10,
-            }}
-          >
-            <MultiSelectFilter
-              label="AGE"
-              options={ageFilterOptions}
-              disabledValues={disabledAges}
-              setDisabledValues={setDisabledAges}
-            />
-            <MultiSelectFilter
-              label="LOCATION"
-              options={countryFilterOptions}
-              disabledValues={disabledCountries}
-              setDisabledValues={setDisabledCountries}
-            />
-            <MultiSelectFilter
-              label="INDUSTRY"
-              options={industryFilterOptions}
-              disabledValues={disabledIndustries}
-              setDisabledValues={setDisabledIndustries}
-            />
-          </div>
-
-          {/* Quadrant legend */}
-          <div
-            style={{
-              width: "100%",
-              margin: `${HOME_SECTION_GAP}px auto 0`,
-              display: "grid",
-              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-              gap: 12,
-            }}
-          >
-            {ARCHETYPE_GRID_ORDER.map((key) => {
-              const val = QUADRANT_INFO[key];
-              return (
-                <div
-                  key={key}
-                  onMouseEnter={() => {
-                    if (!pinnedQuadrant) setHoveredQuadrant(key);
-                  }}
-                  onMouseLeave={() => {
-                    if (!pinnedQuadrant) setHoveredQuadrant(null);
-                  }}
-                  onClick={() =>
-                    setPinnedQuadrant((prev) => {
-                      if (prev === key) return null;
-                      setHoveredQuadrant(null);
-                      return key;
-                    })
-                  }
-                  style={{
-                    padding: "12px 14px",
-                    background: TAB_STYLE_VARS.outerBackground,
-                    border:
-                      activeQuadrant === key
-                        ? tabBorder(TAB_STYLE_VARS.borderColorStrong)
-                        : tabBorder(TAB_STYLE_VARS.borderColorSubtle),
-                    borderRadius: TAB_STYLE_VARS.borderRadius,
-                    cursor: "pointer",
-                    transition: "border-color 220ms ease",
-                  }}
-                >
-                  <div
-                    style={{
-                      color: val.color,
-                      fontFamily: "'IBM Plex Mono', monospace",
-                      fontSize: 12,
-                      fontWeight: 600,
-                      marginBottom: 4,
-                    }}
-                  >
-                    {val.name}
-                  </div>
-                  <div
-                    style={{
-                      color: "#1f1a16",
-                      fontSize: 12,
-                      lineHeight: 1.45,
-                    }}
-                  >
-                    {val.desc}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          {import.meta.env.DEV && (
+        <div
+          style={{
+            position: "relative",
+            minHeight: `calc(100vh - ${HEADER_BAR_HEIGHT + 24 + 48}px)`,
+          }}
+        >
+          {showHomeLoading && (
             <div
               style={{
-                marginTop: 18,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                flexWrap: "wrap",
+                position: "fixed",
+                left: "50%",
+                top: HEADER_BAR_HEIGHT + 200,
+                transform: "translateX(-50%)",
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: 14,
+                letterSpacing: "0.2em",
+                color: "#1f1a16",
+                opacity: homeBodyReady ? 0 : 1,
+                transition: "opacity 1s ease",
+                pointerEvents: "none",
+                zIndex: 2,
               }}
             >
-              <button
-                onClick={handleDevShortcutSubmit}
-                style={{
-                  padding: "8px 14px",
-                  fontSize: 12,
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  fontWeight: 500,
-                  background: "rgba(31,26,22,0.08)",
-                  border: "1px solid rgba(31,26,22,0.14)",
-                  color: "#1f1a16",
-                  borderRadius: 8,
-                  cursor: "pointer",
-                }}
-              >
-                Dev shortcut: random dot
-              </button>
-              <button
-                onClick={handleClearDevDots}
-                disabled={clearingDevDots}
-                style={{
-                  padding: "8px 14px",
-                  fontSize: 12,
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  fontWeight: 500,
-                  background: "rgba(31,26,22,0.08)",
-                  border: "1px solid rgba(31,26,22,0.14)",
-                  color: "#1f1a16",
-                  borderRadius: 8,
-                  cursor: clearingDevDots ? "wait" : "pointer",
-                  opacity: clearingDevDots ? 0.7 : 1,
-                }}
-              >
-                {clearingDevDots ? "Clearing dev dots..." : "Reset dev dots"}
-              </button>
+              LOADING
             </div>
           )}
-        </>
+          <div
+            style={{
+              opacity: homeBodyReady ? 1 : 0,
+              transition: "opacity 1s ease",
+              pointerEvents: homeBodyReady ? "auto" : "none",
+            }}
+          >
+            <div style={{ marginTop: 0 }}>
+              <Compass
+                results={results}
+                userResult={userResult}
+                activeQuadrant={activeQuadrant}
+                disabledAges={disabledAges}
+                disabledCountries={disabledCountries}
+                disabledIndustries={disabledIndustries}
+                onCanvasDraw={handleHomeCanvasDraw}
+              />
+            </div>
+
+            <div
+              style={{
+                marginTop: HOME_SECTION_GAP,
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                gap: 10,
+              }}
+            >
+              <MultiSelectFilter
+                label="AGE"
+                options={ageFilterOptions}
+                disabledValues={disabledAges}
+                setDisabledValues={setDisabledAges}
+              />
+              <MultiSelectFilter
+                label="LOCATION"
+                options={countryFilterOptions}
+                disabledValues={disabledCountries}
+                setDisabledValues={setDisabledCountries}
+              />
+              <MultiSelectFilter
+                label="INDUSTRY"
+                options={industryFilterOptions}
+                disabledValues={disabledIndustries}
+                setDisabledValues={setDisabledIndustries}
+              />
+            </div>
+
+            {/* Quadrant legend */}
+            <div
+              style={{
+                width: "100%",
+                margin: `${HOME_SECTION_GAP}px auto 0`,
+                display: "grid",
+                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                gap: 12,
+              }}
+            >
+              {ARCHETYPE_GRID_ORDER.map((key) => {
+                const val = QUADRANT_INFO[key];
+                return (
+                  <div
+                    key={key}
+                    onMouseEnter={() => {
+                      if (!pinnedQuadrant) setHoveredQuadrant(key);
+                    }}
+                    onMouseLeave={() => {
+                      if (!pinnedQuadrant) setHoveredQuadrant(null);
+                    }}
+                    onClick={() =>
+                      setPinnedQuadrant((prev) => {
+                        if (prev === key) return null;
+                        setHoveredQuadrant(null);
+                        return key;
+                      })
+                    }
+                    style={{
+                      padding: "12px 14px",
+                      background: TAB_STYLE_VARS.outerBackground,
+                      border:
+                        activeQuadrant === key
+                          ? tabBorder(TAB_STYLE_VARS.borderColorStrong)
+                          : tabBorder(TAB_STYLE_VARS.borderColorSubtle),
+                      borderRadius: TAB_STYLE_VARS.borderRadius,
+                      cursor: "pointer",
+                      transition: "border-color 220ms ease",
+                    }}
+                  >
+                    <div
+                      style={{
+                        color: val.color,
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        marginBottom: 4,
+                      }}
+                    >
+                      {val.name}
+                    </div>
+                    <div
+                      style={{
+                        color: "#1f1a16",
+                        fontSize: 12,
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      {val.desc}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {import.meta.env.DEV && (
+              <div
+                style={{
+                  marginTop: 18,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                  flexWrap: "wrap",
+                }}
+              >
+                <button
+                  onClick={handleDevShortcutSubmit}
+                  style={{
+                    padding: "8px 14px",
+                    fontSize: 12,
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontWeight: 500,
+                    background: "rgba(31,26,22,0.08)",
+                    border: "1px solid rgba(31,26,22,0.14)",
+                    color: "#1f1a16",
+                    borderRadius: 8,
+                    cursor: "pointer",
+                  }}
+                >
+                  Dev shortcut: random dot
+                </button>
+                <button
+                  onClick={handleClearDevDots}
+                  disabled={clearingDevDots}
+                  style={{
+                    padding: "8px 14px",
+                    fontSize: 12,
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontWeight: 500,
+                    background: "rgba(31,26,22,0.08)",
+                    border: "1px solid rgba(31,26,22,0.14)",
+                    color: "#1f1a16",
+                    borderRadius: 8,
+                    cursor: clearingDevDots ? "wait" : "pointer",
+                    opacity: clearingDevDots ? 0.7 : 1,
+                  }}
+                >
+                  {clearingDevDots ? "Clearing dev dots..." : "Reset dev dots"}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Quiz Screen */}
