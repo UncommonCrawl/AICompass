@@ -2197,15 +2197,37 @@ export default function AICompass() {
     return () => clearTimeout(safety);
   }, [screen, submitting]);
 
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtmlOverflow = html.style.overflow;
+    const prevHtmlOverscroll = html.style.overscrollBehaviorY;
+    const prevBodyOverflow = body.style.overflow;
+    const prevBodyOverscroll = body.style.overscrollBehaviorY;
+
+    html.style.overflow = "hidden";
+    html.style.overscrollBehaviorY = "none";
+    body.style.overflow = "hidden";
+    body.style.overscrollBehaviorY = "none";
+
+    return () => {
+      html.style.overflow = prevHtmlOverflow;
+      html.style.overscrollBehaviorY = prevHtmlOverscroll;
+      body.style.overflow = prevBodyOverflow;
+      body.style.overscrollBehaviorY = prevBodyOverscroll;
+    };
+  }, []);
+
   return (
     <div
       style={{
-        minHeight: "100vh",
+        position: "relative",
+        height: "100vh",
+        overflow: "hidden",
         background: THEME.SiteBG,
         color: THEME.SiteText,
         fontFamily: "'Newsreader', serif",
-        padding: `${HEADER_BAR_HEIGHT + 24}px 48px 48px`,
-        overscrollBehaviorY: "none",
       }}
     >
       <link
@@ -2343,272 +2365,283 @@ export default function AICompass() {
         </div>
       </div>
 
-      {firestoreError && (
-        <div
-          style={{
-            maxWidth: 1000,
-            margin: "0 auto 16px",
-            padding: "10px 12px",
-            borderRadius: 8,
-            border: "1px solid rgba(255,179,0,0.4)",
-            background: "rgba(31,26,22,0.08)",
-            color: "#1f1a16",
-            fontSize: 12,
-            fontFamily: "'IBM Plex Mono', monospace",
-          }}
-        >
-          {firestoreError}
-        </div>
-      )}
-
-      {/* Home + Results Screen */}
-      {showCompassView && (
-        <div
-          style={{
-            position: "relative",
-            minHeight: `calc(100vh - ${HEADER_BAR_HEIGHT + 24 + 48}px)`,
-          }}
-        >
-          {showHomeLoading && (
-            <div
-              style={{
-                position: "fixed",
-                left: "50%",
-                top: HEADER_BAR_HEIGHT + 200,
-                transform: "translateX(-50%)",
-                fontFamily: "'IBM Plex Mono', monospace",
-                fontSize: 14,
-                letterSpacing: "0.2em",
-                color: "#1f1a16",
-                opacity: homeBodyReady ? 0 : 1,
-                transition: "opacity 1s ease",
-                pointerEvents: "none",
-                zIndex: 2,
-              }}
-            >
-              LOADING
-            </div>
-          )}
+      <div
+        style={{
+          height: "100%",
+          overflowY: "auto",
+          overscrollBehaviorY: "contain",
+          WebkitOverflowScrolling: "touch",
+          padding: `${HEADER_BAR_HEIGHT + 24}px 48px 48px`,
+          boxSizing: "border-box",
+        }}
+      >
+        {firestoreError && (
           <div
             style={{
-              opacity: homeBodyReady ? 1 : 0,
-              transition: "opacity 1s ease",
-              pointerEvents: homeBodyReady ? "auto" : "none",
+              maxWidth: 1000,
+              margin: "0 auto 16px",
+              padding: "10px 12px",
+              borderRadius: 8,
+              border: "1px solid rgba(255,179,0,0.4)",
+              background: "rgba(31,26,22,0.08)",
+              color: "#1f1a16",
+              fontSize: 12,
+              fontFamily: "'IBM Plex Mono', monospace",
             }}
           >
-            {screen === "results" && scores && qi && (
-              <div style={{ textAlign: "center", marginBottom: 28 }}>
-                <div
-                  style={{
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    fontSize: 11,
-                    color: "#1f1a16",
-                    letterSpacing: 2,
-                    marginBottom: 8,
-                  }}
-                >
-                  YOUR RESULT SECTION
-                </div>
-                <div
-                  style={{
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    fontSize: 24,
-                    color: qi.color,
-                    fontWeight: 600,
-                    marginBottom: 8,
-                  }}
-                >
-                  {qi.name}
-                </div>
-                <p
-                  style={{
-                    color: "#1f1a16",
-                    fontSize: 14,
-                    maxWidth: 400,
-                    margin: "0 auto 16px",
-                    lineHeight: 1.55,
-                  }}
-                >
-                  {qi.desc}
-                </p>
-                <div
-                  style={{
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    fontSize: 12,
-                    color: "#1f1a16",
-                  }}
-                >
-                  Advancement: {scores.x > 0 ? "+" : ""}
-                  {(scores.x * 100).toFixed(0)}% &nbsp;|&nbsp; LLM Belief:{" "}
-                  {scores.y > 0 ? "+" : ""}
-                  {(scores.y * 100).toFixed(0)}%
-                </div>
-              </div>
-            )}
-            <div style={{ marginTop: 0 }}>
-              <Compass
-                results={results}
-                userResult={userResult}
-                activeQuadrant={activeQuadrant}
-                disabledAges={disabledAges}
-                disabledCountries={disabledCountries}
-                disabledIndustries={disabledIndustries}
-                onCanvasDraw={handleHomeCanvasDraw}
-              />
-            </div>
+            {firestoreError}
+          </div>
+        )}
 
-            <div
-              style={{
-                marginTop: HOME_SECTION_GAP,
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                gap: 10,
-              }}
-            >
-              <MultiSelectFilter
-                label="AGE"
-                options={ageFilterOptions}
-                disabledValues={disabledAges}
-                setDisabledValues={setDisabledAges}
-              />
-              <MultiSelectFilter
-                label="LOCATION"
-                options={countryFilterOptions}
-                disabledValues={disabledCountries}
-                setDisabledValues={setDisabledCountries}
-              />
-              <MultiSelectFilter
-                label="INDUSTRY"
-                options={industryFilterOptions}
-                disabledValues={disabledIndustries}
-                setDisabledValues={setDisabledIndustries}
-              />
-            </div>
-
-            {/* Quadrant legend */}
-            <div
-              style={{
-                width: "100%",
-                margin: `${HOME_SECTION_GAP}px auto 0`,
-                display: "grid",
-                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                gap: 12,
-              }}
-            >
-              {ARCHETYPE_GRID_ORDER.map((key) => {
-                const val = QUADRANT_INFO[key];
-                return (
-                  <div
-                    key={key}
-                    onMouseEnter={() => {
-                      if (!pinnedQuadrant) setHoveredQuadrant(key);
-                    }}
-                    onMouseLeave={() => {
-                      if (!pinnedQuadrant) setHoveredQuadrant(null);
-                    }}
-                    onClick={() =>
-                      setPinnedQuadrant((prev) => {
-                        if (prev === key) return null;
-                        setHoveredQuadrant(null);
-                        return key;
-                      })
-                    }
-                    style={{
-                      padding: "12px 14px",
-                      background: TAB_STYLE_VARS.outerBackground,
-                      border:
-                        activeQuadrant === key
-                          ? tabBorder(TAB_STYLE_VARS.borderColorStrong)
-                          : tabBorder(TAB_STYLE_VARS.borderColorSubtle),
-                      borderRadius: TAB_STYLE_VARS.borderRadius,
-                      cursor: "pointer",
-                      transition: "border-color 220ms ease",
-                    }}
-                  >
-                    <div
-                      style={{
-                        color: val.color,
-                        fontFamily: "'IBM Plex Mono', monospace",
-                        fontSize: 12,
-                        fontWeight: 600,
-                        marginBottom: 4,
-                      }}
-                    >
-                      {val.name}
-                    </div>
-                    <div
-                      style={{
-                        color: "#1f1a16",
-                        fontSize: 12,
-                        lineHeight: 1.45,
-                      }}
-                    >
-                      {val.desc}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            {import.meta.env.DEV && (
+        {/* Home + Results Screen */}
+        {showCompassView && (
+          <div
+            style={{
+              position: "relative",
+              minHeight: `calc(100vh - ${HEADER_BAR_HEIGHT + 24 + 48}px)`,
+            }}
+          >
+            {showHomeLoading && (
               <div
                 style={{
-                  marginTop: 18,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8,
-                  flexWrap: "wrap",
+                  position: "fixed",
+                  left: "50%",
+                  top: HEADER_BAR_HEIGHT + 200,
+                  transform: "translateX(-50%)",
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: 14,
+                  letterSpacing: "0.2em",
+                  color: "#1f1a16",
+                  opacity: homeBodyReady ? 0 : 1,
+                  transition: "opacity 1s ease",
+                  pointerEvents: "none",
+                  zIndex: 2,
                 }}
               >
-                <button
-                  onClick={handleDevShortcutSubmit}
-                  style={{
-                    padding: "8px 14px",
-                    fontSize: 12,
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    fontWeight: 500,
-                    background: "rgba(31,26,22,0.08)",
-                    border: "1px solid rgba(31,26,22,0.14)",
-                    color: "#1f1a16",
-                    borderRadius: 8,
-                    cursor: "pointer",
-                  }}
-                >
-                  Dev shortcut: random dot
-                </button>
-                <button
-                  onClick={handleClearDevDots}
-                  disabled={clearingDevDots}
-                  style={{
-                    padding: "8px 14px",
-                    fontSize: 12,
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    fontWeight: 500,
-                    background: "rgba(31,26,22,0.08)",
-                    border: "1px solid rgba(31,26,22,0.14)",
-                    color: "#1f1a16",
-                    borderRadius: 8,
-                    cursor: clearingDevDots ? "wait" : "pointer",
-                    opacity: clearingDevDots ? 0.7 : 1,
-                  }}
-                >
-                  {clearingDevDots ? "Clearing dev dots..." : "Reset dev dots"}
-                </button>
+                LOADING
               </div>
             )}
-          </div>
-        </div>
-      )}
+            <div
+              style={{
+                opacity: homeBodyReady ? 1 : 0,
+                transition: "opacity 1s ease",
+                pointerEvents: homeBodyReady ? "auto" : "none",
+              }}
+            >
+              {screen === "results" && scores && qi && (
+                <div style={{ textAlign: "center", marginBottom: 28 }}>
+                  <div
+                    style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: 11,
+                      color: "#1f1a16",
+                      letterSpacing: 2,
+                      marginBottom: 8,
+                    }}
+                  >
+                    YOUR RESULT SECTION
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: 24,
+                      color: qi.color,
+                      fontWeight: 600,
+                      marginBottom: 8,
+                    }}
+                  >
+                    {qi.name}
+                  </div>
+                  <p
+                    style={{
+                      color: "#1f1a16",
+                      fontSize: 14,
+                      maxWidth: 400,
+                      margin: "0 auto 16px",
+                      lineHeight: 1.55,
+                    }}
+                  >
+                    {qi.desc}
+                  </p>
+                  <div
+                    style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: 12,
+                      color: "#1f1a16",
+                    }}
+                  >
+                    Advancement: {scores.x > 0 ? "+" : ""}
+                    {(scores.x * 100).toFixed(0)}% &nbsp;|&nbsp; LLM Belief:{" "}
+                    {scores.y > 0 ? "+" : ""}
+                    {(scores.y * 100).toFixed(0)}%
+                  </div>
+                </div>
+              )}
+              <div style={{ marginTop: 0 }}>
+                <Compass
+                  results={results}
+                  userResult={userResult}
+                  activeQuadrant={activeQuadrant}
+                  disabledAges={disabledAges}
+                  disabledCountries={disabledCountries}
+                  disabledIndustries={disabledIndustries}
+                  onCanvasDraw={handleHomeCanvasDraw}
+                />
+              </div>
 
-      {/* Quiz Screen */}
-      {screen === "quiz" && (
-        <div>
-          <QuizPage
-            onComplete={handleQuizComplete}
-            onProgressChange={setQuizProgress}
-          />
-        </div>
-      )}
+              <div
+                style={{
+                  marginTop: HOME_SECTION_GAP,
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                  gap: 10,
+                }}
+              >
+                <MultiSelectFilter
+                  label="AGE"
+                  options={ageFilterOptions}
+                  disabledValues={disabledAges}
+                  setDisabledValues={setDisabledAges}
+                />
+                <MultiSelectFilter
+                  label="LOCATION"
+                  options={countryFilterOptions}
+                  disabledValues={disabledCountries}
+                  setDisabledValues={setDisabledCountries}
+                />
+                <MultiSelectFilter
+                  label="INDUSTRY"
+                  options={industryFilterOptions}
+                  disabledValues={disabledIndustries}
+                  setDisabledValues={setDisabledIndustries}
+                />
+              </div>
+
+              {/* Quadrant legend */}
+              <div
+                style={{
+                  width: "100%",
+                  margin: `${HOME_SECTION_GAP}px auto 0`,
+                  display: "grid",
+                  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                  gap: 12,
+                }}
+              >
+                {ARCHETYPE_GRID_ORDER.map((key) => {
+                  const val = QUADRANT_INFO[key];
+                  return (
+                    <div
+                      key={key}
+                      onMouseEnter={() => {
+                        if (!pinnedQuadrant) setHoveredQuadrant(key);
+                      }}
+                      onMouseLeave={() => {
+                        if (!pinnedQuadrant) setHoveredQuadrant(null);
+                      }}
+                      onClick={() =>
+                        setPinnedQuadrant((prev) => {
+                          if (prev === key) return null;
+                          setHoveredQuadrant(null);
+                          return key;
+                        })
+                      }
+                      style={{
+                        padding: "12px 14px",
+                        background: TAB_STYLE_VARS.outerBackground,
+                        border:
+                          activeQuadrant === key
+                            ? tabBorder(TAB_STYLE_VARS.borderColorStrong)
+                            : tabBorder(TAB_STYLE_VARS.borderColorSubtle),
+                        borderRadius: TAB_STYLE_VARS.borderRadius,
+                        cursor: "pointer",
+                        transition: "border-color 220ms ease",
+                      }}
+                    >
+                      <div
+                        style={{
+                          color: val.color,
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          marginBottom: 4,
+                        }}
+                      >
+                        {val.name}
+                      </div>
+                      <div
+                        style={{
+                          color: "#1f1a16",
+                          fontSize: 12,
+                          lineHeight: 1.45,
+                        }}
+                      >
+                        {val.desc}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {import.meta.env.DEV && (
+                <div
+                  style={{
+                    marginTop: 18,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <button
+                    onClick={handleDevShortcutSubmit}
+                    style={{
+                      padding: "8px 14px",
+                      fontSize: 12,
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontWeight: 500,
+                      background: "rgba(31,26,22,0.08)",
+                      border: "1px solid rgba(31,26,22,0.14)",
+                      color: "#1f1a16",
+                      borderRadius: 8,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Dev shortcut: random dot
+                  </button>
+                  <button
+                    onClick={handleClearDevDots}
+                    disabled={clearingDevDots}
+                    style={{
+                      padding: "8px 14px",
+                      fontSize: 12,
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontWeight: 500,
+                      background: "rgba(31,26,22,0.08)",
+                      border: "1px solid rgba(31,26,22,0.14)",
+                      color: "#1f1a16",
+                      borderRadius: 8,
+                      cursor: clearingDevDots ? "wait" : "pointer",
+                      opacity: clearingDevDots ? 0.7 : 1,
+                    }}
+                  >
+                    {clearingDevDots ? "Clearing dev dots..." : "Reset dev dots"}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Quiz Screen */}
+        {screen === "quiz" && (
+          <div>
+            <QuizPage
+              onComplete={handleQuizComplete}
+              onProgressChange={setQuizProgress}
+            />
+          </div>
+        )}
+      </div>
 
       {submitting && (
         <div
