@@ -142,25 +142,25 @@ const QUADRANT_INFO = {
     name: "The Singulatarian",
     compassLabel: "Singulatarians",
     desc: "Believes transformative AI is near and wants to accelerate toward it.",
-    color: "#1f1a16",
+    color: "var(--color-ink)",
   },
   topLeft: {
     name: "The Sentinel",
     compassLabel: "Sentinels",
     desc: "Believes powerful AI is coming but fears what happens without guardrails.",
-    color: "#1f1a16",
+    color: "var(--color-ink)",
   },
   bottomRight: {
     name: "The Synthesist",
     compassLabel: "Synthesists",
     desc: "Wary of grand AI claims while believing in real-world applications.",
-    color: "#1f1a16",
+    color: "var(--color-ink)",
   },
   bottomLeft: {
     name: "The Skeptic",
     compassLabel: "Skeptics",
     desc: "Doubts transformative potential and favors strong restrictions.",
-    color: "#1f1a16",
+    color: "var(--color-ink)",
   },
 };
 
@@ -229,8 +229,8 @@ const DROPDOWN_MENU_MAX_HEIGHT = 200;
 const COMPASS_CANVAS_DPR_CAP_BASE = 2;
 const COMPASS_CANVAS_DPR_CAP_HIGH = 3;
 const COMPASS_CANVAS_HIGH_DPR_POINT_LIMIT = 1200;
-const COMPASS_DOT_COLOR = "#5d5852";
-const COMPASS_DOT_FADED_COLOR = "#c7c1b7";
+const COMPASS_DOT_COLOR = "#000000";
+const COMPASS_DOT_FADED_COLOR = "#b8b8b8";
 const COMPASS_DOT_RADIUS = 3;
 const COMPASS_USER_DOT_RADIUS = 4.5;
 
@@ -556,9 +556,9 @@ const DEV_OTHER_OCCUPATION_WEIGHTS_BY_INDUSTRY = Object.fromEntries(
 );
 
 const THEME = {
-  SiteBG: "#f3ebde",
-  SiteText: "#1f1a16",
-  SiteBorder: "#b8aea2",
+  SiteBG: "var(--color-paper)",
+  SiteText: "var(--color-ink)",
+  SiteBorder: "var(--color-border)",
 };
 
 const TAB_STYLE_VARS = {
@@ -1058,7 +1058,7 @@ function MultiSelectFilter({
         style={{
           fontFamily: "'IBM Plex Mono', monospace",
           fontSize: 12,
-          color: "#1f1a16",
+          color: "var(--color-ink)",
           display: "flex",
           justifyContent: "space-between",
           marginBottom: 8,
@@ -1094,7 +1094,7 @@ function MultiSelectFilter({
           fontFamily: "'Newsreader', serif",
           background: TAB_STYLE_VARS.outerBackground,
           border: tabBorder(),
-          color: "#1f1a16",
+          color: "var(--color-ink)",
           borderRadius: TAB_STYLE_VARS.borderRadius,
           outline: "none",
           boxSizing: "border-box",
@@ -1149,7 +1149,7 @@ function MultiSelectFilter({
                 padding: "8px 8px",
                 border: "none",
                 background: "transparent",
-                color: "#1f1a16",
+                color: "var(--color-ink)",
                 fontFamily: "'Newsreader', serif",
                 fontSize: 12,
                 cursor: "pointer",
@@ -1162,7 +1162,7 @@ function MultiSelectFilter({
                 style={{
                   width: 16,
                   height: 16,
-                  border: "1px solid rgba(31,26,22,0.45)",
+                  border: "1px solid rgba(0,0,0,0.45)",
                   borderRadius: 4,
                   background: THEME.SiteBG,
                   color: THEME.SiteText,
@@ -1196,7 +1196,7 @@ function MultiSelectFilter({
                     padding: "8px 8px",
                     border: "none",
                     background: "transparent",
-                    color: "#1f1a16",
+                    color: "var(--color-ink)",
                     fontFamily: "'Newsreader', serif",
                     fontSize: 12,
                     cursor: "pointer",
@@ -1209,7 +1209,7 @@ function MultiSelectFilter({
                     style={{
                       width: 16,
                       height: 16,
-                      border: "1px solid rgba(31,26,22,0.45)",
+                      border: "1px solid rgba(0,0,0,0.45)",
                       borderRadius: 4,
                       background: THEME.SiteBG,
                       color: THEME.SiteText,
@@ -1276,7 +1276,7 @@ function SingleSelectDropdown({
         style={{
           fontFamily: "'IBM Plex Mono', monospace",
           fontSize: 12,
-          color: "#1f1a16",
+          color: "var(--color-ink)",
           display: "flex",
           justifyContent: "space-between",
           marginBottom: 8,
@@ -1312,7 +1312,7 @@ function SingleSelectDropdown({
           fontFamily: "'Newsreader', serif",
           background: TAB_STYLE_VARS.outerBackground,
           border: tabBorder(),
-          color: "#1f1a16",
+          color: "var(--color-ink)",
           borderRadius: TAB_STYLE_VARS.borderRadius,
           outline: "none",
           boxSizing: "border-box",
@@ -1370,7 +1370,7 @@ function SingleSelectDropdown({
                   padding: "8px 8px",
                   border: "none",
                   background: "transparent",
-                  color: "#1f1a16",
+                  color: "var(--color-ink)",
                   fontFamily: "'Newsreader', serif",
                   fontSize: 12,
                   cursor: "pointer",
@@ -1458,7 +1458,7 @@ function Compass({
     sy: cy - yVal * yRange,
   });
 
-  const quadFill = "rgba(31,26,22,0.08)";
+  const quadFill = "rgba(0,0,0,0.08)";
   const quadrantFillRects = [
     { key: "topRight", x: cx, y: pad },
     { key: "topLeft", x: pad, y: pad },
@@ -1467,7 +1467,7 @@ function Compass({
   ];
   const axisLabelTextStyle = {
     textAnchor: "middle",
-    fill: "#1f1a16",
+    fill: "var(--color-ink)",
     fontSize: axisLabelFontSize,
     fontFamily: "'IBM Plex Mono', monospace",
     opacity: 0.8,
@@ -1933,9 +1933,9 @@ function Compass({
             fontFamily: "'IBM Plex Mono', monospace",
             fontSize: 10,
             letterSpacing: "0.08em",
-            color: "#1f1a16",
-            background: "rgba(243,235,222,0.88)",
-            border: "1px solid rgba(31,26,22,0.22)",
+            color: "var(--color-ink)",
+            background: "rgba(255,255,255,0.88)",
+            border: "1px solid rgba(0,0,0,0.22)",
             borderRadius: 6,
             pointerEvents: "none",
             zIndex: 12,
@@ -2017,14 +2017,14 @@ function QuizPage({ onComplete, onProgressChange }) {
     fontFamily: "'Newsreader', serif",
     background: TAB_STYLE_VARS.formBackground,
     border: tabBorder(),
-    color: "#1f1a16",
+    color: "var(--color-ink)",
     borderRadius: TAB_STYLE_VARS.borderRadius,
     outline: "none",
     boxSizing: "border-box",
   };
   const fieldLabelStyle = {
     fontSize: 12,
-    color: "#1f1a16",
+    color: "var(--color-ink)",
     fontFamily: "'IBM Plex Mono', monospace",
     display: "flex",
     justifyContent: "space-between",
@@ -2146,7 +2146,7 @@ function QuizPage({ onComplete, onProgressChange }) {
             padding: "80px 40px",
             background:
               answers[q.id] !== undefined
-                ? "rgba(31,26,22,0.015)"
+                ? "rgba(0,0,0,0.015)"
                 : THEME.SiteBG,
             border:
               answers[q.id] !== undefined
@@ -2159,7 +2159,7 @@ function QuizPage({ onComplete, onProgressChange }) {
           <div
             style={{
               fontSize: 11,
-              color: "#1f1a16",
+              color: "var(--color-ink)",
               fontFamily: "'IBM Plex Mono', monospace",
               marginBottom: 8,
             }}
@@ -2169,7 +2169,7 @@ function QuizPage({ onComplete, onProgressChange }) {
           <div
             style={{
               fontSize: 15,
-              color: "#1f1a16",
+              color: "var(--color-ink)",
               lineHeight: 1.55,
               marginBottom: 16,
               fontFamily: "'Newsreader', serif",
@@ -2204,7 +2204,7 @@ function QuizPage({ onComplete, onProgressChange }) {
                 justifyContent: "space-between",
                 fontSize: 11,
                 fontFamily: "'IBM Plex Mono', monospace",
-                color: "#1f1a16",
+                color: "var(--color-ink)",
               }}
             >
               <span>Strongly Disagree</span>
@@ -2327,10 +2327,10 @@ function QuizPage({ onComplete, onProgressChange }) {
             fontFamily: "'Newsreader', serif",
             fontWeight: 600,
             background: canSubmit
-              ? "linear-gradient(135deg, #6f8f7a, #8da67f)"
-              : "rgba(31,26,22,0.03)",
+              ? "linear-gradient(135deg, #000000, #2c2c2c)"
+              : "rgba(0,0,0,0.03)",
             border: "none",
-            color: canSubmit ? "#1f1a16" : "rgba(31,26,22,0.35)",
+            color: canSubmit ? "var(--color-paper)" : "rgba(0,0,0,0.35)",
             borderRadius: 10,
             cursor: canSubmit ? "pointer" : "default",
             transition: "all 0.3s",
@@ -2823,7 +2823,7 @@ export default function AICompass() {
                   fontFamily: "'IBM Plex Mono', monospace",
                   fontWeight: 500,
                   background: THEME.SiteBG,
-                  border: "1px solid rgba(243,235,222,0.65)",
+                  border: "1px solid rgba(255,255,255,0.65)",
                   color: THEME.SiteText,
                   borderRadius: 10,
                   cursor: "pointer",
@@ -2848,7 +2848,7 @@ export default function AICompass() {
                 style={{
                   width: "100%",
                   height: HEADER_ACTION_HEIGHT * 0.25,
-                  background: "rgba(243,235,222,0.2)",
+                  background: "rgba(255,255,255,0.2)",
                   borderRadius: 999,
                   overflow: "hidden",
                 }}
@@ -2898,8 +2898,8 @@ export default function AICompass() {
               padding: "10px 12px",
               borderRadius: 8,
               border: "1px solid rgba(255,179,0,0.4)",
-              background: "rgba(31,26,22,0.08)",
-              color: "#1f1a16",
+              background: "rgba(0,0,0,0.08)",
+              color: "var(--color-ink)",
               fontSize: 12,
               fontFamily: "'IBM Plex Mono', monospace",
             }}
@@ -2926,7 +2926,7 @@ export default function AICompass() {
                   fontFamily: "'IBM Plex Mono', monospace",
                   fontSize: 14,
                   letterSpacing: "0.2em",
-                  color: "#1f1a16",
+                  color: "var(--color-ink)",
                   opacity: homeBodyReady ? 0 : 1,
                   transition: "opacity 1s ease",
                   pointerEvents: "none",
@@ -2949,7 +2949,7 @@ export default function AICompass() {
                     style={{
                       fontFamily: "'IBM Plex Mono', monospace",
                       fontSize: 11,
-                      color: "#1f1a16",
+                      color: "var(--color-ink)",
                       letterSpacing: 2,
                       marginBottom: 8,
                     }}
@@ -2969,7 +2969,7 @@ export default function AICompass() {
                   </div>
                   <p
                     style={{
-                      color: "#1f1a16",
+                      color: "var(--color-ink)",
                       fontSize: 14,
                       maxWidth: 400,
                       margin: "0 auto 16px",
@@ -2982,7 +2982,7 @@ export default function AICompass() {
                     style={{
                       fontFamily: "'IBM Plex Mono', monospace",
                       fontSize: 12,
-                      color: "#1f1a16",
+                      color: "var(--color-ink)",
                     }}
                   >
                     Advancement: {scores.x > 0 ? "+" : ""}
@@ -3085,7 +3085,7 @@ export default function AICompass() {
                       </div>
                       <div
                         style={{
-                          color: "#1f1a16",
+                          color: "var(--color-ink)",
                           fontSize: 12,
                           lineHeight: 1.45,
                         }}
@@ -3114,9 +3114,9 @@ export default function AICompass() {
                       fontSize: 12,
                       fontFamily: "'IBM Plex Mono', monospace",
                       fontWeight: 500,
-                      background: "rgba(31,26,22,0.08)",
-                      border: "1px solid rgba(31,26,22,0.14)",
-                      color: "#1f1a16",
+                      background: "rgba(0,0,0,0.08)",
+                      border: "1px solid rgba(0,0,0,0.14)",
+                      color: "var(--color-ink)",
                       borderRadius: 8,
                       cursor: "pointer",
                     }}
@@ -3131,9 +3131,9 @@ export default function AICompass() {
                       fontSize: 12,
                       fontFamily: "'IBM Plex Mono', monospace",
                       fontWeight: 500,
-                      background: "rgba(31,26,22,0.08)",
-                      border: "1px solid rgba(31,26,22,0.14)",
-                      color: "#1f1a16",
+                      background: "rgba(0,0,0,0.08)",
+                      border: "1px solid rgba(0,0,0,0.14)",
+                      color: "var(--color-ink)",
                       borderRadius: 8,
                       cursor: clearingDevDots ? "wait" : "pointer",
                       opacity: clearingDevDots ? 0.7 : 1,
@@ -3165,7 +3165,7 @@ export default function AICompass() {
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(243,235,222,0.8)",
+            background: "rgba(255,255,255,0.8)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -3176,7 +3176,7 @@ export default function AICompass() {
             style={{
               fontFamily: "'IBM Plex Mono', monospace",
               fontSize: 14,
-              color: "#1f1a16",
+              color: "var(--color-ink)",
             }}
           >
             Plotting your position...

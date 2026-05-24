@@ -1,0 +1,115 @@
+/*
+ * UncommonCrawl brand tokens
+ * Portable design variables for reuse in other projects.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Typography */
+  --font-sans: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+  --font-weight-regular: 400;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-heavy: 800;
+  --line-height-body: 1.6;
+  --line-height-heading: 1.1;
+  --letter-spacing-eyebrow: 0.38em;
+  --letter-spacing-label: 0.14em;
+  --letter-spacing-button: 0.08em;
+
+  /* Core colors (light) */
+  --color-ink: #000000;
+  --color-muted: color-mix(in oklab, var(--color-ink) 72%, transparent);
+  --color-paper: #ffffff;
+  --color-surface: #ffffff;
+  --color-border: color-mix(in oklab, var(--color-ink) 14%, transparent);
+  --grid-line: color-mix(in oklab, var(--color-ink) 10%, transparent);
+
+  /* Semantic aliases */
+  --color-primary: var(--color-ink);
+  --color-accent: var(--color-ink);
+  --color-text-light: var(--color-paper);
+
+  /* Layout + header */
+  --grid-divisions: 20;
+  --grid-cell: calc(100vw / var(--grid-divisions));
+  --grid-cell-x: var(--grid-cell);
+  --grid-cell-y: var(--grid-cell);
+  --content-columns: 19;
+  --content-width: calc(var(--grid-cell) * var(--content-columns));
+  --page-inline-margin: 2rem;
+  --header-height: calc(var(--grid-cell) / 2);
+  --content-section-buffer-upper: 2rem;
+  --content-section-buffer-lower: 2rem;
+  --content-section-buffer-roomy-upper: 6rem;
+  --content-section-buffer-roomy-lower: 6rem;
+
+  /* Spacing scale */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+
+  /* Radius */
+  --radius-xs: 10px;
+  --radius-sm: 12px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-shell: 28px;
+  --radius-pill: 999px;
+  --radius-card: 24px;
+
+  /* Motion */
+  --duration-fast: 120ms;
+  --duration-base: 150ms;
+  --duration-slow: 180ms;
+  --ease-standard: ease;
+
+  /* Shadows */
+  --shadow-modal: 0 24px 80px color-mix(in oklab, var(--color-ink) 12%, transparent);
+  --shadow-surface: 0 16px 36px color-mix(in oklab, var(--color-ink) 10%, transparent);
+  --shadow-subtle: 0 8px 40px -24px color-mix(in oklab, var(--color-ink) 40%, transparent);
+
+  background-color: var(--color-paper);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-ink: #f5f5f5;
+  --color-muted: color-mix(in oklab, var(--color-ink) 70%, transparent);
+  --color-paper: #0d0d10;
+  --color-surface: #131318;
+  --color-border: color-mix(in oklab, var(--color-ink) 16%, transparent);
+  --grid-line: color-mix(in oklab, var(--color-ink) 10%, transparent);
+}
+
+@media (max-width: 720px) {
+  :root {
+    --header-height: calc(var(--grid-cell) * 2);
+  }
+}
+
+/* Optional baseline defaults */
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  line-height: var(--line-height-body);
+  color: var(--color-ink);
+  background-color: var(--color-paper);
+}
+
+time,
+code,
+pre,
+kbd,
+samp {
+  font-family: var(--font-mono);
+}
