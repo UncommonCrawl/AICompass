@@ -7,6 +7,7 @@ import {
   useCallback,
 } from "react";
 import {
+  addDoc,
   collection,
   deleteDoc,
   getDocs,
@@ -195,11 +196,16 @@ const INDUSTRY_OPTIONS = [
   "Professional Services",
   "Real Estate",
   "Science & Research",
+  "Student",
   "Telecommunications",
   "Other",
 ];
 
 const COUNTRY_OPTIONS = ISO_COUNTRIES;
+
+function getAgeRangeLabel(value) {
+  return value;
+}
 
 function formatCountryName(name) {
   return name.replace(/\s*\(the\)/gi, ", The");
@@ -221,9 +227,327 @@ const UNSPECIFIED_FILTER_VALUE = "__UNSPECIFIED__";
 const DROPDOWN_VIEWPORT_BUFFER = 10;
 const DROPDOWN_MENU_MAX_HEIGHT = 200;
 const COMPASS_CANVAS_DPR_CAP = 1.5;
-const DEV_SAMPLE_OCCUPATION = "Lead Social Media Strategy Supervisor";
-const DEV_SAMPLE_NOTES =
-  "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
+
+const DEV_WEIGHT_TARGET_TOTAL = 100;
+const DEV_DEFAULT_STD_DEV = 0.4;
+const DEV_IT_SOFTWARE_CLUSTER = { x: -0.05, y: 0.12, stdDev: 0.7 };
+const DEV_FINANCE_DEFENSE_CLUSTER = { x: 0.22, y: 0.42, stdDev: 0.1 };
+const DEV_OTHER_CLUSTER = { x: -0.79, y: -0.22, stdDev: DEV_DEFAULT_STD_DEV };
+const DEV_EXTREME_Y_NEG_EDGE_RATE = 0.242;
+const DEV_EXTREME_Y_POS_EDGE_RATE = 0.042;
+const DEV_EXTREME_X_NEG_EDGE_RATE_TOP = 0.068;
+const DEV_EXTREME_X_NEG_EDGE_MULTIPLIER_WHEN_Y_BELOW_TOP = 2;
+const DEV_EXTREME_X_POS_EDGE_RATE = 0.056;
+const DEV_IT_OCCUPATION_UNSPECIFIED_RATE = 8.8;
+const DEV_NON_IT_OCCUPATION_UNSPECIFIED_RATE = 12.9;
+const DEV_TRENDLINE_X1 = -0.3;
+const DEV_TRENDLINE_Y1 = -1;
+const DEV_TRENDLINE_X2 = 1;
+const DEV_TRENDLINE_Y2 = -0.2;
+const LOCAL_DEV_ID_PREFIX = "local_dev_";
+const DEV_AGE_25_34_STUDENT_RATE = 22.9;
+const DEV_AGE_65_PLUS_RETIRED_RATE = 58.7;
+const DEV_AGE_65_PLUS_RETIREE_RATE = 22.7;
+const DEV_FINANCE_DEFENSE_INDUSTRIES = new Set([
+  "Banking & Finance",
+  "Military & Defense",
+]);
+const DEV_INDUSTRIES_WITH_EQUAL_REMAINDER = [
+  "IT & Software",
+  "Education & Academia",
+  "Science & Research",
+  "Banking & Finance",
+  "Non-Profit",
+  "Military & Defense",
+  "Arts & Entertainment",
+  "Government",
+  "Legal Services",
+];
+const DEV_IT_SOFTWARE_TITLES = [
+  "software engineer",
+  "senior software engineer",
+  "Backend dev",
+  "Frontend Developer",
+  "devops engineer",
+  "Site Reliability Engineer",
+  "full stack",
+  "QA tester",
+  "product manager",
+  "UI/UX",
+  "Data Scientist",
+  "Mobile dev (ios)",
+  "Security Engineer",
+  "Systems architect",
+  "Database administrator",
+  "Engineering manager",
+  "Tech writer",
+  "Cloud architect",
+  "Data engineer",
+  "Network Engineer",
+  "unemployed",
+  "QA automation",
+  "Software dev",
+  "Solutions Architect",
+  "Security analyst",
+  "VP",
+  "machine learning engineer",
+  "Release engineer",
+  "TPM",
+  "systems admin",
+  "Embedded software",
+  "Application dev",
+  "support engineer",
+  "SRE",
+  "N/A",
+  "Designer",
+  "backend engineer",
+  "frontend lead",
+  "IT operations",
+  "Devops lead",
+  "Full-stack",
+  "Qa",
+  "Senior Data Scientist",
+  "Devops",
+  "Mobile developer",
+  "Manager",
+  "UI/UX Designer",
+  "Cloud architect",
+  "Machine Learning",
+  "App Developer",
+  "Embedded Dev",
+  "None",
+  "software developer",
+  "Backend",
+  "QA automation engineer",
+  "Architect",
+  "Frontend dev",
+  "Eng Manager",
+  "Mobile Dev",
+  "Full Stack Dev",
+  "database admin",
+  "technical program manager",
+  "Researcher",
+  "Consultant",
+  "Embedded software eng",
+  "solutions arch",
+];
+const DEV_OTHER_INDUSTRY_TITLES_BY_INDUSTRY = {
+  "Education & Academia": [
+    "Adjunct Professor",
+    "Research Assistant",
+    "academic advisor",
+    "Postdoc",
+    "Academia",
+    "History teacher",
+    "registrar",
+    "Teacher",
+    "teacher",
+    "Substitute teacher",
+    "Instructional designer",
+    "Administrator",
+    "Lab Coordinator",
+  ],
+  "Science & Research": [
+    "PI",
+    "Lab Tech",
+    "Clinical Research Associate",
+    "Data Analyst",
+    "Field Scientist",
+    "Comp bio",
+    "Research Scientist",
+    "Lab Manager",
+    "Statistician",
+    "science comms",
+  ],
+  "Banking & Finance": [
+    "Investment Analyst",
+    "Financial Planner",
+    "loan officer",
+    "Quants",
+    "Portfolio Manager",
+    "Risk management",
+    "Controller",
+    "Personal Banker",
+    "credit analyst",
+    "Auditor",
+  ],
+  "Non-Profit": [
+    "Copywriter",
+    "Director",
+    "outreach",
+    "Case manager",
+    "Volunteer",
+    "Exec Director",
+    "Ops Manager",
+  ],
+  "Military & Defense": [
+    "Intel Analyst",
+    "systems eng",
+    "Logistics Officer",
+    "Cyber Specialist",
+    "Operations Res. Analyst",
+    "PM",
+    "Training Instructor",
+    "field tech",
+    "defense contractor",
+    "Mission Planner",
+  ],
+  "Arts & Entertainment": [
+    "Creative Director",
+    "Production Coord",
+    "Agent",
+    "Editor",
+    "Unemployed",
+    "None",
+    "Student",
+    "Sound Designer",
+    "casting",
+    "Development exec",
+    "Actor",
+    "Producer",
+    "Legal",
+  ],
+  Government: [
+    "Analyst",
+    "Consultant",
+    "PIO",
+    "leg assistant",
+    "Program Manager",
+    "Development",
+    "Compliance",
+    "Admin clerk",
+    "Grant manager",
+    "Analyst",
+  ],
+  "Legal Services": [
+    "Paralegal",
+    "Associate attorney",
+    "Secretary",
+    "Court Reporter",
+    "Law Clerk",
+    "Compliance Counsel",
+    "Managing Partner",
+    "mediator",
+    "Legal",
+    "Discovery Specialist",
+  ],
+};
+
+const DEV_AGE_WEIGHTS = buildWeightedChoices([
+  { value: "Under 18", weight: 4 },
+  { value: "18-24", weight: 19.2 },
+  { value: "25-34", weight: 37.7 },
+  { value: "35-44", weight: 16.2 },
+  { value: "45-54", weight: 5.8 },
+  { value: "55-64", weight: 2.1 },
+  { value: "65+", weight: 1.8 },
+  { value: "", weight: 14.2 },
+]);
+
+const DEV_LOCATION_WEIGHTS = buildWeightedChoices([
+  { value: "US", weight: 62.9 },
+  { value: "", weight: 15.5 },
+  { value: "CA", weight: 8.1 },
+  { value: "GB", weight: 8.4 },
+  { value: "NL", weight: 2.2 },
+  { value: "BE", weight: 0.4 },
+  { value: "IE", weight: 0.8 },
+  { value: "NZ", weight: 0.6 },
+  { value: "AU", weight: 0.3 },
+  { value: "DE", weight: 0.3 },
+  { value: "IL", weight: 0.2 },
+  { value: "SG", weight: 0.1 },
+  { value: "UA", weight: 0.1 },
+  { value: "CH", weight: 0.1 },
+]);
+
+const DEV_BASELINE_INDUSTRY_ENTRIES = [
+  { value: "IT & Software", weight: 73.8 },
+  { value: "", weight: 9.1 },
+  { value: "Other", weight: 5.4 },
+  { value: "Education & Academia", weight: 2.2 },
+  { value: "Science & Research", weight: 3.2 },
+  { value: "Banking & Finance", weight: 3.9 },
+  { value: "Non-Profit", weight: 0.4 },
+  { value: "Military & Defense", weight: 0.6 },
+  { value: "Arts & Entertainment", weight: 0.5 },
+  { value: "Government", weight: 0.7 },
+  { value: "Legal Services", weight: 0.2 },
+];
+
+const DEV_INDUSTRY_WEIGHTS = buildWeightedChoices(
+  DEV_BASELINE_INDUSTRY_ENTRIES,
+);
+
+const DEV_AGE_UNDER_18_INDUSTRY_WEIGHTS = buildWeightedChoices([
+  { value: "Student", weight: 78.9 },
+  { value: "Other", weight: 7.2 },
+  { value: "", weight: 13.9 },
+]);
+
+const DEV_AGE_18_24_FIXED_TOTAL = 53.2 + 12.4 + 8.4;
+const DEV_AGE_18_24_EQUAL_REMAINDER =
+  (DEV_WEIGHT_TARGET_TOTAL - DEV_AGE_18_24_FIXED_TOTAL) /
+  DEV_INDUSTRIES_WITH_EQUAL_REMAINDER.length;
+const DEV_AGE_18_24_INDUSTRY_WEIGHTS = buildWeightedChoices([
+  { value: "Student", weight: 53.2 },
+  { value: "", weight: 12.4 },
+  { value: "Other", weight: 8.4 },
+  ...DEV_INDUSTRIES_WITH_EQUAL_REMAINDER.map((industry) => ({
+    value: industry,
+    weight: DEV_AGE_18_24_EQUAL_REMAINDER,
+  })),
+]);
+
+const DEV_AGE_25_34_REMAINDER_SCALE =
+  (DEV_WEIGHT_TARGET_TOTAL - DEV_AGE_25_34_STUDENT_RATE) /
+  DEV_WEIGHT_TARGET_TOTAL;
+const DEV_AGE_25_34_INDUSTRY_WEIGHTS = buildWeightedChoices([
+  { value: "Student", weight: DEV_AGE_25_34_STUDENT_RATE },
+  ...DEV_BASELINE_INDUSTRY_ENTRIES.map((entry) => ({
+    value: entry.value,
+    weight: entry.weight * DEV_AGE_25_34_REMAINDER_SCALE,
+  })),
+]);
+
+const DEV_AGE_65_PLUS_FIXED_TOTAL = 59 + 25.8;
+const DEV_AGE_65_PLUS_EQUAL_REMAINDER =
+  (DEV_WEIGHT_TARGET_TOTAL - DEV_AGE_65_PLUS_FIXED_TOTAL) /
+  DEV_INDUSTRIES_WITH_EQUAL_REMAINDER.length;
+const DEV_AGE_65_PLUS_INDUSTRY_WEIGHTS = buildWeightedChoices([
+  { value: "Other", weight: 59 },
+  { value: "", weight: 25.8 },
+  ...DEV_INDUSTRIES_WITH_EQUAL_REMAINDER.map((industry) => ({
+    value: industry,
+    weight: DEV_AGE_65_PLUS_EQUAL_REMAINDER,
+  })),
+]);
+
+const DEV_IT_OCCUPATION_WEIGHTS = buildWeightedChoices([
+  { value: "", weight: DEV_IT_OCCUPATION_UNSPECIFIED_RATE },
+  ...DEV_IT_SOFTWARE_TITLES.map((title) => ({
+    value: title,
+    weight:
+      (DEV_WEIGHT_TARGET_TOTAL - DEV_IT_OCCUPATION_UNSPECIFIED_RATE) /
+      DEV_IT_SOFTWARE_TITLES.length,
+  })),
+]);
+const DEV_OTHER_OCCUPATION_WEIGHTS_BY_INDUSTRY = Object.fromEntries(
+  Object.entries(DEV_OTHER_INDUSTRY_TITLES_BY_INDUSTRY).map(
+    ([industry, titles]) => [
+      industry,
+      buildWeightedChoices([
+        { value: "", weight: DEV_NON_IT_OCCUPATION_UNSPECIFIED_RATE },
+        ...titles.map((title) => ({
+          value: title,
+          weight:
+            (DEV_WEIGHT_TARGET_TOTAL - DEV_NON_IT_OCCUPATION_UNSPECIFIED_RATE) /
+            titles.length,
+        })),
+      ]),
+    ],
+  ),
+);
 
 const THEME = {
   SiteBG: "#f3ebde",
@@ -338,6 +662,152 @@ function shuffleArray(arr) {
   return shuffled;
 }
 
+function buildWeightedChoices(entries) {
+  const choices = entries.map(({ value, weight }) => ({
+    value,
+    weight: Number(weight) || 0,
+  }));
+  const total = choices.reduce((sum, choice) => sum + choice.weight, 0);
+  const delta = DEV_WEIGHT_TARGET_TOTAL - total;
+  if (choices.length > 0 && Math.abs(delta) > Number.EPSILON) {
+    choices[0] = {
+      ...choices[0],
+      weight: Number((choices[0].weight + delta).toFixed(4)),
+    };
+  }
+  return choices;
+}
+
+function pickWeightedValue(weightedChoices) {
+  const total = weightedChoices.reduce((sum, choice) => sum + choice.weight, 0);
+  if (total <= 0) return "";
+  const roll = Math.random() * total;
+  let cumulative = 0;
+  for (const choice of weightedChoices) {
+    cumulative += choice.weight;
+    if (roll < cumulative) return choice.value;
+  }
+  return weightedChoices[weightedChoices.length - 1]?.value ?? "";
+}
+
+function sampleStandardNormal() {
+  let u = 0;
+  let v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+function clampScore(value) {
+  return Number(Math.min(1, Math.max(-1, value)).toFixed(4));
+}
+
+function sampleScoreAroundMean(mean, stdDev) {
+  // Edge clamp only: if a sampled value exceeds the plot bounds, pin to -1/1.
+  return clampScore(mean + sampleStandardNormal() * stdDev);
+}
+
+function trendlineYAtX(x) {
+  const slope =
+    (DEV_TRENDLINE_Y2 - DEV_TRENDLINE_Y1) /
+    (DEV_TRENDLINE_X2 - DEV_TRENDLINE_X1);
+  return slope * (x - DEV_TRENDLINE_X1) + DEV_TRENDLINE_Y1;
+}
+
+function isBelowTrendline(scores) {
+  return scores.y < trendlineYAtX(scores.x);
+}
+
+function alignExtremeBeliefScores(scores) {
+  const alignedScores = { ...scores };
+
+  // Y-axis alignments (mutually exclusive): y = -1 only when x < 0, or y = 1.
+  const yNegativeEdgeRate =
+    alignedScores.x < 0 ? DEV_EXTREME_Y_NEG_EDGE_RATE : 0;
+  const yRoll = Math.random();
+  if (yRoll < yNegativeEdgeRate) {
+    alignedScores.y = -1;
+  } else if (yRoll < yNegativeEdgeRate + DEV_EXTREME_Y_POS_EDGE_RATE) {
+    alignedScores.y = 1;
+  }
+
+  // X-axis alignments (mutually exclusive): x = -1 gets 2x likelihood when y < 1.
+  const xNegativeEdgeRate =
+    alignedScores.y < 1
+      ? DEV_EXTREME_X_NEG_EDGE_RATE_TOP *
+        DEV_EXTREME_X_NEG_EDGE_MULTIPLIER_WHEN_Y_BELOW_TOP
+      : DEV_EXTREME_X_NEG_EDGE_RATE_TOP;
+  const xPositiveEdgeRate =
+    alignedScores.y > 0 ? DEV_EXTREME_X_POS_EDGE_RATE : 0;
+  const xRoll = Math.random();
+  if (xRoll < xNegativeEdgeRate) {
+    alignedScores.x = -1;
+  } else if (xRoll < xNegativeEdgeRate + xPositiveEdgeRate) {
+    alignedScores.x = 1;
+  }
+
+  return alignedScores;
+}
+
+function sampleBottomRightQuadrantScore() {
+  const epsilon = 0.0001;
+  const x = epsilon + Math.random() * (1 - epsilon);
+  const y = -(epsilon + Math.random() * (1 - epsilon));
+  return {
+    x: clampScore(x),
+    y: clampScore(y),
+  };
+}
+
+function sampleTrendlineCompliantScores(scoreCluster) {
+  const sampledScores = {
+    x: sampleScoreAroundMean(scoreCluster.x, scoreCluster.stdDev),
+    y: sampleScoreAroundMean(scoreCluster.y, scoreCluster.stdDev),
+  };
+  const alignedScores = alignExtremeBeliefScores(sampledScores);
+  if (!isBelowTrendline(alignedScores)) return alignedScores;
+  return sampleBottomRightQuadrantScore();
+}
+
+function pickDevIndustry(age) {
+  if (age === "Under 18") {
+    return pickWeightedValue(DEV_AGE_UNDER_18_INDUSTRY_WEIGHTS);
+  }
+  if (age === "18-24") {
+    return pickWeightedValue(DEV_AGE_18_24_INDUSTRY_WEIGHTS);
+  }
+  if (age === "25-34") {
+    return pickWeightedValue(DEV_AGE_25_34_INDUSTRY_WEIGHTS);
+  }
+  if (age === "65+") {
+    return pickWeightedValue(DEV_AGE_65_PLUS_INDUSTRY_WEIGHTS);
+  }
+  return pickWeightedValue(DEV_INDUSTRY_WEIGHTS);
+}
+
+function pickDevOccupation(industry, age) {
+  if (age === "65+") {
+    const retiredRoll = Math.random() * DEV_WEIGHT_TARGET_TOTAL;
+    if (retiredRoll < DEV_AGE_65_PLUS_RETIRED_RATE) return "Retired";
+    if (
+      retiredRoll <
+      DEV_AGE_65_PLUS_RETIRED_RATE + DEV_AGE_65_PLUS_RETIREE_RATE
+    ) {
+      return "Retiree";
+    }
+  }
+  if (industry === "IT & Software") {
+    return pickWeightedValue(DEV_IT_OCCUPATION_WEIGHTS);
+  }
+  const nonItWeights = DEV_OTHER_OCCUPATION_WEIGHTS_BY_INDUSTRY[industry];
+  if (!nonItWeights) return "";
+  return pickWeightedValue(nonItWeights);
+}
+
+function normalizeOccupationForComparison(value) {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
 function normalizeFilterValue(value) {
   return typeof value === "string" && value.trim() !== ""
     ? value
@@ -440,64 +910,61 @@ async function submitCompassResult(payload) {
         payload.demographics && typeof payload.demographics === "object"
           ? payload.demographics
           : {};
+      const submission = {
+        created_at: createdAt,
+        ts: createdAt,
+        x_score: xScore,
+        y_score: yScore,
+        x: xScore,
+        y: yScore,
+        archetype: typeof payload.archetype === "string" ? payload.archetype : "",
+        demographics,
+        age: typeof demographics.age === "string" ? demographics.age : "",
+        country: typeof demographics.country === "string" ? demographics.country : "",
+        industry:
+          typeof demographics.industry === "string" ? demographics.industry : "",
+        occupation:
+          typeof demographics.occupation === "string" ? demographics.occupation : "",
+        notes: typeof demographics.notes === "string" ? demographics.notes : "",
+        question_order: Array.isArray(payload.question_order)
+          ? payload.question_order
+          : [],
+        question_values:
+          payload.question_values && typeof payload.question_values === "object"
+            ? payload.question_values
+            : {},
+        question_responses: Array.isArray(payload.question_responses)
+          ? payload.question_responses
+          : [],
+        question_medians:
+          payload.question_medians && typeof payload.question_medians === "object"
+            ? payload.question_medians
+            : {},
+        result_schema_version: Number(payload.result_schema_version) || 3,
+        resultSchemaVersion: Number(payload.result_schema_version) || 3,
+        segments:
+          payload.segments && typeof payload.segments === "object"
+            ? payload.segments
+            : {},
+        is_repeat_ip_24h: false,
+        is_repeat_device_24h: false,
+        repeat_group_id: "",
+        include_in_default_aggregate: true,
+        include_in_device_priority_aggregate: true,
+        repeat_classification: "first_or_stale",
+        is_dev: true,
+        isDev: true,
+      };
+      const docRef = await addDoc(
+        collection(db, COMPASS_RESULTS_COLLECTION),
+        submission,
+      );
       return {
         ok: true,
         submission: {
-          submission_id: `local_dev_${createdAt}_${Math.random().toString(36).slice(2, 8)}`,
-          created_at: createdAt,
-          ts: createdAt,
-          x_score: xScore,
-          y_score: yScore,
-          x: xScore,
-          y: yScore,
-          archetype:
-            typeof payload.archetype === "string" ? payload.archetype : "",
-          demographics,
-          age: typeof demographics.age === "string" ? demographics.age : "",
-          country:
-            typeof demographics.country === "string"
-              ? demographics.country
-              : "",
-          industry:
-            typeof demographics.industry === "string"
-              ? demographics.industry
-              : "",
-          occupation:
-            typeof demographics.occupation === "string"
-              ? demographics.occupation
-              : "",
-          notes:
-            typeof demographics.notes === "string" ? demographics.notes : "",
-          question_order: Array.isArray(payload.question_order)
-            ? payload.question_order
-            : [],
-          question_values:
-            payload.question_values &&
-            typeof payload.question_values === "object"
-              ? payload.question_values
-              : {},
-          question_responses: Array.isArray(payload.question_responses)
-            ? payload.question_responses
-            : [],
-          question_medians:
-            payload.question_medians &&
-            typeof payload.question_medians === "object"
-              ? payload.question_medians
-              : {},
-          result_schema_version: Number(payload.result_schema_version) || 3,
-          resultSchemaVersion: Number(payload.result_schema_version) || 3,
-          segments:
-            payload.segments && typeof payload.segments === "object"
-              ? payload.segments
-              : {},
-          is_repeat_ip_24h: false,
-          is_repeat_device_24h: false,
-          repeat_group_id: "",
-          include_in_default_aggregate: true,
-          include_in_device_priority_aggregate: true,
-          repeat_classification: "first_or_stale",
-          is_dev: true,
-          isDev: true,
+          ...submission,
+          submission_id: docRef.id,
+          id: docRef.id,
         },
       };
     }
@@ -1406,7 +1873,8 @@ function Compass({
                   COUNTRY_NAME_BY_CODE[activeHoveredDot.country]
                     ? COUNTRY_NAME_BY_CODE[activeHoveredDot.country]
                     : "";
-                const age = activeHoveredDot.age?.trim() || "";
+                const ageRaw = activeHoveredDot.age?.trim() || "";
+                const age = ageRaw ? getAgeRangeLabel(ageRaw) : "";
                 const details = [country, age].filter(Boolean).join(", ");
                 return (
                   <div
@@ -1487,7 +1955,10 @@ function QuizPage({ onComplete, onProgressChange }) {
   const quizAgeOptions = useMemo(
     () => [
       { value: PREFER_NOT_TO_SAY_VALUE, label: "Prefer not to say" },
-      ...AGE_RANGES.map((age) => ({ value: age, label: age })),
+      ...AGE_RANGES.map((age) => ({
+        value: age,
+        label: getAgeRangeLabel(age),
+      })),
     ],
     [],
   );
@@ -1512,7 +1983,10 @@ function QuizPage({ onComplete, onProgressChange }) {
   const quizIndustryOptions = useMemo(
     () => [
       { value: PREFER_NOT_TO_SAY_VALUE, label: "Prefer not to say" },
-      ...INDUSTRY_OPTIONS.map((option) => ({ value: option, label: option })),
+      ...INDUSTRY_OPTIONS.map((option) => ({
+        value: option,
+        label: option,
+      })),
     ],
     [],
   );
@@ -1902,7 +2376,16 @@ export default function AICompass() {
         }));
         setHasInitialResultsSnapshot(true);
         setFirestoreError("");
-        setResults(nextResults);
+        setResults((prev) => {
+          const nextIds = new Set(nextResults.map((dot) => dot.id));
+          const localOnlyDevDots = prev.filter((dot) => {
+            if (dot?.isDev !== true) return false;
+            if (typeof dot.id !== "string") return false;
+            if (!dot.id.startsWith(LOCAL_DEV_ID_PREFIX)) return false;
+            return !nextIds.has(dot.id);
+          });
+          return [...nextResults, ...localOnlyDevDots];
+        });
       },
       (error) => {
         console.error("Firestore onSnapshot error:", error);
@@ -1912,7 +2395,6 @@ export default function AICompass() {
             ? `Live sync unavailable (${error.code}).`
             : "Live sync unavailable right now.",
         );
-        setResults([]);
       },
     );
 
@@ -2061,18 +2543,31 @@ export default function AICompass() {
   };
 
   const handleDevShortcutSubmit = () => {
-    const devScores = {
-      x: Number((Math.random() * 2 - 1).toFixed(4)),
-      y: Number((Math.random() * 2 - 1).toFixed(4)),
-    };
+    const randomAge = pickWeightedValue(DEV_AGE_WEIGHTS);
+    const randomCountry = pickWeightedValue(DEV_LOCATION_WEIGHTS);
+    const randomIndustry = pickDevIndustry(randomAge);
+    let randomOccupation = pickDevOccupation(randomIndustry, randomAge);
+    const usedOccupationKeys = new Set(
+      [...results, userResult]
+        .filter(Boolean)
+        .map((dot) => normalizeOccupationForComparison(dot.occupation))
+        .filter(Boolean),
+    );
+    const randomOccupationKey =
+      normalizeOccupationForComparison(randomOccupation);
+    if (randomOccupationKey && usedOccupationKeys.has(randomOccupationKey)) {
+      randomOccupation = usedOccupationKeys.has("anonymous") ? "" : "Anonymous";
+    }
+
+    const scoreCluster =
+      randomIndustry === "IT & Software"
+        ? DEV_IT_SOFTWARE_CLUSTER
+        : DEV_FINANCE_DEFENSE_INDUSTRIES.has(randomIndustry)
+          ? DEV_FINANCE_DEFENSE_CLUSTER
+          : DEV_OTHER_CLUSTER;
+
+    const devScores = sampleTrendlineCompliantScores(scoreCluster);
     setScores(devScores);
-    const randomAge = AGE_RANGES[Math.floor(Math.random() * AGE_RANGES.length)];
-    const randomCountry =
-      COUNTRY_OPTIONS[Math.floor(Math.random() * COUNTRY_OPTIONS.length)]
-        ?.code || "";
-    const randomIndustry =
-      INDUSTRY_OPTIONS[Math.floor(Math.random() * INDUSTRY_OPTIONS.length)] ||
-      "";
     const devAnswers = Object.fromEntries(
       QUESTIONS.map((question) => [
         question.id,
@@ -2089,8 +2584,7 @@ export default function AICompass() {
         age: randomAge,
         country: randomCountry,
         industry: randomIndustry,
-        occupation: DEV_SAMPLE_OCCUPATION.slice(0, OCCUPATION_CHAR_LIMIT),
-        notes: DEV_SAMPLE_NOTES.slice(0, NOTES_CHAR_LIMIT),
+        occupation: randomOccupation,
       },
       devScores,
       {
@@ -2144,7 +2638,10 @@ export default function AICompass() {
   }, [homeBodyReady, showHomeLoading]);
   const ageFilterOptions = useMemo(
     () => [
-      ...AGE_RANGES.map((age) => ({ value: age, label: age })),
+      ...AGE_RANGES.map((age) => ({
+        value: age,
+        label: getAgeRangeLabel(age),
+      })),
       { value: UNSPECIFIED_FILTER_VALUE, label: "Unspecified" },
     ],
     [],
@@ -2624,7 +3121,9 @@ export default function AICompass() {
                       opacity: clearingDevDots ? 0.7 : 1,
                     }}
                   >
-                    {clearingDevDots ? "Clearing dev dots..." : "Reset dev dots"}
+                    {clearingDevDots
+                      ? "Clearing dev dots..."
+                      : "Reset dev dots"}
                   </button>
                 </div>
               )}

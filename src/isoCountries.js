@@ -65,7 +65,7 @@ export const ISO_COUNTRIES = [
   },
   {
     "code": "BS",
-    "name": "Bahamas (The)"
+    "name": "Bahamas"
   },
   {
     "code": "BH",
@@ -105,7 +105,7 @@ export const ISO_COUNTRIES = [
   },
   {
     "code": "BO",
-    "name": "Bolivia (Plurinational State of)"
+    "name": "Bolivia"
   },
   {
     "code": "BQ",
@@ -129,7 +129,7 @@ export const ISO_COUNTRIES = [
   },
   {
     "code": "IO",
-    "name": "British Indian Ocean Territory (the)"
+    "name": "British Indian Ocean Territory"
   },
   {
     "code": "BN",
@@ -165,11 +165,11 @@ export const ISO_COUNTRIES = [
   },
   {
     "code": "KY",
-    "name": "Cayman Islands (the)"
+    "name": "Cayman Islands"
   },
   {
     "code": "CF",
-    "name": "Central African Republic (the)"
+    "name": "Central African Republic"
   },
   {
     "code": "TD",
@@ -189,7 +189,7 @@ export const ISO_COUNTRIES = [
   },
   {
     "code": "CC",
-    "name": "Cocos (Keeling) Islands (the)"
+    "name": "Cocos (Keeling) Islands"
   },
   {
     "code": "CO",
@@ -197,19 +197,19 @@ export const ISO_COUNTRIES = [
   },
   {
     "code": "KM",
-    "name": "Comoros (the)"
+    "name": "Comoros"
   },
   {
     "code": "CD",
-    "name": "Congo (the Democratic Republic of the)"
+    "name": "Democratic Republic of the Congo"
   },
   {
     "code": "CG",
-    "name": "Congo (the)"
+    "name": "Republic of the Congo"
   },
   {
     "code": "CK",
-    "name": "Cook Islands (the)"
+    "name": "Cook Islands"
   },
   {
     "code": "CR",
@@ -253,7 +253,7 @@ export const ISO_COUNTRIES = [
   },
   {
     "code": "DO",
-    "name": "Dominican Republic (the)"
+    "name": "Dominican Republic"
   },
   {
     "code": "EC",
@@ -289,11 +289,11 @@ export const ISO_COUNTRIES = [
   },
   {
     "code": "FK",
-    "name": "Falkland Islands (the) [Malvinas]"
+    "name": "Falkland Islands [Malvinas]"
   },
   {
     "code": "FO",
-    "name": "Faroe Islands (the)"
+    "name": "Faroe Islands"
   },
   {
     "code": "FJ",
@@ -317,7 +317,7 @@ export const ISO_COUNTRIES = [
   },
   {
     "code": "TF",
-    "name": "French Southern Territories (the)"
+    "name": "French Southern Territories"
   },
   {
     "code": "GA",
@@ -325,7 +325,7 @@ export const ISO_COUNTRIES = [
   },
   {
     "code": "GM",
-    "name": "Gambia (the)"
+    "name": "Gambia"
   },
   {
     "code": "GE",
@@ -393,7 +393,7 @@ export const ISO_COUNTRIES = [
   },
   {
     "code": "VA",
-    "name": "Holy See (the)"
+    "name": "Holy See"
   },
   {
     "code": "HN",
@@ -421,7 +421,7 @@ export const ISO_COUNTRIES = [
   },
   {
     "code": "IR",
-    "name": "Iran (Islamic Republic of)"
+    "name": "Iran"
   },
   {
     "code": "IQ",
@@ -473,11 +473,11 @@ export const ISO_COUNTRIES = [
   },
   {
     "code": "KP",
-    "name": "Korea (the Democratic People's Republic of)"
+    "name": "North Korea"
   },
   {
     "code": "KR",
-    "name": "Korea (the Republic of)"
+    "name": "South Korea"
   },
   {
     "code": "KW",
@@ -489,7 +489,7 @@ export const ISO_COUNTRIES = [
   },
   {
     "code": "LA",
-    "name": "Lao People's Democratic Republic (the)"
+    "name": "Laos"
   },
   {
     "code": "LV",
@@ -553,7 +553,7 @@ export const ISO_COUNTRIES = [
   },
   {
     "code": "MH",
-    "name": "Marshall Islands (the)"
+    "name": "Marshall Islands"
   },
   {
     "code": "MQ",
@@ -577,11 +577,11 @@ export const ISO_COUNTRIES = [
   },
   {
     "code": "FM",
-    "name": "Micronesia (Federated States of)"
+    "name": "Micronesia"
   },
   {
     "code": "MD",
-    "name": "Moldova (the Republic of)"
+    "name": "Moldova"
   },
   {
     "code": "MC",
@@ -625,7 +625,7 @@ export const ISO_COUNTRIES = [
   },
   {
     "code": "NL",
-    "name": "Netherlands (Kingdom of the)"
+    "name": "Netherlands"
   },
   {
     "code": "NC",
@@ -641,7 +641,7 @@ export const ISO_COUNTRIES = [
   },
   {
     "code": "NE",
-    "name": "Niger (the)"
+    "name": "Niger"
   },
   {
     "code": "NG",
@@ -661,7 +661,7 @@ export const ISO_COUNTRIES = [
   },
   {
     "code": "MP",
-    "name": "Northern Mariana Islands (the)"
+    "name": "Northern Mariana Islands"
   },
   {
     "code": "NO",
@@ -681,7 +681,7 @@ export const ISO_COUNTRIES = [
   },
   {
     "code": "PS",
-    "name": "Palestine, State of"
+    "name": "Palestine"
   },
   {
     "code": "PA",
@@ -701,7 +701,7 @@ export const ISO_COUNTRIES = [
   },
   {
     "code": "PH",
-    "name": "Philippines (the)"
+    "name": "Philippines"
   },
   {
     "code": "PN",
@@ -733,7 +733,7 @@ export const ISO_COUNTRIES = [
   },
   {
     "code": "RU",
-    "name": "Russian Federation (the)"
+    "name": "Russian Federation"
   },
   {
     "code": "RW",
@@ -805,7 +805,7 @@ export const ISO_COUNTRIES = [
   },
   {
     "code": "SX",
-    "name": "Sint Maarten (Dutch part)"
+    "name": "Sint Maarten"
   },
   {
     "code": "SK",
@@ -845,7 +845,7 @@ export const ISO_COUNTRIES = [
   },
   {
     "code": "SD",
-    "name": "Sudan (the)"
+    "name": "Sudan"
   },
   {
     "code": "SR",
@@ -865,11 +865,11 @@ export const ISO_COUNTRIES = [
   },
   {
     "code": "SY",
-    "name": "Syrian Arab Republic (the)"
+    "name": "Syrian Arab Republic"
   },
   {
     "code": "TW",
-    "name": "Taiwan (Province of China)"
+    "name": "Taiwan"
   },
   {
     "code": "TJ",
@@ -917,7 +917,7 @@ export const ISO_COUNTRIES = [
   },
   {
     "code": "TC",
-    "name": "Turks and Caicos Islands (the)"
+    "name": "Turks and Caicos Islands"
   },
   {
     "code": "TV",
@@ -933,19 +933,19 @@ export const ISO_COUNTRIES = [
   },
   {
     "code": "AE",
-    "name": "United Arab Emirates (the)"
+    "name": "United Arab Emirates"
   },
   {
     "code": "GB",
-    "name": "United Kingdom of Great Britain and Northern Ireland (the)"
+    "name": "United Kingdom"
   },
   {
     "code": "UM",
-    "name": "United States Minor Outlying Islands (the)"
+    "name": "United States Minor Outlying Islands"
   },
   {
     "code": "US",
-    "name": "United States of America (the)"
+    "name": "United States of America"
   },
   {
     "code": "UY",
@@ -961,15 +961,15 @@ export const ISO_COUNTRIES = [
   },
   {
     "code": "VE",
-    "name": "Venezuela (Bolivarian Republic of)"
+    "name": "Venezuela"
   },
   {
     "code": "VN",
-    "name": "Viet Nam"
+    "name": "Vietnam"
   },
   {
     "code": "VG",
-    "name": "Virgin Islands (British)"
+    "name": "Virgin Islands (U.K.)"
   },
   {
     "code": "VI",
