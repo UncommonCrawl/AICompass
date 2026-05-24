@@ -226,9 +226,13 @@ const HOME_SECTION_GAP = 20;
 const UNSPECIFIED_FILTER_VALUE = "__UNSPECIFIED__";
 const DROPDOWN_VIEWPORT_BUFFER = 10;
 const DROPDOWN_MENU_MAX_HEIGHT = 200;
-const COMPASS_CANVAS_DPR_CAP = 2;
+const COMPASS_CANVAS_DPR_CAP_BASE = 2;
+const COMPASS_CANVAS_DPR_CAP_HIGH = 3;
+const COMPASS_CANVAS_HIGH_DPR_POINT_LIMIT = 1200;
 const COMPASS_DOT_COLOR = "#5d5852";
 const COMPASS_DOT_FADED_COLOR = "#c7c1b7";
+const COMPASS_DOT_RADIUS = 3;
+const COMPASS_USER_DOT_RADIUS = 4.5;
 
 const DEV_WEIGHT_TARGET_TOTAL = 100;
 const DEV_DEFAULT_STD_DEV = 0.4;
@@ -1529,7 +1533,7 @@ function Compass({
         const sx = cx + dot.x * xRange;
         const sy = cy - dot.y * yRange;
         const isUser = Boolean(userResult && dot.id === userResult.id);
-        const dotRadius = isUser ? 5 : 3.5;
+        const dotRadius = isUser ? COMPASS_USER_DOT_RADIUS : COMPASS_DOT_RADIUS;
         const quadrant = getQuadrant(dot.x, dot.y);
         return {
           id: dot.id || `idx-${i}`,
@@ -1579,7 +1583,11 @@ function Compass({
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const dpr = Math.min(window.devicePixelRatio || 1, COMPASS_CANVAS_DPR_CAP);
+    const dprCap =
+      plotPoints.length <= COMPASS_CANVAS_HIGH_DPR_POINT_LIMIT
+        ? COMPASS_CANVAS_DPR_CAP_HIGH
+        : COMPASS_CANVAS_DPR_CAP_BASE;
+    const dpr = Math.min(window.devicePixelRatio || 1, dprCap);
     const pixelWidth = Math.max(1, Math.round(dims.w * dpr));
     const pixelHeight = Math.max(1, Math.round(dims.h * dpr));
     if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
@@ -1828,7 +1836,7 @@ function Compass({
               key={`pulse-${point.id}`}
               cx={point.sx}
               cy={point.sy}
-              r={point.isUser ? 8 : 7}
+              r={point.isUser ? 7.5 : 6.5}
               fill="none"
               stroke={point.color}
               strokeWidth={1.5}
@@ -1836,7 +1844,7 @@ function Compass({
             >
               <animate
                 attributeName="r"
-                values={point.isUser ? "8;12;8" : "7;10;7"}
+                values={point.isUser ? "7.5;11.5;7.5" : "6.5;9.5;6.5"}
                 dur="2s"
                 repeatCount="indefinite"
               />

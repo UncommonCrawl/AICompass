@@ -1,0 +1,132 @@
+:root {
+  /* Typeface */
+  --brand-font-serif: "Newsreader", "Iowan Old Style", "Palatino Linotype", serif;
+  --brand-font-mono: "IBM Plex Mono", monospace;
+  --brand-font-sans: var(--brand-font-mono);
+
+  /* Core palette */
+  --brand-color-ink-900: #1f1a16;
+  --brand-color-ink-800: #3d372f;
+  --brand-color-stone-700: #5d5852;
+  --brand-color-stone-500: #b8aea2;
+  --brand-color-stone-400: #c7c1b7;
+  --brand-color-stone-300: #d9cdb9;
+  --brand-color-stone-200: #e9dfcf;
+  --brand-color-stone-100: #f3ebde;
+  --brand-color-moss-700: #5f6f60;
+  --brand-color-moss-600: #6f8f7a;
+  --brand-color-moss-500: #8da67f;
+  --brand-color-danger-700: #b00020;
+
+  /* Semantic color system */
+  --brand-bg-page: var(--brand-color-stone-100);
+  --brand-bg-surface: rgba(31, 26, 22, 0.02);
+  --brand-bg-elevated: rgba(243, 235, 222, 0.88);
+  --brand-bg-soft: rgba(233, 223, 207, 0.68);
+  --brand-bg-accent-soft: rgba(95, 111, 96, 0.14);
+  --brand-text-primary: var(--brand-color-ink-900);
+  --brand-text-secondary: var(--brand-color-ink-800);
+  --brand-text-muted: rgba(31, 26, 22, 0.35);
+  --brand-border-default: rgba(31, 26, 22, 0.14);
+  --brand-border-strong: rgba(31, 26, 22, 0.35);
+  --brand-border-accent: rgba(95, 111, 96, 0.45);
+  --brand-overlay: rgba(243, 235, 222, 0.8);
+  --brand-overlay-dark: rgba(0, 0, 0, 0.08);
+  --brand-focus-ring: var(--brand-color-moss-700);
+  --brand-alert-border: rgba(255, 179, 0, 0.4);
+  --brand-alert-bg: rgba(31, 26, 22, 0.08);
+  --brand-gradient-cta: linear-gradient(135deg, #6f8f7a, #8da67f);
+
+  /* Typography scale */
+  --brand-font-size-2xs: 10px;
+  --brand-font-size-xs: 11px;
+  --brand-font-size-sm: 12px;
+  --brand-font-size-md: 14px;
+  --brand-font-size-base: 15px;
+  --brand-font-size-lg: 16px;
+  --brand-font-size-xl: 18px;
+  --brand-font-size-2xl: 20px;
+  --brand-font-size-3xl: 24px;
+  --brand-font-size-4xl: 26px;
+  --brand-font-size-5xl: 36px;
+  --brand-font-size-6xl: 56px;
+
+  --brand-line-height-tight: 1.18;
+  --brand-line-height-snug: 1.35;
+  --brand-line-height-normal: 1.45;
+  --brand-line-height-reading: 1.55;
+  --brand-letter-spacing-base: 0.18px;
+  --brand-letter-spacing-wide: 0.2em;
+
+  /* Spacing scale */
+  --brand-space-1: 4px;
+  --brand-space-2: 8px;
+  --brand-space-3: 10px;
+  --brand-space-4: 12px;
+  --brand-space-5: 14px;
+  --brand-space-6: 16px;
+  --brand-space-7: 18px;
+  --brand-space-8: 20px;
+  --brand-space-9: 24px;
+  --brand-space-10: 28px;
+  --brand-space-11: 32px;
+  --brand-space-12: 40px;
+  --brand-space-13: 48px;
+  --brand-space-14: 80px;
+
+  /* Borders, radii, and shadow */
+  --brand-border-width-thin: 1px;
+  --brand-border-width-thick: 2px;
+  --brand-radius-sm: 4px;
+  --brand-radius-md: 6px;
+  --brand-radius-lg: 8px;
+  --brand-radius-xl: 10px;
+  --brand-radius-pill: 999px;
+  --brand-radius-round: 50%;
+  --brand-shadow-soft:
+    rgba(47, 41, 35, 0.12) 0 10px 15px -3px,
+    rgba(47, 41, 35, 0.08) 0 4px 6px -2px;
+
+  /* Motion */
+  --brand-ease-standard: ease;
+  --brand-duration-fast: 220ms;
+  --brand-duration-normal: 300ms;
+  --brand-duration-slow: 1000ms;
+
+  /* Layout */
+  --brand-content-max: 640px;
+  --brand-content-wide-max: 1000px;
+  --brand-header-action-height: 44px;
+  --brand-header-bar-height: 118px;
+  --brand-home-section-gap: 20px;
+  --brand-z-header: 20;
+  --brand-z-overlay: 100;
+
+  /* Existing variable aliases (drop-in compatibility) */
+  --text: var(--brand-text-secondary);
+  --text-h: var(--brand-text-primary);
+  --bg: var(--brand-bg-page);
+  --border: var(--brand-color-stone-300);
+  --code-bg: var(--brand-color-stone-200);
+  --accent: var(--brand-color-moss-700);
+  --accent-bg: var(--brand-bg-accent-soft);
+  --accent-border: var(--brand-border-accent);
+  --social-bg: var(--brand-bg-soft);
+  --shadow: var(--brand-shadow-soft);
+
+  --font-ibm-plex-mono: var(--brand-font-mono);
+  --font-newsreader: var(--brand-font-serif);
+  --sans: var(--brand-font-sans);
+  --heading: var(--brand-font-serif);
+  --mono: var(--brand-font-mono);
+
+  --tab-bg-outer: rgba(31, 26, 22, 0.02);
+  --tab-bg-form: rgba(31, 26, 22, 0.02);
+  --tab-bg-menu: rgba(243, 235, 222, 1);
+  --tab-border-width: var(--brand-border-width-thin);
+  --tab-border-style: solid;
+  --tab-border-color: var(--brand-border-default);
+  --tab-border-color-strong: rgba(31, 26, 22, 0.45);
+  --tab-border-color-subtle: var(--brand-border-default);
+  --tab-radius: var(--brand-radius-lg);
+}
