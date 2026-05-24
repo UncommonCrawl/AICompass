@@ -226,7 +226,9 @@ const HOME_SECTION_GAP = 20;
 const UNSPECIFIED_FILTER_VALUE = "__UNSPECIFIED__";
 const DROPDOWN_VIEWPORT_BUFFER = 10;
 const DROPDOWN_MENU_MAX_HEIGHT = 200;
-const COMPASS_CANVAS_DPR_CAP = 1.5;
+const COMPASS_CANVAS_DPR_CAP = 2;
+const COMPASS_DOT_COLOR = "#5d5852";
+const COMPASS_DOT_FADED_COLOR = "#c7c1b7";
 
 const DEV_WEIGHT_TARGET_TOTAL = 100;
 const DEV_DEFAULT_STD_DEV = 0.4;
@@ -1585,16 +1587,24 @@ function Compass({
       canvas.height = pixelHeight;
     }
 
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, dims.w, dims.h);
-    for (const point of plotPoints) {
-      ctx.globalAlpha = point.enabled ? (point.isUser ? 1 : 0.7) : 0.2;
-      ctx.fillStyle = point.color;
+    const drawDot = (point, color) => {
+      ctx.fillStyle = color;
       ctx.beginPath();
       ctx.arc(point.sx, point.sy, point.dotRadius, 0, Math.PI * 2);
       ctx.fill();
+    };
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, dims.w, dims.h);
+
+    // Draw faded dots first so enabled dots always sit above them.
+    for (const point of plotPoints) {
+      if (!point.enabled) drawDot(point, COMPASS_DOT_FADED_COLOR);
     }
-    ctx.globalAlpha = 1;
+    for (const point of plotPoints) {
+      if (point.enabled) drawDot(point, COMPASS_DOT_COLOR);
+    }
+
     onCanvasDraw?.();
   }, [plotPoints, dims.w, dims.h, onCanvasDraw]);
 
