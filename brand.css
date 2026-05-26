@@ -3,13 +3,48 @@
  * Portable design variables for reuse in other projects.
  */
 
+@font-face {
+  font-family: "Cabinet Grotesk";
+  src: url("/fonts/cabinet-grotesk/CabinetGrotesk-Variable.woff2")
+    format("woff2-variations");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("/fonts/ibm-plex-sans/IBMPlexSans-VariableFont_wdth,wght.ttf")
+    format("truetype");
+  font-style: normal;
+  font-weight: 100 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("/fonts/ibm-plex-sans/IBMPlexSans-Italic-VariableFont_wdth,wght.ttf")
+    format("truetype");
+  font-style: italic;
+  font-weight: 100 700;
+  font-display: swap;
+}
+
 :root {
   color-scheme: light;
 
   /* Typography */
-  --font-sans: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+  --font-display: "Cabinet Grotesk", "IBM Plex Sans", "Segoe UI", sans-serif;
+  --font-body: "IBM Plex Sans", "Avenir Next", "Avenir", "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+
+  /* Backward-compatible aliases */
+  --font-sans: var(--font-body);
+  --font-header: var(--font-display);
+  --body-font: var(--font-body);
+  --header-font: var(--font-display);
   --font-weight-regular: 400;
+  --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
   --font-weight-heavy: 800;
@@ -100,7 +135,7 @@
 /* Optional baseline defaults */
 body {
   margin: 0;
-  font-family: var(--font-sans);
+  font-family: var(--body-font);
   line-height: var(--line-height-body);
   color: var(--color-ink);
   background-color: var(--color-paper);

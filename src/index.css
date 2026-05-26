@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Newsreader:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Newsreader:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
 :root {
   --text: var(--color-muted);
@@ -14,7 +14,7 @@
     color-mix(in oklab, var(--color-ink) 12%, transparent) 0 10px 15px -3px,
     color-mix(in oklab, var(--color-ink) 8%, transparent) 0 4px 6px -2px;
 
-  --font-ibm-plex-mono: 'IBM Plex Mono', monospace;
+  --font-ibm-plex-mono: var(--font-mono);
   --font-newsreader: 'Newsreader', 'Iowan Old Style', 'Palatino Linotype', serif;
 
   --tab-bg-outer: color-mix(in oklab, var(--color-ink) 2%, transparent);
@@ -27,9 +27,11 @@
   --tab-border-color-subtle: var(--color-border);
   --tab-radius: 8px;
 
-  --sans: var(--font-ibm-plex-mono);
-  --heading: var(--font-newsreader);
-  --mono: var(--font-ibm-plex-mono);
+  --body-font: var(--font-body);
+  --sans: var(--body-font);
+  --heading: var(--font-display);
+  --header-font: var(--font-display);
+  --mono: var(--font-mono);
 
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
@@ -69,30 +71,135 @@ html {
 }
 
 h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 600;
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display);
   color: var(--text-h);
+  margin: 0;
 }
 
 h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
+  font-size: 3.5rem;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-weight: var(--font-weight-bold);
 }
+
 h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
+  font-size: 2.5rem;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  font-weight: var(--font-weight-semibold);
 }
+
+h3 {
+  font-size: 1.875rem;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  font-weight: var(--font-weight-semibold);
+}
+
+h4 {
+  font-size: 1.5rem;
+  line-height: 1.25;
+  font-weight: var(--font-weight-medium);
+}
+
+h5 {
+  font-size: 1.25rem;
+  line-height: 1.3;
+  font-weight: var(--font-weight-medium);
+}
+
+h6 {
+  font-size: 0.875rem;
+  line-height: 1.35;
+  letter-spacing: 0.06em;
+  font-weight: var(--font-weight-regular);
+  text-transform: uppercase;
+}
+
+.type-display-xl {
+  font-family: var(--font-display);
+  font-size: 4rem;
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+  font-weight: var(--font-weight-heavy);
+}
+
+.type-display-lg {
+  font-family: var(--font-display);
+  font-size: 3rem;
+  line-height: 1.06;
+  letter-spacing: -0.02em;
+  font-weight: var(--font-weight-bold);
+}
+
+.type-heading {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  line-height: 1.12;
+  letter-spacing: 0.04em;
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+}
+
+.type-subheading {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  line-height: 1.35;
+  letter-spacing: 0.05em;
+  font-weight: var(--font-weight-medium);
+ text-transform: uppercase;
+}
+
+.type-body-lg {
+  font-family: var(--font-body);
+  font-size: 1.25rem;
+  line-height: 1.6;
+  font-weight: var(--font-weight-regular);
+}
+
+.type-body {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.6;
+  font-weight: var(--font-weight-regular);
+}
+
+.type-body-sm {
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: var(--font-weight-regular);
+}
+
+.type-label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  letter-spacing: 0.08em;
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+}
+
+.type-label-light {
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-regular);
+}
+
+.type-caption {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  line-height: 1.35;
+  letter-spacing: 0.1em;
+  font-weight: var(--font-weight-regular);
+  text-transform: uppercase;
+}
+
 p {
   margin: 0;
 }

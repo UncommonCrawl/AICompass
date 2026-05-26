@@ -923,14 +923,20 @@ async function submitCompassResult(payload) {
         y_score: yScore,
         x: xScore,
         y: yScore,
-        archetype: typeof payload.archetype === "string" ? payload.archetype : "",
+        archetype:
+          typeof payload.archetype === "string" ? payload.archetype : "",
         demographics,
         age: typeof demographics.age === "string" ? demographics.age : "",
-        country: typeof demographics.country === "string" ? demographics.country : "",
+        country:
+          typeof demographics.country === "string" ? demographics.country : "",
         industry:
-          typeof demographics.industry === "string" ? demographics.industry : "",
+          typeof demographics.industry === "string"
+            ? demographics.industry
+            : "",
         occupation:
-          typeof demographics.occupation === "string" ? demographics.occupation : "",
+          typeof demographics.occupation === "string"
+            ? demographics.occupation
+            : "",
         notes: typeof demographics.notes === "string" ? demographics.notes : "",
         question_order: Array.isArray(payload.question_order)
           ? payload.question_order
@@ -943,7 +949,8 @@ async function submitCompassResult(payload) {
           ? payload.question_responses
           : [],
         question_medians:
-          payload.question_medians && typeof payload.question_medians === "object"
+          payload.question_medians &&
+          typeof payload.question_medians === "object"
             ? payload.question_medians
             : {},
         result_schema_version: Number(payload.result_schema_version) || 3,
@@ -1055,9 +1062,8 @@ function MultiSelectFilter({
       }}
     >
       <label
+        className="type-subheading"
         style={{
-          fontFamily: "'IBM Plex Mono', monospace",
-          fontSize: 12,
           color: "var(--color-ink)",
           display: "flex",
           justifyContent: "space-between",
@@ -1091,7 +1097,7 @@ function MultiSelectFilter({
           height: 34,
           padding: "8px 10px",
           fontSize: 12,
-          fontFamily: "'Newsreader', serif",
+          fontFamily: "var(--body-font)",
           background: TAB_STYLE_VARS.outerBackground,
           border: tabBorder(),
           color: "var(--color-ink)",
@@ -1150,7 +1156,7 @@ function MultiSelectFilter({
                 border: "none",
                 background: "transparent",
                 color: "var(--color-ink)",
-                fontFamily: "'Newsreader', serif",
+                fontFamily: "var(--body-font)",
                 fontSize: 12,
                 cursor: "pointer",
                 display: "flex",
@@ -1197,7 +1203,7 @@ function MultiSelectFilter({
                     border: "none",
                     background: "transparent",
                     color: "var(--color-ink)",
-                    fontFamily: "'Newsreader', serif",
+                    fontFamily: "var(--body-font)",
                     fontSize: 12,
                     cursor: "pointer",
                     display: "flex",
@@ -1273,9 +1279,8 @@ function SingleSelectDropdown({
       }}
     >
       <label
+        className="type-subheading"
         style={{
-          fontFamily: "'IBM Plex Mono', monospace",
-          fontSize: 12,
           color: "var(--color-ink)",
           display: "flex",
           justifyContent: "space-between",
@@ -1309,7 +1314,7 @@ function SingleSelectDropdown({
           height: 34,
           padding: "8px 10px",
           fontSize: 12,
-          fontFamily: "'Newsreader', serif",
+          fontFamily: "var(--body-font)",
           background: TAB_STYLE_VARS.outerBackground,
           border: tabBorder(),
           color: "var(--color-ink)",
@@ -1371,7 +1376,7 @@ function SingleSelectDropdown({
                   border: "none",
                   background: "transparent",
                   color: "var(--color-ink)",
-                  fontFamily: "'Newsreader', serif",
+                  fontFamily: "var(--body-font)",
                   fontSize: 12,
                   cursor: "pointer",
                 }}
@@ -1408,7 +1413,7 @@ function Compass({
   const axisLabelGap = 10;
   const axisLabelFontSize = 10;
   const xAxisLetterSpacingEm = 0.1;
-  const yAxisLetterSpacingEm = xAxisLetterSpacingEm * 0.5;
+  const yAxisLetterSpacingEm = 0.02;
   const pad = axisLabelGap + axisLabelFontSize + 2;
 
   useEffect(() => {
@@ -1469,7 +1474,6 @@ function Compass({
     textAnchor: "middle",
     fill: "var(--color-ink)",
     fontSize: axisLabelFontSize,
-    fontFamily: "'IBM Plex Mono', monospace",
     opacity: 0.8,
   };
   const axisLabels = [
@@ -1508,7 +1512,6 @@ function Compass({
     textAnchor: "middle",
     dominantBaseline: "middle",
     fontSize: 9,
-    fontFamily: "'IBM Plex Mono', monospace",
     letterSpacing: "0.15em",
     opacity: 0.25,
   };
@@ -1761,13 +1764,16 @@ function Compass({
         {/* Axis labels */}
         {axisLabels.map(({ key, axis, x, y, text, transform }) => (
           <text
+            className="type-caption"
             key={key}
             x={x}
             y={y}
             transform={transform}
-            letterSpacing={`${
-              axis === "y" ? yAxisLetterSpacingEm : xAxisLetterSpacingEm
-            }em`}
+            style={{
+              letterSpacing: `${
+                axis === "y" ? yAxisLetterSpacingEm : xAxisLetterSpacingEm
+              }em`,
+            }}
             {...axisLabelTextStyle}
           >
             {text}
@@ -1777,6 +1783,7 @@ function Compass({
         {/* Quadrant labels */}
         {compassLabelPositions.map(({ key, x, y }) => (
           <text
+            className="type-caption"
             key={key}
             x={x}
             y={y}
@@ -1869,6 +1876,7 @@ function Compass({
               ? activeHoveredDot.notes.trim()
               : "";
           const hasNotes = noteText.length > 0;
+          const tooltipTextNudgeYPx = -2;
           const tooltipStyle = {
             position: "absolute",
             left: `${(sx / dims.w) * 100}%`,
@@ -1883,54 +1891,58 @@ function Compass({
           };
           return (
             <div style={tooltipStyle}>
-              {(() => {
-                const title =
-                  activeHoveredDot.occupation?.trim() || "Anonymous";
-                const country =
-                  activeHoveredDot.country &&
-                  COUNTRY_NAME_BY_CODE[activeHoveredDot.country]
-                    ? COUNTRY_NAME_BY_CODE[activeHoveredDot.country]
-                    : "";
-                const ageRaw = activeHoveredDot.age?.trim() || "";
-                const age = ageRaw ? getAgeRangeLabel(ageRaw) : "";
-                const details = [country, age].filter(Boolean).join(", ");
-                return (
+              <div
+                style={{ transform: `translateY(${tooltipTextNudgeYPx}px)` }}
+              >
+                {(() => {
+                  const title =
+                    activeHoveredDot.occupation?.trim() || "Anonymous";
+                  const country =
+                    activeHoveredDot.country &&
+                    COUNTRY_NAME_BY_CODE[activeHoveredDot.country]
+                      ? COUNTRY_NAME_BY_CODE[activeHoveredDot.country]
+                      : "";
+                  const ageRaw = activeHoveredDot.age?.trim() || "";
+                  const age = ageRaw ? getAgeRangeLabel(ageRaw) : "";
+                  const details = [country, age].filter(Boolean).join(", ");
+                  return (
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: THEME.SiteBG,
+                        lineHeight: hasNotes ? 1.15 : 1.05,
+                      }}
+                    >
+                      <strong>{title}</strong>
+                      {details ? `, ${details}` : ""}
+                    </div>
+                  );
+                })()}
+                {hasNotes && (
                   <div
                     style={{
                       fontSize: 12,
                       color: THEME.SiteBG,
-                      lineHeight: hasNotes ? 1.15 : 1.05,
+                      marginTop: 4,
+                      lineHeight: 1.2,
+                      fontStyle: "italic",
                     }}
                   >
-                    <strong>{title}</strong>
-                    {details ? `, ${details}` : ""}
+                    "{noteText}"
                   </div>
-                );
-              })()}
-              {hasNotes && (
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: THEME.SiteBG,
-                    marginTop: 4,
-                    lineHeight: 1.2,
-                    fontStyle: "italic",
-                  }}
-                >
-                  "{noteText}"
-                </div>
-              )}
+                )}
+              </div>
             </div>
           );
         })()}
       {import.meta.env.DEV && (
         <div
+          className="type-caption"
           style={{
             position: "absolute",
             right: 8,
             bottom: 8,
             padding: "4px 6px",
-            fontFamily: "'IBM Plex Mono', monospace",
             fontSize: 10,
             letterSpacing: "0.08em",
             color: "var(--color-ink)",
@@ -2014,7 +2026,7 @@ function QuizPage({ onComplete, onProgressChange }) {
     width: "100%",
     padding: "10px 14px",
     fontSize: 14,
-    fontFamily: "'Newsreader', serif",
+    fontFamily: "var(--body-font)",
     background: TAB_STYLE_VARS.formBackground,
     border: tabBorder(),
     color: "var(--color-ink)",
@@ -2025,7 +2037,6 @@ function QuizPage({ onComplete, onProgressChange }) {
   const fieldLabelStyle = {
     fontSize: 12,
     color: "var(--color-ink)",
-    fontFamily: "'IBM Plex Mono', monospace",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
@@ -2145,9 +2156,7 @@ function QuizPage({ onComplete, onProgressChange }) {
             marginBottom: 20,
             padding: "80px 40px",
             background:
-              answers[q.id] !== undefined
-                ? "rgba(0,0,0,0.015)"
-                : THEME.SiteBG,
+              answers[q.id] !== undefined ? "rgba(0,0,0,0.015)" : THEME.SiteBG,
             border:
               answers[q.id] !== undefined
                 ? `1px solid ${THEME.SiteText}`
@@ -2157,10 +2166,10 @@ function QuizPage({ onComplete, onProgressChange }) {
           }}
         >
           <div
+            className="type-label"
             style={{
               fontSize: 11,
               color: "var(--color-ink)",
-              fontFamily: "'IBM Plex Mono', monospace",
               marginBottom: 8,
             }}
           >
@@ -2172,7 +2181,7 @@ function QuizPage({ onComplete, onProgressChange }) {
               color: "var(--color-ink)",
               lineHeight: 1.55,
               marginBottom: 16,
-              fontFamily: "'Newsreader', serif",
+              fontFamily: "var(--body-font)",
             }}
           >
             {q.text}
@@ -2199,11 +2208,11 @@ function QuizPage({ onComplete, onProgressChange }) {
               />
             </div>
             <div
+              className="type-caption"
               style={{
                 display: "flex",
                 justifyContent: "space-between",
                 fontSize: 11,
-                fontFamily: "'IBM Plex Mono', monospace",
                 color: "var(--color-ink)",
               }}
             >
@@ -2224,10 +2233,10 @@ function QuizPage({ onComplete, onProgressChange }) {
       >
         {allAnswered && !hasDemographicSelections && (
           <div
+            className="type-body-sm"
             style={{
               color: "#b00020",
               fontSize: 12,
-              fontFamily: "'IBM Plex Mono', monospace",
               textAlign: "right",
             }}
           >
@@ -2262,9 +2271,9 @@ function QuizPage({ onComplete, onProgressChange }) {
           />
         </div>
         <div>
-          <label style={fieldLabelStyle}>
+          <label className="type-label" style={fieldLabelStyle}>
             <span>Job Title</span>
-            <span>
+            <span className="type-caption">
               {trimmedJobTitle.length}/{OCCUPATION_CHAR_LIMIT}
             </span>
           </label>
@@ -2277,9 +2286,9 @@ function QuizPage({ onComplete, onProgressChange }) {
           />
         </div>
         <div>
-          <label style={fieldLabelStyle}>
+          <label className="type-label" style={fieldLabelStyle}>
             <span>Additional Notes</span>
-            <span>
+            <span className="type-caption">
               {trimmedNotes.length}/{NOTES_CHAR_LIMIT}
             </span>
           </label>
@@ -2324,8 +2333,8 @@ function QuizPage({ onComplete, onProgressChange }) {
           style={{
             padding: "14px 40px",
             fontSize: 15,
-            fontFamily: "'Newsreader', serif",
-            fontWeight: 600,
+            fontFamily: "var(--body-font)",
+            fontWeight: "var(--font-weight-semibold)",
             background: canSubmit
               ? "linear-gradient(135deg, #000000, #2c2c2c)"
               : "rgba(0,0,0,0.03)",
@@ -2336,11 +2345,15 @@ function QuizPage({ onComplete, onProgressChange }) {
             transition: "all 0.3s",
           }}
         >
-          {canSubmit
-            ? "See Results"
-            : !allAnswered
-              ? `Answer all ${shuffledQuestions.length} questions to continue`
-              : "Select Age Range, Country, and Industry to continue"}
+          {canSubmit ? (
+            "See Results"
+          ) : !allAnswered ? (
+            <span className="type-label">
+              {`Answer all ${shuffledQuestions.length} questions to continue`}
+            </span>
+          ) : (
+            "Select Age Range, Country, and Industry to continue"
+          )}
         </button>
       </div>
     </div>
@@ -2742,7 +2755,7 @@ export default function AICompass() {
         overflow: "hidden",
         background: THEME.SiteBG,
         color: THEME.SiteText,
-        fontFamily: "'Newsreader', serif",
+        fontFamily: "var(--body-font)",
       }}
     >
       <link
@@ -2763,7 +2776,7 @@ export default function AICompass() {
           background: THEME.SiteText,
           display: "flex",
           flexDirection: "column",
-          gap: 12,
+          gap: 6,
         }}
       >
         <button
@@ -2778,11 +2791,10 @@ export default function AICompass() {
           }}
         >
           <h1
+            className="type-display-lg"
             style={{
-              fontFamily: "'IBM Plex Mono', monospace",
-              fontSize: 26,
-              fontWeight: 200,
-              letterSpacing: "0.2em",
+              fontSize: 30,
+              letterSpacing: "0.15em",
               margin: 0,
               color: THEME.SiteBG,
               lineHeight: 1.3,
@@ -2810,6 +2822,7 @@ export default function AICompass() {
               }}
             >
               <button
+                className="type-body-sm"
                 onClick={() => {
                   setScreen("quiz");
                   setScores(null);
@@ -2817,11 +2830,9 @@ export default function AICompass() {
                 }}
                 style={{
                   width: "fit-content",
-                  height: "100%",
-                  padding: "0 14px",
+                  height: "90%",
+                  padding: "0 18px",
                   fontSize: 12,
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  fontWeight: 500,
                   background: THEME.SiteBG,
                   border: "1px solid rgba(255,255,255,0.65)",
                   color: THEME.SiteText,
@@ -2863,12 +2874,12 @@ export default function AICompass() {
                 />
               </div>
               <div
+                className="type-caption"
                 style={{
                   height: HEADER_ACTION_HEIGHT * 0.75 - 6,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontFamily: "'IBM Plex Mono', monospace",
                   fontSize: 11,
                   color: THEME.SiteBG,
                 }}
@@ -2892,6 +2903,7 @@ export default function AICompass() {
       >
         {firestoreError && (
           <div
+            className="type-body-sm"
             style={{
               maxWidth: 1000,
               margin: "0 auto 16px",
@@ -2901,7 +2913,6 @@ export default function AICompass() {
               background: "rgba(0,0,0,0.08)",
               color: "var(--color-ink)",
               fontSize: 12,
-              fontFamily: "'IBM Plex Mono', monospace",
             }}
           >
             {firestoreError}
@@ -2918,12 +2929,12 @@ export default function AICompass() {
           >
             {showHomeLoading && (
               <div
+                className="type-caption"
                 style={{
                   position: "fixed",
                   left: "50%",
                   top: HEADER_BAR_HEIGHT + 200,
                   transform: "translateX(-50%)",
-                  fontFamily: "'IBM Plex Mono', monospace",
                   fontSize: 14,
                   letterSpacing: "0.2em",
                   color: "var(--color-ink)",
@@ -2946,8 +2957,8 @@ export default function AICompass() {
               {screen === "results" && scores && qi && (
                 <div style={{ textAlign: "center", marginBottom: 28 }}>
                   <div
+                    className="type-label"
                     style={{
-                      fontFamily: "'IBM Plex Mono', monospace",
                       fontSize: 11,
                       color: "var(--color-ink)",
                       letterSpacing: 2,
@@ -2957,11 +2968,11 @@ export default function AICompass() {
                     YOUR RESULT SECTION
                   </div>
                   <div
+                    className="type-heading"
                     style={{
-                      fontFamily: "'IBM Plex Mono', monospace",
                       fontSize: 24,
                       color: qi.color,
-                      fontWeight: 600,
+                      textTransform: "uppercase",
                       marginBottom: 8,
                     }}
                   >
@@ -2979,8 +2990,8 @@ export default function AICompass() {
                     {qi.desc}
                   </p>
                   <div
+                    className="type-caption"
                     style={{
-                      fontFamily: "'IBM Plex Mono', monospace",
                       fontSize: 12,
                       color: "var(--color-ink)",
                     }}
@@ -3061,7 +3072,7 @@ export default function AICompass() {
                         })
                       }
                       style={{
-                        padding: "12px 14px",
+                        padding: "24px 14px",
                         background: TAB_STYLE_VARS.outerBackground,
                         border:
                           activeQuadrant === key
@@ -3073,21 +3084,19 @@ export default function AICompass() {
                       }}
                     >
                       <div
+                        className="type-heading"
                         style={{
                           color: val.color,
-                          fontFamily: "'IBM Plex Mono', monospace",
-                          fontSize: 12,
-                          fontWeight: 600,
+                          textTransform: "uppercase",
                           marginBottom: 4,
                         }}
                       >
                         {val.name}
                       </div>
                       <div
+                        className="type-body-sm"
                         style={{
                           color: "var(--color-ink)",
-                          fontSize: 12,
-                          lineHeight: 1.45,
                         }}
                       >
                         {val.desc}
@@ -3108,12 +3117,11 @@ export default function AICompass() {
                   }}
                 >
                   <button
+                    className="type-body-sm"
                     onClick={handleDevShortcutSubmit}
                     style={{
                       padding: "8px 14px",
                       fontSize: 12,
-                      fontFamily: "'IBM Plex Mono', monospace",
-                      fontWeight: 500,
                       background: "rgba(0,0,0,0.08)",
                       border: "1px solid rgba(0,0,0,0.14)",
                       color: "var(--color-ink)",
@@ -3124,13 +3132,12 @@ export default function AICompass() {
                     Dev shortcut: random dot
                   </button>
                   <button
+                    className="type-body-sm"
                     onClick={handleClearDevDots}
                     disabled={clearingDevDots}
                     style={{
                       padding: "8px 14px",
                       fontSize: 12,
-                      fontFamily: "'IBM Plex Mono', monospace",
-                      fontWeight: 500,
                       background: "rgba(0,0,0,0.08)",
                       border: "1px solid rgba(0,0,0,0.14)",
                       color: "var(--color-ink)",
@@ -3173,8 +3180,8 @@ export default function AICompass() {
           }}
         >
           <div
+            className="type-caption"
             style={{
-              fontFamily: "'IBM Plex Mono', monospace",
               fontSize: 14,
               color: "var(--color-ink)",
             }}
