@@ -1034,6 +1034,23 @@ function MultiSelectFilter({
   const allEnabled = enabledCount === options.length;
   const selectionGlyph =
     selectionState === "plus" ? "+" : selectionState === "minus" ? "-" : "";
+  const checklistBoxStyle = {
+    width: 16,
+    height: 16,
+    border: "1px solid rgba(0,0,0,0.45)",
+    borderRadius: 4,
+    background: THEME.SiteBG,
+    color: THEME.SiteText,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+  };
+  const checklistSymbolStyle = {
+    display: "inline-block",
+    fontSize: 11,
+    lineHeight: 1,
+    transform: "translate(0.3px, -0.5px)",
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -1080,6 +1097,7 @@ function MultiSelectFilter({
         `}
       </style>
       <button
+        className="type-body-sm"
         type="button"
         onPointerDown={(e) => {
           if (open) e.stopPropagation();
@@ -1096,8 +1114,6 @@ function MultiSelectFilter({
           width: "100%",
           height: 34,
           padding: "8px 10px",
-          fontSize: 12,
-          fontFamily: "var(--body-font)",
           background: TAB_STYLE_VARS.outerBackground,
           border: tabBorder(),
           color: "var(--color-ink)",
@@ -1145,6 +1161,7 @@ function MultiSelectFilter({
             onTouchMove={(e) => e.stopPropagation()}
           >
             <button
+              className="type-body-sm"
               type="button"
               onClick={() =>
                 setDisabledValues(allEnabled ? options.map((o) => o.value) : [])
@@ -1156,30 +1173,14 @@ function MultiSelectFilter({
                 border: "none",
                 background: "transparent",
                 color: "var(--color-ink)",
-                fontFamily: "var(--body-font)",
-                fontSize: 12,
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
                 gap: 8,
               }}
             >
-              <span
-                style={{
-                  width: 16,
-                  height: 16,
-                  border: "1px solid rgba(0,0,0,0.45)",
-                  borderRadius: 4,
-                  background: THEME.SiteBG,
-                  color: THEME.SiteText,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 11,
-                  lineHeight: 1,
-                }}
-              >
-                {selectionGlyph}
+              <span style={checklistBoxStyle}>
+                <span style={checklistSymbolStyle}>{selectionGlyph}</span>
               </span>
               <span>Select/Deselect All</span>
             </button>
@@ -1187,6 +1188,7 @@ function MultiSelectFilter({
               const enabled = !disabledSet.has(option.value);
               return (
                 <button
+                  className="type-body-sm"
                   key={option.value}
                   type="button"
                   onClick={() =>
@@ -1203,30 +1205,16 @@ function MultiSelectFilter({
                     border: "none",
                     background: "transparent",
                     color: "var(--color-ink)",
-                    fontFamily: "var(--body-font)",
-                    fontSize: 12,
                     cursor: "pointer",
                     display: "flex",
                     alignItems: "center",
                     gap: 8,
                   }}
                 >
-                  <span
-                    style={{
-                      width: 16,
-                      height: 16,
-                      border: "1px solid rgba(0,0,0,0.45)",
-                      borderRadius: 4,
-                      background: THEME.SiteBG,
-                      color: THEME.SiteText,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 11,
-                      lineHeight: 1,
-                    }}
-                  >
-                    {enabled ? "+" : ""}
+                  <span style={checklistBoxStyle}>
+                    <span style={checklistSymbolStyle}>
+                      {enabled ? "+" : ""}
+                    </span>
                   </span>
                   <span>{option.label}</span>
                 </button>
@@ -1297,6 +1285,7 @@ function SingleSelectDropdown({
         `}
       </style>
       <button
+        className="type-body-sm"
         type="button"
         onPointerDown={(e) => {
           if (open) e.stopPropagation();
@@ -1313,8 +1302,6 @@ function SingleSelectDropdown({
           width: "100%",
           height: 34,
           padding: "8px 10px",
-          fontSize: 12,
-          fontFamily: "var(--body-font)",
           background: TAB_STYLE_VARS.outerBackground,
           border: tabBorder(),
           color: "var(--color-ink)",
@@ -1363,6 +1350,7 @@ function SingleSelectDropdown({
           >
             {options.map((option) => (
               <button
+                className="type-body-sm"
                 key={option.value}
                 type="button"
                 onClick={() => {
@@ -1376,8 +1364,6 @@ function SingleSelectDropdown({
                   border: "none",
                   background: "transparent",
                   color: "var(--color-ink)",
-                  fontFamily: "var(--body-font)",
-                  fontSize: 12,
                   cursor: "pointer",
                 }}
               >
@@ -1473,7 +1459,6 @@ function Compass({
   const axisLabelTextStyle = {
     textAnchor: "middle",
     fill: "var(--color-ink)",
-    fontSize: axisLabelFontSize,
     opacity: 0.8,
   };
   const axisLabels = [
@@ -1511,8 +1496,6 @@ function Compass({
   const compassLabelTextStyle = {
     textAnchor: "middle",
     dominantBaseline: "middle",
-    fontSize: 9,
-    letterSpacing: "0.15em",
     opacity: 0.25,
   };
   const compassLabelPositions = [
@@ -1884,7 +1867,7 @@ function Compass({
             transform: `translate(${isRight ? "calc(-100% - 12px)" : "12px"}, ${isBottom ? "calc(-100% - 8px)" : "8px"})`,
             background: THEME.SiteText,
             border: `1px solid ${THEME.SiteBorder}`,
-            borderRadius: 8,
+            borderRadius: "var(--radius-base)",
             padding: hasNotes ? "12px 16px" : "14px 16px 11px",
             minWidth: 180,
             zIndex: 10,
@@ -1948,7 +1931,7 @@ function Compass({
             color: "var(--color-ink)",
             background: "rgba(255,255,255,0.88)",
             border: "1px solid rgba(0,0,0,0.22)",
-            borderRadius: 6,
+            borderRadius: "var(--radius-base)",
             pointerEvents: "none",
             zIndex: 12,
           }}
@@ -2025,8 +2008,6 @@ function QuizPage({ onComplete, onProgressChange }) {
   const inputStyle = {
     width: "100%",
     padding: "10px 14px",
-    fontSize: 14,
-    fontFamily: "var(--body-font)",
     background: TAB_STYLE_VARS.formBackground,
     border: tabBorder(),
     color: "var(--color-ink)",
@@ -2035,7 +2016,6 @@ function QuizPage({ onComplete, onProgressChange }) {
     boxSizing: "border-box",
   };
   const fieldLabelStyle = {
-    fontSize: 12,
     color: "var(--color-ink)",
     display: "flex",
     justifyContent: "space-between",
@@ -2161,14 +2141,13 @@ function QuizPage({ onComplete, onProgressChange }) {
               answers[q.id] !== undefined
                 ? `1px solid ${THEME.SiteText}`
                 : `1px solid ${THEME.SiteBorder}`,
-            borderRadius: 10,
+            borderRadius: "var(--radius-base)",
             transition: "background-color 1s ease, border-color 1s ease",
           }}
         >
           <div
             className="type-label"
             style={{
-              fontSize: 11,
               color: "var(--color-ink)",
               marginBottom: 8,
             }}
@@ -2176,12 +2155,10 @@ function QuizPage({ onComplete, onProgressChange }) {
             Q{i + 1}
           </div>
           <div
+            className="type-body"
             style={{
-              fontSize: 15,
               color: "var(--color-ink)",
-              lineHeight: 1.55,
               marginBottom: 16,
-              fontFamily: "var(--body-font)",
             }}
           >
             {q.text}
@@ -2212,7 +2189,6 @@ function QuizPage({ onComplete, onProgressChange }) {
               style={{
                 display: "flex",
                 justifyContent: "space-between",
-                fontSize: 11,
                 color: "var(--color-ink)",
               }}
             >
@@ -2236,7 +2212,6 @@ function QuizPage({ onComplete, onProgressChange }) {
             className="type-body-sm"
             style={{
               color: "#b00020",
-              fontSize: 12,
               textAlign: "right",
             }}
           >
@@ -2271,13 +2246,14 @@ function QuizPage({ onComplete, onProgressChange }) {
           />
         </div>
         <div>
-          <label className="type-label" style={fieldLabelStyle}>
-            <span>Job Title</span>
-            <span className="type-caption">
+          <label style={fieldLabelStyle}>
+            <span className="type-subheading">Job Title</span>
+            <span className="type-label">
               {trimmedJobTitle.length}/{OCCUPATION_CHAR_LIMIT}
             </span>
           </label>
           <input
+            className="type-body"
             value={jobTitle}
             onChange={(e) => setJobTitle(e.target.value)}
             placeholder="e.g. Software Engineer"
@@ -2286,13 +2262,14 @@ function QuizPage({ onComplete, onProgressChange }) {
           />
         </div>
         <div>
-          <label className="type-label" style={fieldLabelStyle}>
-            <span>Additional Notes</span>
-            <span className="type-caption">
+          <label style={fieldLabelStyle}>
+            <span className="type-subheading">Additional Notes</span>
+            <span className="type-label">
               {trimmedNotes.length}/{NOTES_CHAR_LIMIT}
             </span>
           </label>
           <textarea
+            className="type-body"
             value={notes}
             onChange={(e) => setNotes(e.target.value.replace(/[\r\n]+/g, " "))}
             onKeyDown={(e) => {
@@ -2315,6 +2292,7 @@ function QuizPage({ onComplete, onProgressChange }) {
       {/* Bottom submit */}
       <div style={{ textAlign: "center", marginTop: 16, paddingBottom: 20 }}>
         <button
+          className="type-body"
           onClick={() =>
             canSubmit &&
             onComplete({
@@ -2332,15 +2310,13 @@ function QuizPage({ onComplete, onProgressChange }) {
           disabled={!canSubmit}
           style={{
             padding: "14px 40px",
-            fontSize: 15,
-            fontFamily: "var(--body-font)",
             fontWeight: "var(--font-weight-semibold)",
             background: canSubmit
               ? "linear-gradient(135deg, #000000, #2c2c2c)"
               : "rgba(0,0,0,0.03)",
             border: "none",
             color: canSubmit ? "var(--color-paper)" : "rgba(0,0,0,0.35)",
-            borderRadius: 10,
+            borderRadius: "var(--radius-base)",
             cursor: canSubmit ? "pointer" : "default",
             transition: "all 0.3s",
           }}
@@ -2755,7 +2731,6 @@ export default function AICompass() {
         overflow: "hidden",
         background: THEME.SiteBG,
         color: THEME.SiteText,
-        fontFamily: "var(--body-font)",
       }}
     >
       <link
@@ -2832,11 +2807,10 @@ export default function AICompass() {
                   width: "fit-content",
                   height: "90%",
                   padding: "0 18px",
-                  fontSize: 12,
                   background: THEME.SiteBG,
                   border: "1px solid rgba(255,255,255,0.65)",
                   color: THEME.SiteText,
-                  borderRadius: 10,
+                  borderRadius: "var(--radius-base)",
                   cursor: "pointer",
                 }}
               >
@@ -2880,7 +2854,6 @@ export default function AICompass() {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: 11,
                   color: THEME.SiteBG,
                 }}
               >
@@ -2908,11 +2881,10 @@ export default function AICompass() {
               maxWidth: 1000,
               margin: "0 auto 16px",
               padding: "10px 12px",
-              borderRadius: 8,
+              borderRadius: "var(--radius-base)",
               border: "1px solid rgba(255,179,0,0.4)",
               background: "rgba(0,0,0,0.08)",
               color: "var(--color-ink)",
-              fontSize: 12,
             }}
           >
             {firestoreError}
@@ -2935,8 +2907,6 @@ export default function AICompass() {
                   left: "50%",
                   top: HEADER_BAR_HEIGHT + 200,
                   transform: "translateX(-50%)",
-                  fontSize: 14,
-                  letterSpacing: "0.2em",
                   color: "var(--color-ink)",
                   opacity: homeBodyReady ? 0 : 1,
                   transition: "opacity 1s ease",
@@ -2959,9 +2929,7 @@ export default function AICompass() {
                   <div
                     className="type-label"
                     style={{
-                      fontSize: 11,
                       color: "var(--color-ink)",
-                      letterSpacing: 2,
                       marginBottom: 8,
                     }}
                   >
@@ -2970,21 +2938,18 @@ export default function AICompass() {
                   <div
                     className="type-heading"
                     style={{
-                      fontSize: 24,
                       color: qi.color,
-                      textTransform: "uppercase",
                       marginBottom: 8,
                     }}
                   >
                     {qi.name}
                   </div>
                   <p
+                    className="type-body"
                     style={{
                       color: "var(--color-ink)",
-                      fontSize: 14,
                       maxWidth: 400,
                       margin: "0 auto 16px",
-                      lineHeight: 1.55,
                     }}
                   >
                     {qi.desc}
@@ -2992,7 +2957,6 @@ export default function AICompass() {
                   <div
                     className="type-caption"
                     style={{
-                      fontSize: 12,
                       color: "var(--color-ink)",
                     }}
                   >
@@ -3087,7 +3051,6 @@ export default function AICompass() {
                         className="type-heading"
                         style={{
                           color: val.color,
-                          textTransform: "uppercase",
                           marginBottom: 4,
                         }}
                       >
@@ -3121,11 +3084,10 @@ export default function AICompass() {
                     onClick={handleDevShortcutSubmit}
                     style={{
                       padding: "8px 14px",
-                      fontSize: 12,
                       background: "rgba(0,0,0,0.08)",
                       border: "1px solid rgba(0,0,0,0.14)",
                       color: "var(--color-ink)",
-                      borderRadius: 8,
+                      borderRadius: "var(--radius-base)",
                       cursor: "pointer",
                     }}
                   >
@@ -3137,11 +3099,10 @@ export default function AICompass() {
                     disabled={clearingDevDots}
                     style={{
                       padding: "8px 14px",
-                      fontSize: 12,
                       background: "rgba(0,0,0,0.08)",
                       border: "1px solid rgba(0,0,0,0.14)",
                       color: "var(--color-ink)",
-                      borderRadius: 8,
+                      borderRadius: "var(--radius-base)",
                       cursor: clearingDevDots ? "wait" : "pointer",
                       opacity: clearingDevDots ? 0.7 : 1,
                     }}
@@ -3182,7 +3143,6 @@ export default function AICompass() {
           <div
             className="type-caption"
             style={{
-              fontSize: 14,
               color: "var(--color-ink)",
             }}
           >
