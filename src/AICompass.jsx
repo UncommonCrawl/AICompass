@@ -221,7 +221,7 @@ const COUNTRY_NAME_BY_CODE = Object.fromEntries(
   ]),
 );
 const PREFER_NOT_TO_SAY_VALUE = "__PREFER_NOT_TO_SAY__";
-const OCCUPATION_CHAR_LIMIT = 24;
+const OCCUPATION_CHAR_LIMIT = 30;
 const NOTES_CHAR_LIMIT = 120;
 const HEADER_ACTION_HEIGHT = 44;
 const HEADER_BAR_HEIGHT = 118;
@@ -982,7 +982,7 @@ function clampLabelText(value, maxChars) {
   if (typeof value !== "string") return "";
   const trimmed = value.trim();
   if (trimmed.length <= maxChars) return trimmed;
-  return `${trimmed.slice(0, maxChars)}...`;
+  return trimmed.slice(0, maxChars);
 }
 
 function resolveCssColorVar(name, fallback) {
