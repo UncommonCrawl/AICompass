@@ -306,6 +306,10 @@ const NOTES_CHAR_LIMIT = 120;
 const HEADER_ACTION_HEIGHT = 44;
 const HEADER_BAR_HEIGHT = 118;
 const HOME_SECTION_GAP = 20;
+const GRAY = "#b8b8b8";
+const LIGHT_GRAY = `color-mix(in oklab, ${GRAY} 20%, var(--color-paper) 80%)`;
+const RESULTS_STRIP_TOP_MARGIN = -24;
+const RESULTS_STRIP_BOTTOM_MARGIN = 28;
 const UNSPECIFIED_FILTER_VALUE = "__UNSPECIFIED__";
 const DROPDOWN_VIEWPORT_BUFFER = 10;
 const DROPDOWN_MENU_MAX_HEIGHT = 200;
@@ -313,7 +317,6 @@ const COMPASS_CANVAS_DPR_CAP_BASE = 2;
 const COMPASS_CANVAS_DPR_CAP_HIGH = 3;
 const COMPASS_CANVAS_HIGH_DPR_POINT_LIMIT = 1200;
 const COMPASS_DOT_COLOR = "#000000";
-const COMPASS_DOT_FADED_COLOR = "#b8b8b8";
 const DEFAULT_USER_DOT_COLOR = "#17a34a";
 const COMPASS_DOT_GEOMETRY = {
   radius: 3,
@@ -1748,7 +1751,7 @@ function Compass({
     () => resolveCssColorVar("--user-button", DEFAULT_USER_DOT_COLOR),
     [],
   );
-  const userDotFadedColor = useMemo(
+  const userDotGrayColor = useMemo(
     () => createFadedUserDotColor(userDotColor),
     [userDotColor],
   );
@@ -1815,7 +1818,6 @@ function Compass({
   const axisLabelTextStyle = {
     textAnchor: "middle",
     fill: "var(--color-ink)",
-    opacity: 0.8,
   };
   const axisLabels = [
     {
@@ -1852,7 +1854,6 @@ function Compass({
   const compassLabelTextStyle = {
     textAnchor: "middle",
     dominantBaseline: "middle",
-    opacity: 0.25,
   };
   const compassLabelPositions = [
     { key: "topLeft", x: pad + xRange / 2, y: pad + yRange / 2 },
@@ -1944,13 +1945,13 @@ function Compass({
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, dims.w, dims.h);
 
-    // Draw faded dots first so enabled dots always sit above them.
+    // Draw gray dots first so enabled dots always sit above them.
     for (const point of plotPoints) {
       if (!point.enabled && !point.isUser)
-        drawDot(point, COMPASS_DOT_FADED_COLOR);
+        drawDot(point, GRAY);
     }
     for (const point of plotPoints) {
-      if (!point.enabled && point.isUser) drawDot(point, userDotFadedColor);
+      if (!point.enabled && point.isUser) drawDot(point, userDotGrayColor);
     }
     for (const point of plotPoints) {
       if (point.enabled && !point.isUser) drawDot(point, COMPASS_DOT_COLOR);
@@ -1966,7 +1967,7 @@ function Compass({
     dims.h,
     onCanvasDraw,
     userDotColor,
-    userDotFadedColor,
+    userDotGrayColor,
   ]);
 
   useEffect(
@@ -2088,7 +2089,7 @@ function Compass({
           y1={pad}
           x2={cx}
           y2={dims.h - pad}
-          stroke={THEME.SiteBorder}
+          stroke={GRAY}
           strokeWidth={1}
         />
         <line
@@ -2096,7 +2097,7 @@ function Compass({
           y1={cy}
           x2={dims.w - pad}
           y2={cy}
-          stroke={THEME.SiteBorder}
+          stroke={GRAY}
           strokeWidth={1}
         />
 
@@ -2107,7 +2108,7 @@ function Compass({
           width={xRange * 2}
           height={yRange * 2}
           fill="none"
-          stroke={THEME.SiteBorder}
+          stroke={GRAY}
           strokeWidth={1}
         />
 
@@ -2137,7 +2138,7 @@ function Compass({
             key={key}
             x={x}
             y={y}
-            fill={QUADRANT_INFO[key].color}
+            fill={GRAY}
             {...compassLabelTextStyle}
           >
             {QUADRANT_INFO[key].compassLabel.toUpperCase()}
@@ -2396,7 +2397,7 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
     boxSizing: "border-box",
   };
   const lockedFieldTextColor = answersLocked
-    ? COMPASS_DOT_FADED_COLOR
+    ? GRAY
     : "var(--color-ink)";
   const fieldLabelStyle = {
     color: "var(--color-ink)",
@@ -2515,17 +2516,17 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
         }
 
         .response-slider.is-locked::-webkit-slider-thumb {
-          background: ${COMPASS_DOT_FADED_COLOR};
-          border: 1px solid ${COMPASS_DOT_FADED_COLOR};
+          background: ${GRAY};
+          border: 1px solid ${GRAY};
         }
 
         .response-slider.is-locked::-moz-range-thumb {
-          background: ${COMPASS_DOT_FADED_COLOR};
-          border: 1px solid ${COMPASS_DOT_FADED_COLOR};
+          background: ${GRAY};
+          border: 1px solid ${GRAY};
         }
 
         .response-slider-wrap.is-locked .response-slider-rail {
-          border-color: ${COMPASS_DOT_FADED_COLOR};
+          border-color: ${GRAY};
         }
       `}</style>
       {/* Questions */}
@@ -3229,8 +3230,17 @@ export default function AICompass() {
     setScreen("results");
   };
 
-  const quadrant = scores ? getQuadrant(scores.x, scores.y) : null;
+  const fallbackSubmissionScores = useMemo(() => {
+    const x = Number(latestLocalSubmission?.xScore);
+    const y = Number(latestLocalSubmission?.yScore);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    return { x, y };
+  }, [latestLocalSubmission]);
+  const resultScores = scores || fallbackSubmissionScores;
+  const quadrant = resultScores ? getQuadrant(resultScores.x, resultScores.y) : null;
   const qi = quadrant ? QUADRANT_INFO[quadrant] : null;
+  const resultArchetypeName = qi?.name || latestLocalSubmission?.archetype || "Unknown";
+  const resultArchetypeDesc = qi?.desc || "";
   const hasCompletedQuiz = Boolean(
     latestLocalSubmission?.answersByQuestionId &&
     typeof latestLocalSubmission.answersByQuestionId === "object" &&
@@ -3248,8 +3258,8 @@ export default function AICompass() {
       return extractDeviceUuidFromResult(result) !== localDeviceId;
     });
   }, [results, userResult, devResultPersistenceEnabled, localDeviceId]);
-  const showCompassView =
-    screen === "home" || (screen === "results" && scores && qi);
+  const showCompassView = screen === "home" || screen === "results";
+  const showHeaderActionRow = screen === "home" || screen === "quiz";
   const activeQuadrant = pinnedQuadrant || hoveredQuadrant;
   const homeBodyReady = hasInitialResultsSnapshot && homeCanvasDrawn;
   useEffect(() => {
@@ -3397,90 +3407,88 @@ export default function AICompass() {
             THE AI COMPASS
           </h1>
         </button>
-        <div
-          style={{
-            height: HEADER_ACTION_HEIGHT,
-            maxWidth: 640,
-            width: "100%",
-            margin: "0 auto",
-          }}
-        >
-          {(screen === "home" || screen === "results") && (
-            <div
-              style={{
-                width: "100%",
-                height: "100%",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-            >
-              <button
-                className="type-body-sm"
-                onClick={() => {
-                  setScreen("quiz");
-                  setScores(null);
-                  resetQuizProgress();
-                }}
-                style={{
-                  width: "fit-content",
-                  height: "90%",
-                  padding: "0 18px",
-                  background: THEME.SiteBG,
-                  border: "1px solid rgba(255,255,255,0.65)",
-                  color: THEME.SiteText,
-                  borderRadius: "var(--radius-base)",
-                  cursor: "pointer",
-                }}
-              >
-                {hasCompletedQuiz ? "YOUR ANSWERS" : "TAKE THE QUIZ"}
-              </button>
-            </div>
-          )}
-          {screen === "quiz" && (
-            <div
-              style={{
-                width: "100%",
-                height: "100%",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                gap: 6,
-              }}
-            >
+        {showHeaderActionRow && (
+          <div
+            style={{
+              height: HEADER_ACTION_HEIGHT,
+              maxWidth: 640,
+              width: "100%",
+              margin: "0 auto",
+            }}
+          >
+            {screen === "home" && (
               <div
                 style={{
                   width: "100%",
-                  height: HEADER_ACTION_HEIGHT * 0.25,
-                  background: "rgba(255,255,255,0.2)",
-                  borderRadius: 999,
-                  overflow: "hidden",
+                  height: "100%",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <button
+                  className="type-body-sm compass-action-button"
+                  onClick={() => {
+                    setScreen("quiz");
+                    setScores(null);
+                    resetQuizProgress();
+                  }}
+                  style={{
+                    "--compass-action-bg": THEME.SiteBG,
+                    "--compass-action-color": THEME.SiteText,
+                    "--compass-action-border":
+                      "color-mix(in oklab, var(--color-paper) 65%, transparent)",
+                  }}
+                >
+                  {hasCompletedQuiz ? "YOUR ANSWERS" : "TAKE THE QUIZ"}
+                </button>
+              </div>
+            )}
+            {screen === "quiz" && (
+              <div
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  gap: 6,
                 }}
               >
                 <div
                   style={{
-                    width: `${(quizProgress.answered / quizProgress.total) * 100}%`,
-                    height: "100%",
-                    background: THEME.SiteBG,
-                    transition: "width 0.3s",
+                    width: "100%",
+                    height: HEADER_ACTION_HEIGHT * 0.25,
+                    background: "rgba(255,255,255,0.2)",
+                    borderRadius: 999,
+                    overflow: "hidden",
                   }}
-                />
+                >
+                  <div
+                    style={{
+                      width: `${(quizProgress.answered / quizProgress.total) * 100}%`,
+                      height: "100%",
+                      background: THEME.SiteBG,
+                      transition: "width 0.3s",
+                    }}
+                  />
+                </div>
+                <div
+                  className="type-caption"
+                  style={{
+                    height: HEADER_ACTION_HEIGHT * 0.75 - 6,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: THEME.SiteBG,
+                  }}
+                >
+                  {quizProgress.answered} / {quizProgress.total} ANSWERED
+                </div>
               </div>
-              <div
-                className="type-caption"
-                style={{
-                  height: HEADER_ACTION_HEIGHT * 0.75 - 6,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: THEME.SiteBG,
-                }}
-              >
-                {quizProgress.answered} / {quizProgress.total} ANSWERED
-              </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div
@@ -3539,46 +3547,111 @@ export default function AICompass() {
                 pointerEvents: homeBodyReady ? "auto" : "none",
               }}
             >
-              {screen === "results" && scores && qi && (
-                <div style={{ textAlign: "center", marginBottom: 28 }}>
-                  <div
-                    className="type-label"
-                    style={{
-                      color: "var(--color-ink)",
-                      marginBottom: 8,
-                    }}
-                  >
-                    YOU ARE
-                  </div>
-                  <div
-                    className="type-heading"
-                    style={{
-                      color: qi.color,
-                      marginBottom: 8,
-                    }}
-                  >
-                    {qi.name}
-                  </div>
-                  <p
-                    className="type-body"
-                    style={{
-                      color: "var(--color-ink)",
-                      maxWidth: 400,
-                      margin: "0 auto 16px",
-                    }}
-                  >
-                    {qi.desc}
-                  </p>
-                  <div
-                    className="type-caption"
-                    style={{
-                      color: "var(--color-ink)",
-                    }}
-                  >
-                    Advancement: {scores.x > 0 ? "+" : ""}
-                    {(scores.x * 100).toFixed(0)}% &nbsp;|&nbsp; LLM Belief:{" "}
-                    {scores.y > 0 ? "+" : ""}
-                    {(scores.y * 100).toFixed(0)}%
+              {screen === "results" && hasCompletedQuiz && (
+                <div
+                  style={{
+                    marginTop: RESULTS_STRIP_TOP_MARGIN,
+                    marginInline: -48,
+                    marginBottom: RESULTS_STRIP_BOTTOM_MARGIN,
+                    padding: "14px 48px 18px",
+                    background: LIGHT_GRAY,
+                  }}
+                >
+                  <div style={{ textAlign: "center", marginInline: "auto", maxWidth: 560 }}>
+                    <div
+                      className="type-label"
+                      style={{
+                        color: "var(--color-ink)",
+                        marginBottom: 8,
+                      }}
+                    >
+                      YOU ARE
+                    </div>
+                    <div
+                      className="type-heading"
+                      style={{
+                        color: "var(--color-ink)",
+                        marginBottom: 8,
+                      }}
+                    >
+                      {resultArchetypeName}
+                    </div>
+                    <div
+                      aria-hidden="true"
+                      style={{
+                        width: 216,
+                        height: 1,
+                        margin: "0 auto 12px",
+                        background:
+                          "linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.95) 35%, rgba(0,0,0,0.95) 65%, rgba(0,0,0,0) 100%)",
+                      }}
+                    />
+                    <p
+                      className="type-body"
+                      style={{
+                        color: "var(--color-ink)",
+                        maxWidth: 400,
+                        margin: "0 auto 16px",
+                      }}
+                    >
+                      {resultArchetypeDesc}
+                    </p>
+                    <div
+                      className="type-caption"
+                      style={{
+                        color: "var(--color-ink)",
+                      }}
+                    >
+                      {resultScores ? (
+                        <>
+                          Advancement: {resultScores.x > 0 ? "+" : ""}
+                          {(resultScores.x * 100).toFixed(0)}% &nbsp;|&nbsp; LLM Belief:{" "}
+                          {resultScores.y > 0 ? "+" : ""}
+                          {(resultScores.y * 100).toFixed(0)}%
+                        </>
+                      ) : (
+                        "Results available"
+                      )}
+                    </div>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(2, max-content)",
+                        justifyContent: "center",
+                        gap: 10,
+                        marginTop: 18,
+                      }}
+                    >
+                      <button
+                        type="button"
+                        className="type-body-sm compass-action-button"
+                        style={{
+                          "--compass-action-width": "120px",
+                          "--compass-action-border": GRAY,
+                          "--compass-action-bg": THEME.SiteBG,
+                          "--compass-action-color": THEME.SiteText,
+                        }}
+                      >
+                        SHARE
+                      </button>
+                      <button
+                        type="button"
+                        className="type-body-sm compass-action-button"
+                        onClick={() => {
+                          setScreen("quiz");
+                          setScores(null);
+                          resetQuizProgress();
+                        }}
+                        style={{
+                          "--compass-action-width": "120px",
+                          "--compass-action-border": GRAY,
+                          "--compass-action-bg": THEME.SiteBG,
+                          "--compass-action-color": THEME.SiteText,
+                        }}
+                      >
+                        REVIEW
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}

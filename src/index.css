@@ -214,6 +214,26 @@ h6 {
   text-transform: uppercase;
 }
 
+.compass-action-button {
+  --compass-action-bg: var(--color-paper);
+  --compass-action-color: var(--color-ink);
+  --compass-action-border: color-mix(in oklab, var(--color-paper) 65%, transparent);
+  --compass-action-width: 144px;
+  --compass-action-height: 40px;
+  --compass-action-padding-inline: 18px;
+  width: var(--compass-action-width);
+  height: var(--compass-action-height);
+  padding: 0 var(--compass-action-padding-inline);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-base);
+  border: 1px solid var(--compass-action-border);
+  background: var(--compass-action-bg);
+  color: var(--compass-action-color);
+  cursor: pointer;
+}
+
 p {
   margin: 0;
 }
