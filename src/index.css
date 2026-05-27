@@ -27,6 +27,7 @@
   --tab-border-color-subtle: var(--color-border);
   --radius-base: 8px;
   --tab-radius: var(--radius-base);
+  --faded-button: color-mix(in oklab, var(--color-ink) 35%, transparent);
 
   --body-font: var(--font-body);
   --sans: var(--body-font);

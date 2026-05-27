@@ -134,4 +134,5 @@
   --tab-border-color-strong: rgba(31, 26, 22, 0.45);
   --tab-border-color-subtle: var(--brand-border-default);
   --tab-radius: var(--brand-radius-lg);
+  --faded-button: var(--brand-text-muted);
 }

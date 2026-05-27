@@ -206,7 +206,8 @@ const QUESTION_MEDIAN_BY_ID = Object.fromEntries(
 (() => {
   const seenByKey = {};
   for (const question of QUESTIONS) {
-    const key = typeof question.answerKey === "string" ? question.answerKey : "";
+    const key =
+      typeof question.answerKey === "string" ? question.answerKey : "";
     if (!key) {
       throw new Error(`Missing answerKey for question id "${question.id}"`);
     }
@@ -725,9 +726,12 @@ function buildQuestionAnalyticsPayload(answers, questionOrder = []) {
   return {
     questionOrder:
       questionOrder.length > 0 ? questionOrder : QUESTIONS.map((q) => q.id),
-    questionKeys: questionOrder.length > 0
-      ? questionOrder.map((id) => QUESTIONS.find((q) => q.id === id)?.answerKey || id)
-      : QUESTIONS.map((q) => q.answerKey || q.id),
+    questionKeys:
+      questionOrder.length > 0
+        ? questionOrder.map(
+            (id) => QUESTIONS.find((q) => q.id === id)?.answerKey || id,
+          )
+        : QUESTIONS.map((q) => q.answerKey || q.id),
     questionValues: valuesByQuestionId,
     questionValuesByKey: valuesByQuestionKey,
     questionResponses: responses,
@@ -1107,9 +1111,15 @@ function createFadedUserDotColor(baseColor) {
   if (!rgb) return "rgba(139, 209, 165, 0.78)";
   const mixRatioWithWhite = 0.5;
   const alpha = 0.78;
-  const r = Math.round(rgb.r * (1 - mixRatioWithWhite) + 255 * mixRatioWithWhite);
-  const g = Math.round(rgb.g * (1 - mixRatioWithWhite) + 255 * mixRatioWithWhite);
-  const b = Math.round(rgb.b * (1 - mixRatioWithWhite) + 255 * mixRatioWithWhite);
+  const r = Math.round(
+    rgb.r * (1 - mixRatioWithWhite) + 255 * mixRatioWithWhite,
+  );
+  const g = Math.round(
+    rgb.g * (1 - mixRatioWithWhite) + 255 * mixRatioWithWhite,
+  );
+  const b = Math.round(
+    rgb.b * (1 - mixRatioWithWhite) + 255 * mixRatioWithWhite,
+  );
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
@@ -1204,7 +1214,8 @@ function buildInitialQuizFormState(localSubmission) {
     answers[question.id] = normalizedValue;
   }
   const demo =
-    localSubmission?.demographics && typeof localSubmission.demographics === "object"
+    localSubmission?.demographics &&
+    typeof localSubmission.demographics === "object"
       ? localSubmission.demographics
       : {};
   return {
@@ -1565,6 +1576,8 @@ function SingleSelectDropdown({
   onChange,
   options,
   placeholder,
+  disabled = false,
+  textColor = "var(--color-ink)",
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
@@ -1619,10 +1632,13 @@ function SingleSelectDropdown({
       <button
         className="type-body-sm"
         type="button"
+        disabled={disabled}
         onPointerDown={(e) => {
+          if (disabled) return;
           if (open) e.stopPropagation();
         }}
         onClick={() => {
+          if (disabled) return;
           if (!open) {
             updateMenuLayout();
             setOpen(true);
@@ -1636,11 +1652,11 @@ function SingleSelectDropdown({
           padding: "8px 10px",
           background: TAB_STYLE_VARS.outerBackground,
           border: tabBorder(),
-          color: "var(--color-ink)",
+          color: textColor,
           borderRadius: TAB_STYLE_VARS.borderRadius,
           outline: "none",
           boxSizing: "border-box",
-          cursor: "pointer",
+          cursor: disabled ? "not-allowed" : "pointer",
           textAlign: "left",
           display: "flex",
           alignItems: "center",
@@ -1649,7 +1665,7 @@ function SingleSelectDropdown({
       >
         <span>{previewLabel}</span>
       </button>
-      {open && (
+      {open && !disabled && (
         <div
           ref={menuRef}
           style={{
@@ -1695,7 +1711,7 @@ function SingleSelectDropdown({
                   padding: "8px 8px",
                   border: "none",
                   background: "transparent",
-                  color: "var(--color-ink)",
+                  color: textColor,
                   cursor: "pointer",
                 }}
               >
@@ -1930,7 +1946,8 @@ function Compass({
 
     // Draw faded dots first so enabled dots always sit above them.
     for (const point of plotPoints) {
-      if (!point.enabled && !point.isUser) drawDot(point, COMPASS_DOT_FADED_COLOR);
+      if (!point.enabled && !point.isUser)
+        drawDot(point, COMPASS_DOT_FADED_COLOR);
     }
     for (const point of plotPoints) {
       if (!point.enabled && point.isUser) drawDot(point, userDotFadedColor);
@@ -1943,7 +1960,14 @@ function Compass({
     }
 
     onCanvasDraw?.();
-  }, [plotPoints, dims.w, dims.h, onCanvasDraw, userDotColor, userDotFadedColor]);
+  }, [
+    plotPoints,
+    dims.w,
+    dims.h,
+    onCanvasDraw,
+    userDotColor,
+    userDotFadedColor,
+  ]);
 
   useEffect(
     () => () => {
@@ -2196,10 +2220,9 @@ function Compass({
             activeHoveredDot.notes,
             NOTES_CHAR_LIMIT,
           );
-          const noteText =
-            isUserDot
-              ? "Lorem ipsum dolor sit amet."
-              : clampedHoverNotes;
+          const noteText = isUserDot
+            ? "Lorem ipsum dolor sit amet."
+            : clampedHoverNotes;
           const hasNotes = noteText.length > 0;
           const tooltipTextNudgeYPx = -2;
           const tooltipStyle = {
@@ -2307,14 +2330,7 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
   const [industry, setIndustry] = useState(() => initialFormState.industry);
   const [jobTitle, setJobTitle] = useState(() => initialFormState.jobTitle);
   const [notes, setNotes] = useState(() => initialFormState.notes);
-  const hasInitialPrefill = useMemo(
-    () =>
-      Object.keys(initialFormState.answers).length > 0 ||
-      initialFormState.ageRange !== "" ||
-      initialFormState.countryCode !== "" ||
-      initialFormState.industry !== "",
-    [initialFormState],
-  );
+  const answersLocked = Object.keys(initialFormState.answers).length > 0;
   const allAnswered = orderedQuestions.every(
     (q) => answers[q.id] !== undefined,
   );
@@ -2323,7 +2339,7 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
   ).length;
   const hasDemographicSelections =
     ageRange !== "" && countryCode !== "" && industry !== "";
-  const canSubmit = allAnswered && hasDemographicSelections;
+  const canSubmit = !answersLocked && allAnswered && hasDemographicSelections;
   const normalizedCountry =
     countryCode === PREFER_NOT_TO_SAY_VALUE ? "" : countryCode;
   const normalizedAge = ageRange === PREFER_NOT_TO_SAY_VALUE ? "" : ageRange;
@@ -2379,6 +2395,9 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
     outline: "none",
     boxSizing: "border-box",
   };
+  const lockedFieldTextColor = answersLocked
+    ? COMPASS_DOT_FADED_COLOR
+    : "var(--color-ink)";
   const fieldLabelStyle = {
     color: "var(--color-ink)",
     display: "flex",
@@ -2490,20 +2509,25 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
           background: ${THEME.SiteBG};
           border: 1px solid ${THEME.SiteText};
         }
+
+        .response-slider.is-locked {
+          cursor: not-allowed;
+        }
+
+        .response-slider.is-locked::-webkit-slider-thumb {
+          background: ${COMPASS_DOT_FADED_COLOR};
+          border: 1px solid ${COMPASS_DOT_FADED_COLOR};
+        }
+
+        .response-slider.is-locked::-moz-range-thumb {
+          background: ${COMPASS_DOT_FADED_COLOR};
+          border: 1px solid ${COMPASS_DOT_FADED_COLOR};
+        }
+
+        .response-slider-wrap.is-locked .response-slider-rail {
+          border-color: ${COMPASS_DOT_FADED_COLOR};
+        }
       `}</style>
-      {hasInitialPrefill && (
-        <div
-          className="type-caption"
-          style={{
-            marginBottom: 12,
-            color: "var(--color-ink)",
-            textAlign: "left",
-            opacity: 0.72,
-          }}
-        >
-          Loaded your most recent saved answers.
-        </div>
-      )}
       {/* Questions */}
       {orderedQuestions.map((q, i) => (
         <div
@@ -2541,23 +2565,28 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
             {q.text}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <div className="response-slider-wrap">
+            <div
+              className={`response-slider-wrap ${answersLocked ? "is-locked" : ""}`}
+            >
               <div className="response-slider-rail" />
               <input
                 className={`response-slider ${
                   answers[q.id] === undefined ? "is-unanswered" : ""
-                }`}
+                } ${answersLocked ? "is-locked" : ""}`}
                 type="range"
                 min={RESPONSE_RANGE.min}
                 max={RESPONSE_RANGE.max}
                 step={RESPONSE_RANGE.step}
                 value={answers[q.id] ?? 0}
+                disabled={answersLocked}
                 aria-label={`Response slider for question ${i + 1}`}
                 onChange={(e) =>
-                  setAnswers((prev) => ({
-                    ...prev,
-                    [q.id]: Number(e.target.value),
-                  }))
+                  answersLocked
+                    ? undefined
+                    : setAnswers((prev) => ({
+                        ...prev,
+                        [q.id]: Number(e.target.value),
+                      }))
                 }
               />
             </div>
@@ -2602,6 +2631,8 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
             onChange={setAgeRange}
             options={quizAgeOptions}
             placeholder="Select..."
+            disabled={answersLocked}
+            textColor={lockedFieldTextColor}
           />
         </div>
         <div>
@@ -2611,6 +2642,8 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
             onChange={setCountryCode}
             options={quizCountryOptions}
             placeholder="Select..."
+            disabled={answersLocked}
+            textColor={lockedFieldTextColor}
           />
         </div>
         <div>
@@ -2620,6 +2653,8 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
             onChange={setIndustry}
             options={quizIndustryOptions}
             placeholder="Select..."
+            disabled={answersLocked}
+            textColor={lockedFieldTextColor}
           />
         </div>
         <div>
@@ -2632,10 +2667,17 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
           <input
             className="type-body"
             value={jobTitle}
-            onChange={(e) => setJobTitle(e.target.value)}
-            placeholder="e.g. Software Engineer"
+            onChange={(e) =>
+              answersLocked ? undefined : setJobTitle(e.target.value)
+            }
+            placeholder={answersLocked ? "" : "e.g. Software Engineer"}
             maxLength={OCCUPATION_CHAR_LIMIT}
-            style={inputStyle}
+            disabled={answersLocked}
+            style={{
+              ...inputStyle,
+              color: lockedFieldTextColor,
+              cursor: answersLocked ? "not-allowed" : "text",
+            }}
           />
         </div>
         <div>
@@ -2648,19 +2690,28 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
           <textarea
             className="type-body"
             value={notes}
-            onChange={(e) => setNotes(e.target.value.replace(/[\r\n]+/g, " "))}
+            onChange={(e) =>
+              answersLocked
+                ? undefined
+                : setNotes(e.target.value.replace(/[\r\n]+/g, " "))
+            }
             onKeyDown={(e) => {
               if (e.key === "Enter") e.preventDefault();
             }}
-            placeholder="Anything else you'd like to share"
+            placeholder={
+              answersLocked ? "" : "Anything else you'd like to share"
+            }
             maxLength={NOTES_CHAR_LIMIT}
+            disabled={answersLocked}
             rows={3}
             style={{
               ...inputStyle,
+              color: lockedFieldTextColor,
               height: 88,
               minHeight: 88,
               maxHeight: 88,
               resize: "none",
+              cursor: answersLocked ? "not-allowed" : "text",
             }}
           />
         </div>
@@ -2700,6 +2751,8 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
         >
           {canSubmit ? (
             "See Results"
+          ) : answersLocked ? (
+            "Saved answers are locked"
           ) : !allAnswered ? (
             <span className="type-label">
               {`Answer all ${orderedQuestions.length} questions to continue`}
@@ -3096,6 +3149,8 @@ export default function AICompass() {
     setDevResultPersistenceEnabled(nextEnabled);
     if (!nextEnabled) {
       removeLocalStorageItem(LAST_RESULT_STORAGE_KEY);
+      removeLocalStorageItem(LAST_SUBMISSION_STORAGE_KEY);
+      setLatestLocalSubmission(null);
       setUserResult(null);
       setScores(null);
       setScreen("home");
@@ -3103,8 +3158,24 @@ export default function AICompass() {
     }
     // Dev-only unified toggle behavior: enabling always loads a dummy user dot.
     const now = Date.now();
-    const dummyScores = { x: -0.2, y: 0.28 };
-    const archetype = QUADRANT_INFO[getQuadrant(dummyScores.x, dummyScores.y)].name;
+    const dummyAnswersById = Object.fromEntries(
+      QUESTIONS.map((question) => [
+        question.id,
+        Number(
+          (
+            Math.random() * (RESPONSE_RANGE.max - RESPONSE_RANGE.min) +
+            RESPONSE_RANGE.min
+          ).toFixed(2),
+        ),
+      ]),
+    );
+    const dummyQuestionAnalytics = buildQuestionAnalyticsPayload(
+      dummyAnswersById,
+      QUESTIONS.map((question) => question.id),
+    );
+    const dummyScores = calculateScores(dummyAnswersById);
+    const archetype =
+      QUADRANT_INFO[getQuadrant(dummyScores.x, dummyScores.y)].name;
     const dummyUserResult = {
       id: `${LOCAL_DEV_DUMMY_RESULT_ID_PREFIX}${now}`,
       x: dummyScores.x,
@@ -3124,6 +3195,8 @@ export default function AICompass() {
         occupation: "Anonymous",
         notes: "",
       },
+      ...dummyQuestionAnalytics,
+      answers: dummyQuestionAnalytics.questionValuesByKey,
       isDev: true,
       is_dev: true,
       created_at: now,
@@ -3131,13 +3204,38 @@ export default function AICompass() {
       device_uuid: localDeviceId,
       deviceUuid: localDeviceId,
     };
+    const dummyLocalSubmission = {
+      submissionId: dummyUserResult.id,
+      quizVersion: QUIZ_VERSION,
+      answers: dummyQuestionAnalytics.questionValuesByKey,
+      answersByQuestionId: dummyQuestionAnalytics.questionValues,
+      xScore: dummyScores.x,
+      yScore: dummyScores.y,
+      archetype,
+      demographics: {
+        ageRange: "35-44",
+        country: "US",
+        industry: "IT & Software",
+        occupation: "Anonymous",
+        notes: "",
+      },
+      questionOrder: dummyQuestionAnalytics.questionOrder,
+      questionKeys: dummyQuestionAnalytics.questionKeys,
+      createdAt: now,
+    };
     setScores(dummyScores);
     setUserResult(dummyUserResult);
+    setLatestLocalSubmission(dummyLocalSubmission);
     setScreen("results");
   };
 
   const quadrant = scores ? getQuadrant(scores.x, scores.y) : null;
   const qi = quadrant ? QUADRANT_INFO[quadrant] : null;
+  const hasCompletedQuiz = Boolean(
+    latestLocalSubmission?.answersByQuestionId &&
+    typeof latestLocalSubmission.answersByQuestionId === "object" &&
+    Object.keys(latestLocalSubmission.answersByQuestionId).length > 0,
+  );
   const visibleResults = useMemo(() => {
     const withUser =
       userResult && !results.some((result) => result.id === userResult.id)
@@ -3335,7 +3433,7 @@ export default function AICompass() {
                   cursor: "pointer",
                 }}
               >
-                TAKE THE QUIZ
+                {hasCompletedQuiz ? "YOUR ANSWERS" : "TAKE THE QUIZ"}
               </button>
             </div>
           )}
@@ -3450,7 +3548,7 @@ export default function AICompass() {
                       marginBottom: 8,
                     }}
                   >
-                    YOUR RESULT SECTION
+                    YOU ARE
                   </div>
                   <div
                     className="type-heading"

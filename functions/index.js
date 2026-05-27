@@ -52,6 +52,19 @@ function cleanNumber(value) {
   return value;
 }
 
+function cleanAnswersMap(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const entries = [];
+  for (const [rawKey, rawVal] of Object.entries(value)) {
+    const key = cleanString(rawKey, 64);
+    if (!key) continue;
+    if (typeof rawVal !== "number" || Number.isNaN(rawVal)) continue;
+    entries.push([key, Number(rawVal.toFixed(2))]);
+  }
+  entries.sort(([a], [b]) => a.localeCompare(b));
+  return Object.fromEntries(entries);
+}
+
 function cleanDemographics(demo) {
   const source = demo && typeof demo === "object" ? demo : {};
   return {
@@ -102,6 +115,12 @@ export const submitCompassResult = onRequest(
       : "";
 
     const demographics = cleanDemographics(payload.demographics);
+    const answers = cleanAnswersMap(
+      payload.answers && typeof payload.answers === "object"
+        ? payload.answers
+        : payload.question_values,
+    );
+    const answersHash = hashValue(secret, `answers:${JSON.stringify(answers)}`);
     const segments =
       payload.segments && typeof payload.segments === "object"
         ? payload.segments
@@ -122,131 +141,145 @@ export const submitCompassResult = onRequest(
 
     let savedSubmission = null;
 
-    await db.runTransaction(async (txn) => {
-      const ipSignalSnap = ipSignalRef ? await txn.get(ipSignalRef) : null;
-      const deviceSignalSnap = deviceSignalRef
-        ? await txn.get(deviceSignalRef)
-        : null;
+    try {
+      await db.runTransaction(async (txn) => {
+        const ipSignalSnap = ipSignalRef ? await txn.get(ipSignalRef) : null;
+        const deviceSignalSnap = deviceSignalRef
+          ? await txn.get(deviceSignalRef)
+          : null;
 
-      const ipSignal = ipSignalSnap?.exists ? ipSignalSnap.data() : null;
-      const deviceSignal = deviceSignalSnap?.exists
-        ? deviceSignalSnap.data()
-        : null;
+        const ipSignal = ipSignalSnap?.exists ? ipSignalSnap.data() : null;
+        const deviceSignal = deviceSignalSnap?.exists
+          ? deviceSignalSnap.data()
+          : null;
 
-      const ipLast = typeof ipSignal?.last_submission_at === "number"
-        ? ipSignal.last_submission_at
-        : 0;
-      const deviceLast = typeof deviceSignal?.last_submission_at === "number"
-        ? deviceSignal.last_submission_at
-        : 0;
+        const lockedAnswersHash = cleanString(
+          deviceSignal?.locked_answers_hash,
+          128,
+        );
+        if (lockedAnswersHash && lockedAnswersHash !== answersHash) {
+          const error = new Error("Answers are locked for this device.");
+          error.code = "answers_locked";
+          throw error;
+        }
 
-      const isRepeatIp24h = ipLast >= cutoff;
-      const isRepeatDevice24h = deviceLast >= cutoff;
-      const includeInDefaultAggregate = !(isRepeatIp24h || isRepeatDevice24h);
-      const includeInDevicePriorityAggregate = !isRepeatDevice24h;
-      const repeatClassification = isRepeatDevice24h
-        ? "repeat_device_24h"
-        : isRepeatIp24h
-          ? "repeat_ip_24h_only"
-          : "first_or_stale";
-      const repeatGroupId = isRepeatIp24h || isRepeatDevice24h
-        ? cleanString(
-            ipSignal?.repeat_group_id || deviceSignal?.repeat_group_id || "",
-            96,
-          ) || `rg_${randomUUID()}`
-        : "";
+        const ipLast = typeof ipSignal?.last_submission_at === "number"
+          ? ipSignal.last_submission_at
+          : 0;
+        const deviceLast = typeof deviceSignal?.last_submission_at === "number"
+          ? deviceSignal.last_submission_at
+          : 0;
 
-      const xScore = cleanNumber(payload.x_score);
-      const yScore = cleanNumber(payload.y_score);
-      const submissionDoc = {
-        submission_id: submissionId,
-        created_at: now,
-        ts: now,
-        x_score: xScore,
-        y_score: yScore,
-        x: xScore,
-        y: yScore,
-        archetype: cleanString(payload.archetype, 128),
-        demographics,
-        age: demographics.age,
-        country: demographics.country,
-        industry: demographics.industry,
-        occupation: demographics.occupation,
-        notes: demographics.notes,
-        question_order: Array.isArray(payload.question_order)
-          ? payload.question_order
-          : [],
-        question_keys: Array.isArray(payload.question_keys)
-          ? payload.question_keys
-          : [],
-        question_values:
-          payload.question_values && typeof payload.question_values === "object"
-            ? payload.question_values
-            : {},
-        answers:
-          payload.answers && typeof payload.answers === "object"
-            ? payload.answers
-            : payload.question_values &&
-                typeof payload.question_values === "object"
+        const isRepeatIp24h = ipLast >= cutoff;
+        const isRepeatDevice24h = deviceLast >= cutoff;
+        const includeInDefaultAggregate = !(isRepeatIp24h || isRepeatDevice24h);
+        const includeInDevicePriorityAggregate = !isRepeatDevice24h;
+        const repeatClassification = isRepeatDevice24h
+          ? "repeat_device_24h"
+          : isRepeatIp24h
+            ? "repeat_ip_24h_only"
+            : "first_or_stale";
+        const repeatGroupId = isRepeatIp24h || isRepeatDevice24h
+          ? cleanString(
+              ipSignal?.repeat_group_id || deviceSignal?.repeat_group_id || "",
+              96,
+            ) || `rg_${randomUUID()}`
+          : "";
+
+        const xScore = cleanNumber(payload.x_score);
+        const yScore = cleanNumber(payload.y_score);
+        const submissionDoc = {
+          submission_id: submissionId,
+          created_at: now,
+          ts: now,
+          x_score: xScore,
+          y_score: yScore,
+          x: xScore,
+          y: yScore,
+          archetype: cleanString(payload.archetype, 128),
+          demographics,
+          age: demographics.age,
+          country: demographics.country,
+          industry: demographics.industry,
+          occupation: demographics.occupation,
+          notes: demographics.notes,
+          question_order: Array.isArray(payload.question_order)
+            ? payload.question_order
+            : [],
+          question_keys: Array.isArray(payload.question_keys)
+            ? payload.question_keys
+            : [],
+          question_values:
+            payload.question_values && typeof payload.question_values === "object"
               ? payload.question_values
               : {},
-        question_responses: Array.isArray(payload.question_responses)
-          ? payload.question_responses
-          : [],
-        question_medians:
-          payload.question_medians &&
-          typeof payload.question_medians === "object"
-            ? payload.question_medians
-            : {},
-        result_schema_version: Number(payload.result_schema_version) || 3,
-        resultSchemaVersion: Number(payload.result_schema_version) || 3,
-        segments,
-        is_repeat_ip_24h: isRepeatIp24h,
-        is_repeat_device_24h: isRepeatDevice24h,
-        repeat_group_id: repeatGroupId,
-        include_in_default_aggregate: includeInDefaultAggregate,
-        include_in_device_priority_aggregate: includeInDevicePriorityAggregate,
-        repeat_classification: repeatClassification,
-        ip_hash: ipHash,
-        device_id_hash: deviceIdHash,
-        session_id_hash: sessionIdHash,
-        user_agent_hash: userAgentHash,
-        is_dev: payload.is_dev === true,
-        isDev: payload.is_dev === true,
-      };
+          answers,
+          answers_hash: answersHash,
+          question_responses: Array.isArray(payload.question_responses)
+            ? payload.question_responses
+            : [],
+          question_medians:
+            payload.question_medians &&
+            typeof payload.question_medians === "object"
+              ? payload.question_medians
+              : {},
+          result_schema_version: Number(payload.result_schema_version) || 3,
+          resultSchemaVersion: Number(payload.result_schema_version) || 3,
+          segments,
+          is_repeat_ip_24h: isRepeatIp24h,
+          is_repeat_device_24h: isRepeatDevice24h,
+          repeat_group_id: repeatGroupId,
+          include_in_default_aggregate: includeInDefaultAggregate,
+          include_in_device_priority_aggregate: includeInDevicePriorityAggregate,
+          repeat_classification: repeatClassification,
+          ip_hash: ipHash,
+          device_id_hash: deviceIdHash,
+          session_id_hash: sessionIdHash,
+          user_agent_hash: userAgentHash,
+          is_dev: payload.is_dev === true,
+          isDev: payload.is_dev === true,
+        };
 
-      txn.set(submissionRef, submissionDoc);
+        txn.set(submissionRef, submissionDoc);
 
-      if (ipSignalRef) {
-        txn.set(
-          ipSignalRef,
-          {
-            signal_type: "ip",
-            hash: ipHash,
-            last_submission_at: now,
-            repeat_group_id: repeatGroupId,
-            updated_at: now,
-          },
-          { merge: true },
-        );
+        if (ipSignalRef) {
+          txn.set(
+            ipSignalRef,
+            {
+              signal_type: "ip",
+              hash: ipHash,
+              last_submission_at: now,
+              repeat_group_id: repeatGroupId,
+              updated_at: now,
+            },
+            { merge: true },
+          );
+        }
+
+        if (deviceSignalRef) {
+          txn.set(
+            deviceSignalRef,
+            {
+              signal_type: "device",
+              hash: deviceIdHash,
+              last_submission_at: now,
+              repeat_group_id: repeatGroupId,
+              locked_answers_hash: lockedAnswersHash || answersHash,
+              updated_at: now,
+            },
+            { merge: true },
+          );
+        }
+
+        savedSubmission = submissionDoc;
+      });
+    } catch (error) {
+      if (error?.code === "answers_locked") {
+        res.status(409).json({ error: "Answers are locked for this device." });
+        return;
       }
-
-      if (deviceSignalRef) {
-        txn.set(
-          deviceSignalRef,
-          {
-            signal_type: "device",
-            hash: deviceIdHash,
-            last_submission_at: now,
-            repeat_group_id: repeatGroupId,
-            updated_at: now,
-          },
-          { merge: true },
-        );
-      }
-
-      savedSubmission = submissionDoc;
-    });
+      throw error;
+    }
 
     res.status(200).json({
       ok: true,
