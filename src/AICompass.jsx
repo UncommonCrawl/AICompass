@@ -3034,7 +3034,10 @@ export default function AICompass() {
       style={{
         position: "relative",
         height: "100vh",
-        overflow: "hidden",
+        overflowY: "auto",
+        overflowX: "hidden",
+        overscrollBehaviorY: "contain",
+        WebkitOverflowScrolling: "touch",
         background: THEME.SiteBG,
         color: THEME.SiteText,
       }}
@@ -3047,7 +3050,7 @@ export default function AICompass() {
       {/* Header */}
       <div
         style={{
-          position: "fixed",
+          position: "sticky",
           top: 0,
           left: 0,
           right: 0,
@@ -3172,11 +3175,7 @@ export default function AICompass() {
 
       <div
         style={{
-          height: "100%",
-          overflowY: "auto",
-          overscrollBehaviorY: "contain",
-          WebkitOverflowScrolling: "touch",
-          padding: `${HEADER_BAR_HEIGHT + 24}px 48px 48px`,
+          padding: `24px 48px 48px`,
           boxSizing: "border-box",
         }}
       >
