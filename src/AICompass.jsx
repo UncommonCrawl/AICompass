@@ -2862,37 +2862,10 @@ export default function AICompass() {
       setScreen("home");
       return;
     }
-    if (scores && userResult) return;
-
-    const persisted = readJsonFromLocalStorage(LAST_RESULT_STORAGE_KEY);
-    const persistedScores = extractScoresFromResult(persisted?.scores);
-    const persistedUserResult =
-      persisted?.userResult && typeof persisted.userResult === "object"
-        ? persisted.userResult
-        : null;
-    if (persistedScores && persistedUserResult) {
-      setScores(persistedScores);
-      setUserResult(persistedUserResult);
-      setScreen("results");
-      return;
-    }
-
-    const latestMatch = results
-      .filter((result) => extractDeviceUuidFromResult(result) === localDeviceId)
-      .sort((a, b) => extractResultTimestamp(b) - extractResultTimestamp(a))[0];
-    const latestScores = extractScoresFromResult(latestMatch);
-    if (latestMatch && latestScores) {
-      setScores(latestScores);
-      setUserResult(latestMatch);
-      setScreen("results");
-    }
-  };
-
-  const handleLoadDummyUserResult = () => {
+    // Dev-only unified toggle behavior: enabling always loads a dummy user dot.
     const now = Date.now();
     const dummyScores = { x: -0.2, y: 0.28 };
     const archetype = QUADRANT_INFO[getQuadrant(dummyScores.x, dummyScores.y)].name;
-    const deviceId = getOrCreateStorageId("local", DEVICE_ID_STORAGE_KEY);
     const dummyUserResult = {
       id: `${LOCAL_DEV_DUMMY_RESULT_ID_PREFIX}${now}`,
       x: dummyScores.x,
@@ -2916,8 +2889,8 @@ export default function AICompass() {
       is_dev: true,
       created_at: now,
       ts: now,
-      device_uuid: deviceId,
-      deviceUuid: deviceId,
+      device_uuid: localDeviceId,
+      deviceUuid: localDeviceId,
     };
     setScores(dummyScores);
     setUserResult(dummyUserResult);
@@ -3428,22 +3401,8 @@ export default function AICompass() {
                       cursor: "pointer",
                     }}
                   >
-                    Result persistence:{" "}
+                    Result persistence + dummy user:{" "}
                     {devResultPersistenceEnabled ? "On" : "Off"}
-                  </button>
-                  <button
-                    className="type-body-sm"
-                    onClick={handleLoadDummyUserResult}
-                    style={{
-                      padding: "8px 14px",
-                      background: "rgba(0,0,0,0.08)",
-                      border: "1px solid rgba(0,0,0,0.14)",
-                      color: "var(--color-ink)",
-                      borderRadius: "var(--radius-base)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Load dummy user result
                   </button>
                 </div>
               )}
