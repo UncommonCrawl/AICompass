@@ -19,103 +19,145 @@ import { db } from "./firebase";
 import { ISO_COUNTRIES } from "./isoCountries";
 
 const QUESTIONS = [
-  // Y-axis: LLM Potential Belief (positive = more belief)
   {
     id: "y1",
     axis: "y",
     direction: 1,
-    text: "Within the next few years, AI will be able to do most white-collar office work as well as a trained human.",
+    label: "The Scaling Hypothesis",
+    text: "Simply scaling up current transformer architectures with more compute power and larger datasets will eventually lead to Artificial General Intelligence (AGI).",
   },
   {
     id: "y2",
     axis: "y",
     direction: 1,
-    text: "AI systems will soon be able to design and improve other AI systems without human guidance.",
+    label: "The Nature of the Model",
+    text: "Large Language Models possess genuine reasoning capabilities and internal world models, rather than just being highly advanced statistical pattern matchers.",
   },
   {
     id: "y3",
     axis: "y",
     direction: -1,
-    text: "Most of what AI chatbots produce today is convincing-sounding text, not real understanding.",
+    label: "The Architectural Wall",
+    text: "Auto-regressive LLMs are approaching a fundamental plateau; achieving true AGI will require entirely new architectures we haven't discovered yet.",
   },
   {
     id: "y4",
     axis: "y",
     direction: 1,
-    text: "AI will replace more jobs than it creates over the next decade.",
+    label: "The Timeline",
+    text: "An Artificial General Intelligence capable of outperforming humans at the majority of economically valuable work will be developed before the end of this decade.",
   },
   {
     id: "y5",
     axis: "y",
     direction: -1,
-    text: "We are approaching a ceiling with current AI; the dramatic leaps in ability are mostly behind us.",
+    label: "The Embodiment Hurdle",
+    text: "True general intelligence cannot be achieved by software alone; it requires a physical body (robotics) to interact with and learn from the friction of the real world.",
   },
   {
     id: "y6",
     axis: "y",
     direction: -1,
-    text: "As AI trains on more AI-generated content online, the quality of its output will noticeably decline.",
+    label: "The Data Ceiling",
+    text: "As we exhaust high-quality human text, training models on synthetic (AI-generated) data will lead to model collapse rather than continued improvement.",
   },
   {
     id: "y7",
     axis: "y",
     direction: 1,
-    text: "Within my lifetime, AI will be better than human doctors at diagnosing diseases.",
+    label: "Recursive Self-Improvement",
+    text: "Once an AI system reaches human-level proficiency in software engineering, it will rapidly upgrade its own code, leading to an immediate 'intelligence explosion'.",
   },
   {
     id: "y8",
     axis: "y",
     direction: -1,
-    text: "Today's AI is fundamentally a text prediction engine; it will never truly reason or think.",
+    label: "The Hallucination Problem",
+    text: "Current AI systems possess a fundamental ceiling in reliability and hallucination rates that cannot be solved by simply adding more data to the current paradigm.",
   },
-  // X-axis: Advancement Support (positive = more pro-advancement)
+  {
+    id: "y9",
+    axis: "y",
+    direction: 1,
+    label: "Biological Exceptionalism",
+    text: "There is nothing fundamentally unique about the biological human brain that a digital neural network cannot eventually replicate and surpass.",
+  },
+  {
+    id: "y10",
+    axis: "y",
+    direction: -1,
+    label: "Diminishing Returns",
+    text: "The massive leaps in capability seen from GPT-3 to GPT-4 will not be replicated in future generations; we are entering an era of marginal, incremental AI improvements.",
+  },
   {
     id: "x1",
     axis: "x",
     direction: -1,
-    text: "Governments should have the power to shut down AI projects they consider dangerous.",
+    label: "The Creator's Consent (Legal/Copyright)",
+    text: "AI companies must be legally required to obtain explicit consent and provide compensation before training their models on copyrighted human works, such as scripts, books, and artwork.",
   },
   {
     id: "x2",
     axis: "x",
     direction: 1,
-    text: "AI companies should be able to release new models to the public without needing government approval first.",
+    label: "The Democratization of Execution (Philosophical/Innovation)",
+    text: "AI is the ultimate democratizing force, allowing anyone with a compelling concept to execute complex creative or technical projects without needing massive budgets or specialized teams.",
   },
   {
     id: "x3",
     axis: "x",
-    direction: 1,
-    text: "A worldwide pause on cutting-edge AI research would do more harm than good.",
+    direction: -1,
+    label: "The Pause and Regulate Mandate (Policy)",
+    text: "Governments should enforce a global pause on training AI models more powerful than current state-of-the-art until robust, internationally agreed-upon safety frameworks are established.",
   },
   {
     id: "x4",
     axis: "x",
-    direction: -1,
-    text: "The inner workings of powerful AI models should be kept private to prevent misuse.",
+    direction: 1,
+    label: "The Open-Source Imperative (Control)",
+    text: "The weights of powerful frontier AI models should be open-sourced so that anyone can build upon them, rather than being gatekept by a few massive tech corporations.",
   },
   {
     id: "x5",
     axis: "x",
-    direction: 1,
-    text: "Getting AI into people's hands quickly is worth the risk of occasional misuse.",
+    direction: -1,
+    label: "The Authenticity Crisis (Philosophical/Social)",
+    text: "The proliferation of synthetic, AI-generated media threatens to drown out genuine human connection and the intrinsic value of authentic, original expression.",
   },
   {
     id: "x6",
     axis: "x",
-    direction: -1,
-    text: "AI development is moving too fast for anyone to understand the consequences.",
+    direction: 1,
+    label: "The Geopolitical Race (Policy/Security)",
+    text: "Accelerating domestic AI development is a geopolitical necessity; artificially slowing down only guarantees that adversarial nations will achieve technological dominance first.",
   },
   {
     id: "x7",
     axis: "x",
-    direction: 1,
-    text: "Competition between companies, not government rules, is the best way to keep AI development responsible.",
+    direction: -1,
+    label: "The Thermodynamic Toll (Environmental)",
+    text: "The massive energy consumption, water usage, and ecological footprint required to train and run giant AI models is an unacceptable cost to the environment.",
   },
   {
     id: "x8",
     axis: "x",
+    direction: 1,
+    label: "The Post-Scarcity Vision (Economic)",
+    text: "While AI will inevitably disrupt the labor market, we must push forward rapidly to unlock a post-scarcity economy where the cost of intelligence, healthcare, and services drops to near zero.",
+  },
+  {
+    id: "x9",
+    axis: "x",
     direction: -1,
-    text: "Companies building the most powerful AI systems should be required to get a license from the government.",
+    label: "The Existential Threat (Safety/X-Risk)",
+    text: "The development of superintelligent AI poses a literal, existential threat to human survival that justifies extreme caution, even if it means permanently halting progress.",
+  },
+  {
+    id: "x10",
+    axis: "x",
+    direction: 1,
+    label: "The Trap of Regulatory Capture (Policy/Business)",
+    text: "Heavy-handed government regulation of AI will ultimately serve as regulatory capture, protecting legacy tech monopolies and stifling independent innovation.",
   },
 ];
 
@@ -629,6 +671,7 @@ function buildQuestionAnalyticsPayload(answers, questionOrder = []) {
     valuesByQuestionId[question.id] = rawValue;
     responses.push({
       questionId: question.id,
+      questionLabel: question.label || "",
       questionText: question.text,
       axis: question.axis,
       direction: question.direction,
@@ -665,15 +708,6 @@ function getQuadrant(x, y) {
   if (y >= 0 && x < 0) return "topLeft";
   if (y < 0 && x >= 0) return "bottomRight";
   return "bottomLeft";
-}
-
-function shuffleArray(arr) {
-  const shuffled = [...arr];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
 }
 
 function buildWeightedChoices(entries) {
@@ -2125,7 +2159,7 @@ function Compass({
 
 // --- Quiz Page ---
 function QuizPage({ onComplete, onProgressChange }) {
-  const [shuffledQuestions] = useState(() => shuffleArray(QUESTIONS));
+  const orderedQuestions = QUESTIONS;
   const [answers, setAnswers] = useState({});
   const [ageRange, setAgeRange] = useState("");
   const [countryCode, setCountryCode] = useState("");
@@ -2133,7 +2167,7 @@ function QuizPage({ onComplete, onProgressChange }) {
   const [industry, setIndustry] = useState("");
   const [jobTitle, setJobTitle] = useState("");
   const [notes, setNotes] = useState("");
-  const allAnswered = shuffledQuestions.every(
+  const allAnswered = orderedQuestions.every(
     (q) => answers[q.id] !== undefined,
   );
   const answeredCount = Object.keys(answers).length;
@@ -2207,10 +2241,10 @@ function QuizPage({ onComplete, onProgressChange }) {
   useEffect(() => {
     onProgressChange?.({
       answered: answeredCount,
-      total: shuffledQuestions.length,
+      total: orderedQuestions.length,
       canSubmit,
     });
-  }, [answeredCount, shuffledQuestions.length, canSubmit, onProgressChange]);
+  }, [answeredCount, orderedQuestions.length, canSubmit, onProgressChange]);
 
   return (
     <div style={{ maxWidth: 640, margin: "0 auto" }}>
@@ -2308,7 +2342,7 @@ function QuizPage({ onComplete, onProgressChange }) {
         }
       `}</style>
       {/* Questions */}
-      {shuffledQuestions.map((q, i) => (
+      {orderedQuestions.map((q, i) => (
         <div
           key={q.id}
           style={{
@@ -2477,7 +2511,7 @@ function QuizPage({ onComplete, onProgressChange }) {
             canSubmit &&
             onComplete({
               answers,
-              questionOrder: shuffledQuestions.map((question) => question.id),
+              questionOrder: orderedQuestions.map((question) => question.id),
               demographics: {
                 age: normalizedAge,
                 country: normalizedCountry,
@@ -2505,7 +2539,7 @@ function QuizPage({ onComplete, onProgressChange }) {
             "See Results"
           ) : !allAnswered ? (
             <span className="type-label">
-              {`Answer all ${shuffledQuestions.length} questions to continue`}
+              {`Answer all ${orderedQuestions.length} questions to continue`}
             </span>
           ) : (
             "Select Age Range, Country, and Industry to continue"
