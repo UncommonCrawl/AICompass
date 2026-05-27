@@ -176,10 +176,20 @@ export const submitCompassResult = onRequest(
         question_order: Array.isArray(payload.question_order)
           ? payload.question_order
           : [],
+        question_keys: Array.isArray(payload.question_keys)
+          ? payload.question_keys
+          : [],
         question_values:
           payload.question_values && typeof payload.question_values === "object"
             ? payload.question_values
             : {},
+        answers:
+          payload.answers && typeof payload.answers === "object"
+            ? payload.answers
+            : payload.question_values &&
+                typeof payload.question_values === "object"
+              ? payload.question_values
+              : {},
         question_responses: Array.isArray(payload.question_responses)
           ? payload.question_responses
           : [],

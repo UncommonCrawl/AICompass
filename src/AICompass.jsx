@@ -21,6 +21,7 @@ import { ISO_COUNTRIES } from "./isoCountries";
 const QUESTIONS = [
   {
     id: "y1",
+    answerKey: "scaling_hypothesis",
     axis: "y",
     direction: 1,
     label: "The Scaling Hypothesis",
@@ -28,6 +29,7 @@ const QUESTIONS = [
   },
   {
     id: "y2",
+    answerKey: "model_reasoning",
     axis: "y",
     direction: 1,
     label: "The Nature of the Model",
@@ -35,6 +37,7 @@ const QUESTIONS = [
   },
   {
     id: "y3",
+    answerKey: "architectural_wall",
     axis: "y",
     direction: -1,
     label: "The Architectural Wall",
@@ -42,6 +45,7 @@ const QUESTIONS = [
   },
   {
     id: "y4",
+    answerKey: "agi_timeline",
     axis: "y",
     direction: 1,
     label: "The Timeline",
@@ -49,6 +53,7 @@ const QUESTIONS = [
   },
   {
     id: "y5",
+    answerKey: "embodiment_hurdle",
     axis: "y",
     direction: -1,
     label: "The Embodiment Hurdle",
@@ -56,6 +61,7 @@ const QUESTIONS = [
   },
   {
     id: "y6",
+    answerKey: "data_ceiling",
     axis: "y",
     direction: -1,
     label: "The Data Ceiling",
@@ -63,6 +69,7 @@ const QUESTIONS = [
   },
   {
     id: "y7",
+    answerKey: "recursive_self_improvement",
     axis: "y",
     direction: 1,
     label: "Recursive Self-Improvement",
@@ -70,6 +77,7 @@ const QUESTIONS = [
   },
   {
     id: "y8",
+    answerKey: "hallucination_ceiling",
     axis: "y",
     direction: -1,
     label: "The Hallucination Problem",
@@ -77,6 +85,7 @@ const QUESTIONS = [
   },
   {
     id: "y9",
+    answerKey: "biological_exceptionalism",
     axis: "y",
     direction: 1,
     label: "Biological Exceptionalism",
@@ -84,6 +93,7 @@ const QUESTIONS = [
   },
   {
     id: "y10",
+    answerKey: "diminishing_returns",
     axis: "y",
     direction: -1,
     label: "Diminishing Returns",
@@ -91,6 +101,7 @@ const QUESTIONS = [
   },
   {
     id: "x1",
+    answerKey: "creator_consent",
     axis: "x",
     direction: -1,
     label: "The Creator's Consent (Legal/Copyright)",
@@ -98,6 +109,7 @@ const QUESTIONS = [
   },
   {
     id: "x2",
+    answerKey: "democratization_execution",
     axis: "x",
     direction: 1,
     label: "The Democratization of Execution (Philosophical/Innovation)",
@@ -105,6 +117,7 @@ const QUESTIONS = [
   },
   {
     id: "x3",
+    answerKey: "pause_regulate",
     axis: "x",
     direction: -1,
     label: "The Pause and Regulate Mandate (Policy)",
@@ -112,6 +125,7 @@ const QUESTIONS = [
   },
   {
     id: "x4",
+    answerKey: "open_source_weights",
     axis: "x",
     direction: 1,
     label: "The Open-Source Imperative (Control)",
@@ -119,6 +133,7 @@ const QUESTIONS = [
   },
   {
     id: "x5",
+    answerKey: "authenticity_crisis",
     axis: "x",
     direction: -1,
     label: "The Authenticity Crisis (Philosophical/Social)",
@@ -126,6 +141,7 @@ const QUESTIONS = [
   },
   {
     id: "x6",
+    answerKey: "geopolitical_race",
     axis: "x",
     direction: 1,
     label: "The Geopolitical Race (Policy/Security)",
@@ -133,6 +149,7 @@ const QUESTIONS = [
   },
   {
     id: "x7",
+    answerKey: "thermodynamic_toll",
     axis: "x",
     direction: -1,
     label: "The Thermodynamic Toll (Environmental)",
@@ -140,6 +157,7 @@ const QUESTIONS = [
   },
   {
     id: "x8",
+    answerKey: "post_scarcity",
     axis: "x",
     direction: 1,
     label: "The Post-Scarcity Vision (Economic)",
@@ -147,6 +165,7 @@ const QUESTIONS = [
   },
   {
     id: "x9",
+    answerKey: "existential_threat",
     axis: "x",
     direction: -1,
     label: "The Existential Threat (Safety/X-Risk)",
@@ -154,6 +173,7 @@ const QUESTIONS = [
   },
   {
     id: "x10",
+    answerKey: "regulatory_capture",
     axis: "x",
     direction: 1,
     label: "The Trap of Regulatory Capture (Policy/Business)",
@@ -175,12 +195,29 @@ const COMPASS_SUBMIT_ENDPOINT = (
 const DEVICE_ID_STORAGE_KEY = "ai_compass_device_id_v1";
 const SESSION_ID_STORAGE_KEY = "ai_compass_session_id_v1";
 const LAST_RESULT_STORAGE_KEY = "ai_compass_last_result_v1";
+const LAST_SUBMISSION_STORAGE_KEY = "ai_compass_last_submission_v1";
 const DEV_RESULT_PERSISTENCE_ENABLED_STORAGE_KEY =
   "ai_compass_dev_result_persistence_enabled_v1";
 const UNKNOWN_SEGMENT_VALUE = "__UNSPECIFIED__";
+const QUIZ_VERSION = "2026-05-26";
 const QUESTION_MEDIAN_BY_ID = Object.fromEntries(
   QUESTIONS.map((question) => [question.id, 0]),
 );
+(() => {
+  const seenByKey = {};
+  for (const question of QUESTIONS) {
+    const key = typeof question.answerKey === "string" ? question.answerKey : "";
+    if (!key) {
+      throw new Error(`Missing answerKey for question id "${question.id}"`);
+    }
+    if (seenByKey[key]) {
+      throw new Error(
+        `Duplicate answerKey "${key}" for question ids "${seenByKey[key].id}" and "${question.id}"`,
+      );
+    }
+    seenByKey[key] = question;
+  }
+})();
 
 const QUADRANT_INFO = {
   topRight: {
@@ -661,6 +698,7 @@ function normalizeAnswerValue(value) {
 
 function buildQuestionAnalyticsPayload(answers, questionOrder = []) {
   const valuesByQuestionId = {};
+  const valuesByQuestionKey = {};
   const responses = [];
 
   for (const question of QUESTIONS) {
@@ -668,9 +706,12 @@ function buildQuestionAnalyticsPayload(answers, questionOrder = []) {
     if (rawValue === null) continue;
 
     const weightedValue = Number((rawValue * question.direction).toFixed(4));
+    const questionKey = question.answerKey || question.id;
     valuesByQuestionId[question.id] = rawValue;
+    valuesByQuestionKey[questionKey] = rawValue;
     responses.push({
       questionId: question.id,
+      questionKey,
       questionLabel: question.label || "",
       questionText: question.text,
       axis: question.axis,
@@ -684,7 +725,11 @@ function buildQuestionAnalyticsPayload(answers, questionOrder = []) {
   return {
     questionOrder:
       questionOrder.length > 0 ? questionOrder : QUESTIONS.map((q) => q.id),
+    questionKeys: questionOrder.length > 0
+      ? questionOrder.map((id) => QUESTIONS.find((q) => q.id === id)?.answerKey || id)
+      : QUESTIONS.map((q) => q.answerKey || q.id),
     questionValues: valuesByQuestionId,
+    questionValuesByKey: valuesByQuestionKey,
     questionResponses: responses,
     questionMedians: QUESTION_MEDIAN_BY_ID,
   };
@@ -1090,6 +1135,88 @@ function readInitialPersistedResultState() {
   };
 }
 
+function normalizeShortText(value, maxLength = 256) {
+  if (typeof value !== "string") return "";
+  return value.trim().slice(0, maxLength);
+}
+
+function readInitialLocalSubmission() {
+  const submission = readJsonFromLocalStorage(LAST_SUBMISSION_STORAGE_KEY);
+  if (!submission || typeof submission !== "object") return null;
+  const answers =
+    submission.answers && typeof submission.answers === "object"
+      ? submission.answers
+      : {};
+  const answersByQuestionId =
+    submission.answersByQuestionId &&
+    typeof submission.answersByQuestionId === "object"
+      ? submission.answersByQuestionId
+      : {};
+  const demographics =
+    submission.demographics && typeof submission.demographics === "object"
+      ? submission.demographics
+      : {};
+  const createdAt = Number(submission.createdAt);
+  return {
+    submissionId: normalizeShortText(submission.submissionId, 128),
+    quizVersion: normalizeShortText(submission.quizVersion, 32) || QUIZ_VERSION,
+    answers,
+    answersByQuestionId,
+    xScore: Number(submission.xScore) || 0,
+    yScore: Number(submission.yScore) || 0,
+    archetype: normalizeShortText(submission.archetype, 128),
+    demographics: {
+      ageRange: normalizeShortText(
+        demographics.ageRange || demographics.age,
+        64,
+      ),
+      country: normalizeShortText(demographics.country, 64),
+      industry: normalizeShortText(demographics.industry, 128),
+      occupation: normalizeShortText(demographics.occupation, 128),
+      notes: normalizeShortText(demographics.notes, 512),
+    },
+    questionOrder: Array.isArray(submission.questionOrder)
+      ? submission.questionOrder
+      : [],
+    questionKeys: Array.isArray(submission.questionKeys)
+      ? submission.questionKeys
+      : [],
+    createdAt: Number.isFinite(createdAt) ? createdAt : Date.now(),
+  };
+}
+
+function buildInitialQuizFormState(localSubmission) {
+  const answers = {};
+  const sourceByKey =
+    localSubmission?.answers && typeof localSubmission.answers === "object"
+      ? localSubmission.answers
+      : {};
+  const sourceById =
+    localSubmission?.answersByQuestionId &&
+    typeof localSubmission.answersByQuestionId === "object"
+      ? localSubmission.answersByQuestionId
+      : {};
+  for (const question of QUESTIONS) {
+    const rawValue =
+      sourceById[question.id] ?? sourceByKey[question.answerKey] ?? null;
+    const normalizedValue = normalizeAnswerValue(rawValue);
+    if (normalizedValue === null) continue;
+    answers[question.id] = normalizedValue;
+  }
+  const demo =
+    localSubmission?.demographics && typeof localSubmission.demographics === "object"
+      ? localSubmission.demographics
+      : {};
+  return {
+    answers,
+    ageRange: normalizeShortText(demo.ageRange || demo.age, 64),
+    countryCode: normalizeShortText(demo.country, 64),
+    industry: normalizeShortText(demo.industry, 128),
+    jobTitle: normalizeShortText(demo.occupation, OCCUPATION_CHAR_LIMIT),
+    notes: normalizeShortText(demo.notes, NOTES_CHAR_LIMIT),
+  };
+}
+
 function getClientCountryHint() {
   if (typeof navigator === "undefined") return "";
   const locales = navigator.languages?.length
@@ -1143,6 +1270,13 @@ async function submitCompassResult(payload) {
           payload.question_values && typeof payload.question_values === "object"
             ? payload.question_values
             : {},
+        answers:
+          payload.answers && typeof payload.answers === "object"
+            ? payload.answers
+            : payload.question_values &&
+                typeof payload.question_values === "object"
+              ? payload.question_values
+              : {},
         question_responses: Array.isArray(payload.question_responses)
           ? payload.question_responses
           : [],
@@ -2158,19 +2292,35 @@ function Compass({
 }
 
 // --- Quiz Page ---
-function QuizPage({ onComplete, onProgressChange }) {
+function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
   const orderedQuestions = QUESTIONS;
-  const [answers, setAnswers] = useState({});
-  const [ageRange, setAgeRange] = useState("");
-  const [countryCode, setCountryCode] = useState("");
+  const initialFormState = useMemo(
+    () => buildInitialQuizFormState(initialSubmission),
+    [initialSubmission],
+  );
+  const [answers, setAnswers] = useState(() => initialFormState.answers);
+  const [ageRange, setAgeRange] = useState(() => initialFormState.ageRange);
+  const [countryCode, setCountryCode] = useState(
+    () => initialFormState.countryCode,
+  );
   const [ipCountryCode] = useState(() => getClientCountryHint());
-  const [industry, setIndustry] = useState("");
-  const [jobTitle, setJobTitle] = useState("");
-  const [notes, setNotes] = useState("");
+  const [industry, setIndustry] = useState(() => initialFormState.industry);
+  const [jobTitle, setJobTitle] = useState(() => initialFormState.jobTitle);
+  const [notes, setNotes] = useState(() => initialFormState.notes);
+  const hasInitialPrefill = useMemo(
+    () =>
+      Object.keys(initialFormState.answers).length > 0 ||
+      initialFormState.ageRange !== "" ||
+      initialFormState.countryCode !== "" ||
+      initialFormState.industry !== "",
+    [initialFormState],
+  );
   const allAnswered = orderedQuestions.every(
     (q) => answers[q.id] !== undefined,
   );
-  const answeredCount = Object.keys(answers).length;
+  const answeredCount = orderedQuestions.filter(
+    (question) => answers[question.id] !== undefined,
+  ).length;
   const hasDemographicSelections =
     ageRange !== "" && countryCode !== "" && industry !== "";
   const canSubmit = allAnswered && hasDemographicSelections;
@@ -2341,6 +2491,19 @@ function QuizPage({ onComplete, onProgressChange }) {
           border: 1px solid ${THEME.SiteText};
         }
       `}</style>
+      {hasInitialPrefill && (
+        <div
+          className="type-caption"
+          style={{
+            marginBottom: 12,
+            color: "var(--color-ink)",
+            textAlign: "left",
+            opacity: 0.72,
+          }}
+        >
+          Loaded your most recent saved answers.
+        </div>
+      )}
       {/* Questions */}
       {orderedQuestions.map((q, i) => (
         <div
@@ -2567,6 +2730,9 @@ export default function AICompass() {
   const [userResult, setUserResult] = useState(
     initialPersistedResultState.userResult,
   );
+  const [latestLocalSubmission, setLatestLocalSubmission] = useState(() =>
+    readInitialLocalSubmission(),
+  );
   const [hoveredQuadrant, setHoveredQuadrant] = useState(null);
   const [pinnedQuadrant, setPinnedQuadrant] = useState(null);
   const [firestoreError, setFirestoreError] = useState("");
@@ -2607,6 +2773,14 @@ export default function AICompass() {
     if (!snapshot) return;
     writeLocalStorageItem(LAST_RESULT_STORAGE_KEY, JSON.stringify(snapshot));
   }, [devResultPersistenceEnabled, scores, userResult]);
+
+  useEffect(() => {
+    if (!latestLocalSubmission) return;
+    writeLocalStorageItem(
+      LAST_SUBMISSION_STORAGE_KEY,
+      JSON.stringify(latestLocalSubmission),
+    );
+  }, [latestLocalSubmission]);
 
   // Subscribe to live Firestore updates once on first render.
   useEffect(() => {
@@ -2722,6 +2896,7 @@ export default function AICompass() {
       },
       resultSchemaVersion: RESULT_SCHEMA_VERSION,
       ...questionAnalytics,
+      answers: questionAnalytics.questionValuesByKey,
       segments: demographicSegments,
       is_repeat_ip_24h: false,
       is_repeat_device_24h: false,
@@ -2734,8 +2909,28 @@ export default function AICompass() {
       ts: clientCreatedAt,
     };
     const localId = `local-${Date.now()}`;
+    const localSubmissionSnapshot = {
+      submissionId: localId,
+      quizVersion: QUIZ_VERSION,
+      answers: questionAnalytics.questionValuesByKey,
+      answersByQuestionId: questionAnalytics.questionValues,
+      xScore: activeScores.x,
+      yScore: activeScores.y,
+      archetype,
+      demographics: {
+        ageRange: demo.age || "",
+        country: demo.country || "",
+        industry: demo.industry || "",
+        occupation: demo.occupation || "",
+        notes: demo.notes || "",
+      },
+      questionOrder: questionAnalytics.questionOrder,
+      questionKeys: questionAnalytics.questionKeys,
+      createdAt: clientCreatedAt,
+    };
 
     setUserResult({ ...entry, id: localId });
+    setLatestLocalSubmission(localSubmissionSnapshot);
     setScreen("results");
 
     const stallTimer = setTimeout(() => {
@@ -2751,7 +2946,9 @@ export default function AICompass() {
       archetype,
       demographics: entry.demographics,
       question_order: questionAnalytics.questionOrder,
+      question_keys: questionAnalytics.questionKeys,
       question_values: questionAnalytics.questionValues,
+      answers: questionAnalytics.questionValuesByKey,
       question_responses: questionAnalytics.questionResponses,
       question_medians: questionAnalytics.questionMedians,
       segments: demographicSegments,
@@ -2790,6 +2987,14 @@ export default function AICompass() {
               }
             : prev,
         );
+        setLatestLocalSubmission((prev) => {
+          if (!prev || prev.submissionId !== localId) return prev;
+          return {
+            ...prev,
+            submissionId: savedId,
+            createdAt: Number(saved.created_at ?? saved.ts) || prev.createdAt,
+          };
+        });
       })
       .catch((error) => {
         console.error("Survey submission error:", error);
@@ -3450,6 +3655,7 @@ export default function AICompass() {
             <QuizPage
               onComplete={handleQuizComplete}
               onProgressChange={setQuizProgress}
+              initialSubmission={latestLocalSubmission}
             />
           </div>
         )}
