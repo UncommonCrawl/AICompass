@@ -132,6 +132,9 @@ const COMPASS_SUBMIT_ENDPOINT = (
 ).trim();
 const DEVICE_ID_STORAGE_KEY = "ai_compass_device_id_v1";
 const SESSION_ID_STORAGE_KEY = "ai_compass_session_id_v1";
+const LAST_RESULT_STORAGE_KEY = "ai_compass_last_result_v1";
+const DEV_RESULT_PERSISTENCE_ENABLED_STORAGE_KEY =
+  "ai_compass_dev_result_persistence_enabled_v1";
 const UNKNOWN_SEGMENT_VALUE = "__UNSPECIFIED__";
 const QUESTION_MEDIAN_BY_ID = Object.fromEntries(
   QUESTIONS.map((question) => [question.id, 0]),
@@ -231,8 +234,12 @@ const COMPASS_CANVAS_DPR_CAP_HIGH = 3;
 const COMPASS_CANVAS_HIGH_DPR_POINT_LIMIT = 1200;
 const COMPASS_DOT_COLOR = "#000000";
 const COMPASS_DOT_FADED_COLOR = "#b8b8b8";
-const COMPASS_DOT_RADIUS = 3;
-const COMPASS_USER_DOT_RADIUS = 4.5;
+const DEFAULT_USER_DOT_COLOR = "#17a34a";
+const COMPASS_DOT_GEOMETRY = {
+  radius: 3,
+  hoverRingRadius: 6.5,
+  hoverRingPulseRadius: 9.5,
+};
 
 const DEV_WEIGHT_TARGET_TOTAL = 100;
 const DEV_DEFAULT_STD_DEV = 0.4;
@@ -258,6 +265,7 @@ const DEV_FINANCE_DEFENSE_INDUSTRIES = new Set([
   "Banking & Finance",
   "Military & Defense",
 ]);
+const LOCAL_DEV_DUMMY_RESULT_ID_PREFIX = "local_dev_dummy_user_";
 const DEV_INDUSTRIES_WITH_EQUAL_REMAINDER = [
   "IT & Software",
   "Education & Academia",
@@ -892,6 +900,162 @@ function getOrCreateStorageId(storageType, key) {
   }
 }
 
+function readLocalStorageItem(key) {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalStorageItem(key, value) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Ignore storage write errors.
+  }
+}
+
+function removeLocalStorageItem(key) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Ignore storage remove errors.
+  }
+}
+
+function readJsonFromLocalStorage(key) {
+  const raw = readLocalStorageItem(key);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function readDevResultPersistenceEnabled() {
+  if (!import.meta.env.DEV) return true;
+  const raw = readLocalStorageItem(DEV_RESULT_PERSISTENCE_ENABLED_STORAGE_KEY);
+  if (raw === "0") return false;
+  if (raw === "1") return true;
+  return true;
+}
+
+function extractScoresFromResult(result) {
+  if (!result || typeof result !== "object") return null;
+  const x = Number(result.x ?? result.x_score);
+  const y = Number(result.y ?? result.y_score);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return { x, y };
+}
+
+function extractDeviceUuidFromResult(result) {
+  if (!result || typeof result !== "object") return "";
+  const fromSnake = result.device_uuid;
+  if (typeof fromSnake === "string" && fromSnake.trim()) return fromSnake;
+  const fromCamel = result.deviceUuid;
+  if (typeof fromCamel === "string" && fromCamel.trim()) return fromCamel;
+  return "";
+}
+
+function extractResultTimestamp(result) {
+  if (!result || typeof result !== "object") return 0;
+  const value = Number(result.ts ?? result.created_at);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function buildPersistableResultSnapshot(scores, userResult) {
+  const safeScores = extractScoresFromResult(scores);
+  if (!safeScores || !userResult || typeof userResult !== "object") return null;
+  return {
+    scores: safeScores,
+    userResult,
+    savedAt: Date.now(),
+  };
+}
+
+function clampLabelText(value, maxChars) {
+  if (typeof value !== "string") return "";
+  const trimmed = value.trim();
+  if (trimmed.length <= maxChars) return trimmed;
+  return `${trimmed.slice(0, maxChars)}...`;
+}
+
+function resolveCssColorVar(name, fallback) {
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    return fallback;
+  }
+  const value = window
+    .getComputedStyle(document.documentElement)
+    .getPropertyValue(name)
+    .trim();
+  return value || fallback;
+}
+
+function parseColorToRgb(color) {
+  if (typeof color !== "string") return null;
+  const raw = color.trim();
+  const shortHex = raw.match(/^#([0-9a-f]{3})$/i);
+  if (shortHex) {
+    const [r, g, b] = shortHex[1].split("").map((c) => parseInt(c + c, 16));
+    return { r, g, b };
+  }
+  const longHex = raw.match(/^#([0-9a-f]{6})$/i);
+  if (longHex) {
+    return {
+      r: parseInt(longHex[1].slice(0, 2), 16),
+      g: parseInt(longHex[1].slice(2, 4), 16),
+      b: parseInt(longHex[1].slice(4, 6), 16),
+    };
+  }
+  const rgb = raw.match(
+    /^rgba?\(\s*([0-9]+(?:\.[0-9]+)?)\s*,\s*([0-9]+(?:\.[0-9]+)?)\s*,\s*([0-9]+(?:\.[0-9]+)?)/i,
+  );
+  if (!rgb) return null;
+  return {
+    r: Math.max(0, Math.min(255, Number(rgb[1]))),
+    g: Math.max(0, Math.min(255, Number(rgb[2]))),
+    b: Math.max(0, Math.min(255, Number(rgb[3]))),
+  };
+}
+
+function createFadedUserDotColor(baseColor) {
+  const rgb = parseColorToRgb(baseColor);
+  if (!rgb) return "rgba(139, 209, 165, 0.78)";
+  const mixRatioWithWhite = 0.5;
+  const alpha = 0.78;
+  const r = Math.round(rgb.r * (1 - mixRatioWithWhite) + 255 * mixRatioWithWhite);
+  const g = Math.round(rgb.g * (1 - mixRatioWithWhite) + 255 * mixRatioWithWhite);
+  const b = Math.round(rgb.b * (1 - mixRatioWithWhite) + 255 * mixRatioWithWhite);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function readInitialPersistedResultState() {
+  if (!readDevResultPersistenceEnabled()) {
+    return {
+      scores: null,
+      userResult: null,
+      screen: "home",
+    };
+  }
+  const persisted = readJsonFromLocalStorage(LAST_RESULT_STORAGE_KEY);
+  const scores = extractScoresFromResult(persisted?.scores);
+  const userResult =
+    persisted?.userResult && typeof persisted.userResult === "object"
+      ? persisted.userResult
+      : null;
+  const hasPersistedResult = Boolean(scores && userResult);
+  return {
+    scores: hasPersistedResult ? scores : null,
+    userResult: hasPersistedResult ? userResult : null,
+    screen: hasPersistedResult ? "results" : "home",
+  };
+}
+
 function getClientCountryHint() {
   if (typeof navigator === "undefined") return "";
   const locales = navigator.languages?.length
@@ -1396,6 +1560,14 @@ function Compass({
   const [dims, setDims] = useState({ w: 960, h: 520 });
   const [hoveredDotId, setHoveredDotId] = useState(null);
   const [devFps, setDevFps] = useState(0);
+  const userDotColor = useMemo(
+    () => resolveCssColorVar("--user-button", DEFAULT_USER_DOT_COLOR),
+    [],
+  );
+  const userDotFadedColor = useMemo(
+    () => createFadedUserDotColor(userDotColor),
+    [userDotColor],
+  );
   const axisLabelGap = 10;
   const axisLabelFontSize = 10;
   const xAxisLetterSpacingEm = 0.1;
@@ -1519,14 +1691,14 @@ function Compass({
         const sx = cx + dot.x * xRange;
         const sy = cy - dot.y * yRange;
         const isUser = Boolean(userResult && dot.id === userResult.id);
-        const dotRadius = isUser ? COMPASS_USER_DOT_RADIUS : COMPASS_DOT_RADIUS;
+        const dotRadius = COMPASS_DOT_GEOMETRY.radius;
         const quadrant = getQuadrant(dot.x, dot.y);
         return {
           id: dot.id || `idx-${i}`,
           dot,
           sx,
           sy,
-          color: QUADRANT_INFO[quadrant].color,
+          color: isUser ? userDotColor : QUADRANT_INFO[quadrant].color,
           isUser,
           dotRadius,
           hitRadius: dotRadius * 2,
@@ -1546,14 +1718,11 @@ function Compass({
       disabledAgeSet,
       disabledCountrySet,
       disabledIndustrySet,
+      userDotColor,
     ],
   );
   const plotPointById = useMemo(
     () => new Map(plotPoints.map((point) => [point.id, point])),
-    [plotPoints],
-  );
-  const userPoint = useMemo(
-    () => plotPoints.find((point) => point.isUser && point.enabled) || null,
     [plotPoints],
   );
   const activeHoveredPoint = hoveredDotId
@@ -1593,14 +1762,20 @@ function Compass({
 
     // Draw faded dots first so enabled dots always sit above them.
     for (const point of plotPoints) {
-      if (!point.enabled) drawDot(point, COMPASS_DOT_FADED_COLOR);
+      if (!point.enabled && !point.isUser) drawDot(point, COMPASS_DOT_FADED_COLOR);
     }
     for (const point of plotPoints) {
-      if (point.enabled) drawDot(point, COMPASS_DOT_COLOR);
+      if (!point.enabled && point.isUser) drawDot(point, userDotFadedColor);
+    }
+    for (const point of plotPoints) {
+      if (point.enabled && !point.isUser) drawDot(point, COMPASS_DOT_COLOR);
+    }
+    for (const point of plotPoints) {
+      if (point.enabled && point.isUser) drawDot(point, userDotColor);
     }
 
     onCanvasDraw?.();
-  }, [plotPoints, dims.w, dims.h, onCanvasDraw]);
+  }, [plotPoints, dims.w, dims.h, onCanvasDraw, userDotColor, userDotFadedColor]);
 
   useEffect(
     () => () => {
@@ -1807,26 +1982,20 @@ function Compass({
           <circle
             cx={activeHoveredPoint.sx}
             cy={activeHoveredPoint.sy}
-            r={activeHoveredPoint.dotRadius}
+            r={activeHoveredPoint.dotRadius + 2}
             fill="none"
             stroke={THEME.SiteBG}
             strokeWidth={1.5}
           />
         )}
-        {[userPoint, activeHoveredPoint]
-          .filter((point, index, list) => {
-            if (!point || !point.enabled) return false;
-            return (
-              list.findIndex((candidate) => candidate?.id === point.id) ===
-              index
-            );
-          })
+        {[activeHoveredPoint]
+          .filter((point) => point && point.enabled)
           .map((point) => (
             <circle
               key={`pulse-${point.id}`}
               cx={point.sx}
               cy={point.sy}
-              r={point.isUser ? 7.5 : 6.5}
+              r={COMPASS_DOT_GEOMETRY.hoverRingRadius}
               fill="none"
               stroke={point.color}
               strokeWidth={1.5}
@@ -1834,7 +2003,7 @@ function Compass({
             >
               <animate
                 attributeName="r"
-                values={point.isUser ? "7.5;11.5;7.5" : "6.5;9.5;6.5"}
+                values={`${COMPASS_DOT_GEOMETRY.hoverRingRadius};${COMPASS_DOT_GEOMETRY.hoverRingPulseRadius};${COMPASS_DOT_GEOMETRY.hoverRingRadius}`}
                 dur="2s"
                 repeatCount="indefinite"
               />
@@ -1854,10 +2023,15 @@ function Compass({
           const { sx, sy } = toSvg(activeHoveredDot.x, activeHoveredDot.y);
           const isRight = sx > cx;
           const isBottom = sy > cy;
+          const isUserDot = Boolean(activeHoveredPoint?.isUser);
+          const clampedHoverNotes = clampLabelText(
+            activeHoveredDot.notes,
+            NOTES_CHAR_LIMIT,
+          );
           const noteText =
-            typeof activeHoveredDot.notes === "string"
-              ? activeHoveredDot.notes.trim()
-              : "";
+            isUserDot
+              ? "Lorem ipsum dolor sit amet."
+              : clampedHoverNotes;
           const hasNotes = noteText.length > 0;
           const tooltipTextNudgeYPx = -2;
           const tooltipStyle = {
@@ -1878,8 +2052,14 @@ function Compass({
                 style={{ transform: `translateY(${tooltipTextNudgeYPx}px)` }}
               >
                 {(() => {
-                  const title =
-                    activeHoveredDot.occupation?.trim() || "Anonymous";
+                  const clampedTitle = clampLabelText(
+                    activeHoveredDot.occupation,
+                    OCCUPATION_CHAR_LIMIT,
+                  );
+                  const titleBase = clampedTitle || "Anonymous";
+                  const title = activeHoveredPoint?.isUser
+                    ? `${titleBase} (You)`
+                    : titleBase;
                   const country =
                     activeHoveredDot.country &&
                     COUNTRY_NAME_BY_CODE[activeHoveredDot.country]
@@ -2338,24 +2518,36 @@ function QuizPage({ onComplete, onProgressChange }) {
 
 // --- Main App ---
 export default function AICompass() {
-  const [screen, setScreen] = useState("home"); // home, quiz, results
-  const [scores, setScores] = useState(null);
+  const initialPersistedResultState = useMemo(
+    () => readInitialPersistedResultState(),
+    [],
+  );
+  const [screen, setScreen] = useState(initialPersistedResultState.screen); // home, quiz, results
+  const [scores, setScores] = useState(initialPersistedResultState.scores);
   const [quizProgress, setQuizProgress] = useState({
     answered: 0,
     total: QUESTIONS.length,
     canSubmit: false,
   });
   const [results, setResults] = useState([]);
-  const [userResult, setUserResult] = useState(null);
+  const [userResult, setUserResult] = useState(
+    initialPersistedResultState.userResult,
+  );
   const [hoveredQuadrant, setHoveredQuadrant] = useState(null);
   const [pinnedQuadrant, setPinnedQuadrant] = useState(null);
   const [firestoreError, setFirestoreError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [clearingDevDots, setClearingDevDots] = useState(false);
+  const [devResultPersistenceEnabled, setDevResultPersistenceEnabled] =
+    useState(() => readDevResultPersistenceEnabled());
   const [disabledAges, setDisabledAges] = useState([]);
   const [disabledCountries, setDisabledCountries] = useState([]);
   const [disabledIndustries, setDisabledIndustries] = useState([]);
   const [filterIpCountryCode] = useState(() => getClientCountryHint());
+  const localDeviceId = useMemo(
+    () => getOrCreateStorageId("local", DEVICE_ID_STORAGE_KEY),
+    [],
+  );
   const [hasInitialResultsSnapshot, setHasInitialResultsSnapshot] =
     useState(false);
   const [homeCanvasDrawn, setHomeCanvasDrawn] = useState(false);
@@ -2366,6 +2558,21 @@ export default function AICompass() {
       total: QUESTIONS.length,
       canSubmit: false,
     });
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    writeLocalStorageItem(
+      DEV_RESULT_PERSISTENCE_ENABLED_STORAGE_KEY,
+      devResultPersistenceEnabled ? "1" : "0",
+    );
+  }, [devResultPersistenceEnabled]);
+
+  useEffect(() => {
+    if (!devResultPersistenceEnabled) return;
+    const snapshot = buildPersistableResultSnapshot(scores, userResult);
+    if (!snapshot) return;
+    writeLocalStorageItem(LAST_RESULT_STORAGE_KEY, JSON.stringify(snapshot));
+  }, [devResultPersistenceEnabled, scores, userResult]);
 
   // Subscribe to live Firestore updates once on first render.
   useEffect(() => {
@@ -2393,6 +2600,21 @@ export default function AICompass() {
           });
           return [...nextResults, ...localOnlyDevDots];
         });
+        if (devResultPersistenceEnabled) {
+          const latestMatch = nextResults
+            .filter(
+              (result) => extractDeviceUuidFromResult(result) === localDeviceId,
+            )
+            .sort(
+              (a, b) => extractResultTimestamp(b) - extractResultTimestamp(a),
+            )[0];
+          const latestScores = extractScoresFromResult(latestMatch);
+          if (latestMatch && latestScores) {
+            setUserResult((prev) => prev || latestMatch);
+            setScores((prev) => prev || latestScores);
+            setScreen((prev) => (prev === "home" ? "results" : prev));
+          }
+        }
       },
       (error) => {
         console.error("Firestore onSnapshot error:", error);
@@ -2406,7 +2628,7 @@ export default function AICompass() {
     );
 
     return unsubscribe;
-  }, []);
+  }, [devResultPersistenceEnabled, localDeviceId]);
   const handleHomeCanvasDraw = useCallback(() => {
     setHomeCanvasDrawn((prev) => (prev ? prev : true));
   }, []);
@@ -2630,8 +2852,92 @@ export default function AICompass() {
     }
   };
 
+  const handleToggleDevResultPersistence = () => {
+    const nextEnabled = !devResultPersistenceEnabled;
+    setDevResultPersistenceEnabled(nextEnabled);
+    if (!nextEnabled) {
+      removeLocalStorageItem(LAST_RESULT_STORAGE_KEY);
+      setUserResult(null);
+      setScores(null);
+      setScreen("home");
+      return;
+    }
+    if (scores && userResult) return;
+
+    const persisted = readJsonFromLocalStorage(LAST_RESULT_STORAGE_KEY);
+    const persistedScores = extractScoresFromResult(persisted?.scores);
+    const persistedUserResult =
+      persisted?.userResult && typeof persisted.userResult === "object"
+        ? persisted.userResult
+        : null;
+    if (persistedScores && persistedUserResult) {
+      setScores(persistedScores);
+      setUserResult(persistedUserResult);
+      setScreen("results");
+      return;
+    }
+
+    const latestMatch = results
+      .filter((result) => extractDeviceUuidFromResult(result) === localDeviceId)
+      .sort((a, b) => extractResultTimestamp(b) - extractResultTimestamp(a))[0];
+    const latestScores = extractScoresFromResult(latestMatch);
+    if (latestMatch && latestScores) {
+      setScores(latestScores);
+      setUserResult(latestMatch);
+      setScreen("results");
+    }
+  };
+
+  const handleLoadDummyUserResult = () => {
+    const now = Date.now();
+    const dummyScores = { x: -0.2, y: 0.28 };
+    const archetype = QUADRANT_INFO[getQuadrant(dummyScores.x, dummyScores.y)].name;
+    const deviceId = getOrCreateStorageId("local", DEVICE_ID_STORAGE_KEY);
+    const dummyUserResult = {
+      id: `${LOCAL_DEV_DUMMY_RESULT_ID_PREFIX}${now}`,
+      x: dummyScores.x,
+      y: dummyScores.y,
+      x_score: dummyScores.x,
+      y_score: dummyScores.y,
+      archetype,
+      age: "35-44",
+      country: "US",
+      industry: "IT & Software",
+      occupation: "Anonymous",
+      notes: "",
+      demographics: {
+        age: "35-44",
+        country: "US",
+        industry: "IT & Software",
+        occupation: "Anonymous",
+        notes: "",
+      },
+      isDev: true,
+      is_dev: true,
+      created_at: now,
+      ts: now,
+      device_uuid: deviceId,
+      deviceUuid: deviceId,
+    };
+    setScores(dummyScores);
+    setUserResult(dummyUserResult);
+    setScreen("results");
+  };
+
   const quadrant = scores ? getQuadrant(scores.x, scores.y) : null;
   const qi = quadrant ? QUADRANT_INFO[quadrant] : null;
+  const visibleResults = useMemo(() => {
+    const withUser =
+      userResult && !results.some((result) => result.id === userResult.id)
+        ? [...results, userResult]
+        : results;
+    if (devResultPersistenceEnabled) return withUser;
+    return withUser.filter((result) => {
+      const id = typeof result?.id === "string" ? result.id : "";
+      if (id.startsWith(LOCAL_DEV_DUMMY_RESULT_ID_PREFIX)) return false;
+      return extractDeviceUuidFromResult(result) !== localDeviceId;
+    });
+  }, [results, userResult, devResultPersistenceEnabled, localDeviceId]);
   const showCompassView =
     screen === "home" || (screen === "results" && scores && qi);
   const activeQuadrant = pinnedQuadrant || hoveredQuadrant;
@@ -2969,7 +3275,7 @@ export default function AICompass() {
               )}
               <div style={{ marginTop: 0 }}>
                 <Compass
-                  results={results}
+                  results={visibleResults}
                   userResult={userResult}
                   activeQuadrant={activeQuadrant}
                   disabledAges={disabledAges}
@@ -3110,6 +3416,35 @@ export default function AICompass() {
                     {clearingDevDots
                       ? "Clearing dev dots..."
                       : "Reset dev dots"}
+                  </button>
+                  <button
+                    className="type-body-sm"
+                    onClick={handleToggleDevResultPersistence}
+                    style={{
+                      padding: "8px 14px",
+                      background: "rgba(0,0,0,0.08)",
+                      border: "1px solid rgba(0,0,0,0.14)",
+                      color: "var(--color-ink)",
+                      borderRadius: "var(--radius-base)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Result persistence:{" "}
+                    {devResultPersistenceEnabled ? "On" : "Off"}
+                  </button>
+                  <button
+                    className="type-body-sm"
+                    onClick={handleLoadDummyUserResult}
+                    style={{
+                      padding: "8px 14px",
+                      background: "rgba(0,0,0,0.08)",
+                      border: "1px solid rgba(0,0,0,0.14)",
+                      color: "var(--color-ink)",
+                      borderRadius: "var(--radius-base)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Load dummy user result
                   </button>
                 </div>
               )}

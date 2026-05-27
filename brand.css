@@ -59,6 +59,7 @@
   --color-muted: color-mix(in oklab, var(--color-ink) 72%, transparent);
   --color-paper: #ffffff;
   --color-surface: #ffffff;
+  --user-button: #17a34a;
   --color-border: color-mix(in oklab, var(--color-ink) 14%, transparent);
   --grid-line: color-mix(in oklab, var(--color-ink) 10%, transparent);
 
@@ -122,6 +123,7 @@
   --color-muted: color-mix(in oklab, var(--color-ink) 70%, transparent);
   --color-paper: #0d0d10;
   --color-surface: #131318;
+  --user-button: #17a34a;
   --color-border: color-mix(in oklab, var(--color-ink) 16%, transparent);
   --grid-line: color-mix(in oklab, var(--color-ink) 10%, transparent);
 }
