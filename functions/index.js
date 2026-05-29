@@ -95,6 +95,7 @@ export const submitCompassResult = onRequest(
     const now = Date.now();
     const cutoff = now - DAY_MS;
     const secret = HASH_SECRET.value();
+    const quizVersion = cleanString(payload.quiz_version, 32);
 
     const deviceUuid = cleanString(payload.device_uuid, 256);
     const sessionUuid = cleanString(payload.session_uuid, 256);
@@ -157,7 +158,15 @@ export const submitCompassResult = onRequest(
           deviceSignal?.locked_answers_hash,
           128,
         );
-        if (lockedAnswersHash && lockedAnswersHash !== answersHash) {
+        const lockedQuizVersion = cleanString(
+          deviceSignal?.locked_quiz_version,
+          32,
+        );
+        const sameQuizVersion =
+          lockedQuizVersion !== "" &&
+          quizVersion !== "" &&
+          lockedQuizVersion === quizVersion;
+        if (sameQuizVersion && lockedAnswersHash && lockedAnswersHash !== answersHash) {
           const error = new Error("Answers are locked for this device.");
           error.code = "answers_locked";
           throw error;
@@ -192,6 +201,8 @@ export const submitCompassResult = onRequest(
           submission_id: submissionId,
           created_at: now,
           ts: now,
+          quiz_version: quizVersion,
+          quizVersion: quizVersion,
           x_score: xScore,
           y_score: yScore,
           x: xScore,
@@ -265,6 +276,7 @@ export const submitCompassResult = onRequest(
               last_submission_at: now,
               repeat_group_id: repeatGroupId,
               locked_answers_hash: lockedAnswersHash || answersHash,
+              locked_quiz_version: lockedQuizVersion || quizVersion,
               updated_at: now,
             },
             { merge: true },

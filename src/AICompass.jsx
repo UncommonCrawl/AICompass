@@ -17,167 +17,136 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { ISO_COUNTRIES } from "./isoCountries";
+import aiCompassHeader from "../AI Compass header.png";
 
 const QUESTIONS = [
   {
     id: "y1",
-    answerKey: "scaling_hypothesis",
+    answerKey: "office_work_automation",
     axis: "y",
     direction: 1,
-    label: "The Scaling Hypothesis",
-    text: "Simply scaling up current transformer architectures with more compute power and larger datasets will eventually lead to Artificial General Intelligence (AGI).",
+    label: "Office Work Automation",
+    text: "Within the next few years, AI will be able to do most white-collar office work as well as a trained human.",
   },
   {
     id: "y2",
-    answerKey: "model_reasoning",
+    answerKey: "ai_self_improvement",
     axis: "y",
     direction: 1,
-    label: "The Nature of the Model",
-    text: "Large Language Models possess genuine reasoning capabilities and internal world models, rather than just being highly advanced statistical pattern matchers.",
+    label: "AI Self-Improvement",
+    text: "AI systems will soon be able to design and improve other AI systems without human guidance.",
   },
   {
     id: "y3",
-    answerKey: "architectural_wall",
+    answerKey: "chatbot_pattern_matching",
     axis: "y",
     direction: -1,
-    label: "The Architectural Wall",
-    text: "Auto-regressive LLMs are approaching a fundamental plateau; achieving true AGI will require entirely new architectures we haven't discovered yet.",
+    label: "Pattern Matching",
+    text: "Most of what AI chatbots produce today is convincing-sounding text, not real understanding.",
   },
   {
     id: "y4",
-    answerKey: "agi_timeline",
+    answerKey: "net_job_displacement",
     axis: "y",
     direction: 1,
-    label: "The Timeline",
-    text: "An Artificial General Intelligence capable of outperforming humans at the majority of economically valuable work will be developed before the end of this decade.",
+    label: "Job Displacement",
+    text: "AI will replace more jobs than it creates over the next decade.",
   },
   {
     id: "y5",
-    answerKey: "embodiment_hurdle",
+    answerKey: "current_ai_ceiling",
     axis: "y",
     direction: -1,
-    label: "The Embodiment Hurdle",
-    text: "True general intelligence cannot be achieved by software alone; it requires a physical body (robotics) to interact with and learn from the friction of the real world.",
+    label: "Current AI Ceiling",
+    text: "We are approaching a ceiling with current AI; the dramatic leaps in ability are mostly behind us.",
   },
   {
     id: "y6",
-    answerKey: "data_ceiling",
+    answerKey: "synthetic_data_decline",
     axis: "y",
     direction: -1,
-    label: "The Data Ceiling",
-    text: "As we exhaust high-quality human text, training models on synthetic (AI-generated) data will lead to model collapse rather than continued improvement.",
+    label: "Synthetic Data Decline",
+    text: "As AI trains on more AI-generated content online, the quality of its output will noticeably decline.",
   },
   {
     id: "y7",
-    answerKey: "recursive_self_improvement",
+    answerKey: "ai_doctor_superiority",
     axis: "y",
     direction: 1,
-    label: "Recursive Self-Improvement",
-    text: "Once an AI system reaches human-level proficiency in software engineering, it will rapidly upgrade its own code, leading to an immediate 'intelligence explosion'.",
+    label: "Doctor Superiority",
+    text: "Within my lifetime, AI will be better than human doctors at diagnosing diseases.",
   },
   {
     id: "y8",
-    answerKey: "hallucination_ceiling",
+    answerKey: "text_prediction_only",
     axis: "y",
     direction: -1,
-    label: "The Hallucination Problem",
-    text: "Current AI systems possess a fundamental ceiling in reliability and hallucination rates that cannot be solved by simply adding more data to the current paradigm.",
-  },
-  {
-    id: "y9",
-    answerKey: "biological_exceptionalism",
-    axis: "y",
-    direction: 1,
-    label: "Biological Exceptionalism",
-    text: "There is nothing fundamentally unique about the biological human brain that a digital neural network cannot eventually replicate and surpass.",
-  },
-  {
-    id: "y10",
-    answerKey: "diminishing_returns",
-    axis: "y",
-    direction: -1,
-    label: "Diminishing Returns",
-    text: "The massive leaps in capability seen from GPT-3 to GPT-4 will not be replicated in future generations; we are entering an era of marginal, incremental AI improvements.",
+    label: "Text Prediction Only",
+    text: "Today's AI is fundamentally a text prediction engine; it will never truly reason or think.",
   },
   {
     id: "x1",
-    answerKey: "creator_consent",
+    answerKey: "government_shutdown_power",
     axis: "x",
     direction: -1,
-    label: "The Creator's Consent (Legal/Copyright)",
-    text: "AI companies must be legally required to obtain explicit consent and provide compensation before training their models on copyrighted human works, such as scripts, books, and artwork.",
+    label: "Government Shutdown Power",
+    text: "Governments should have the power to shut down AI projects they consider dangerous.",
   },
   {
     id: "x2",
-    answerKey: "democratization_execution",
+    answerKey: "no_preapproval_release",
     axis: "x",
     direction: 1,
-    label: "The Democratization of Execution (Philosophical/Innovation)",
-    text: "AI is the ultimate democratizing force, allowing anyone with a compelling concept to execute complex creative or technical projects without needing massive budgets or specialized teams.",
+    label: "No Preapproval Release",
+    text: "AI companies should be able to release new models to the public without needing government approval first.",
   },
   {
     id: "x3",
-    answerKey: "pause_regulate",
+    answerKey: "pause_harms_progress",
     axis: "x",
-    direction: -1,
-    label: "The Pause and Regulate Mandate (Policy)",
-    text: "Governments should enforce a global pause on training AI models more powerful than current state-of-the-art until robust, internationally agreed-upon safety frameworks are established.",
+    direction: 1,
+    label: "Pause Harms Progress",
+    text: "A worldwide pause on cutting-edge AI research would do more harm than good.",
   },
   {
     id: "x4",
-    answerKey: "open_source_weights",
+    answerKey: "model_secrecy_for_safety",
     axis: "x",
-    direction: 1,
-    label: "The Open-Source Imperative (Control)",
-    text: "The weights of powerful frontier AI models should be open-sourced so that anyone can build upon them, rather than being gatekept by a few massive tech corporations.",
+    direction: -1,
+    label: "Model Secrecy",
+    text: "The inner workings of powerful AI models should be kept private to prevent misuse.",
   },
   {
     id: "x5",
-    answerKey: "authenticity_crisis",
+    answerKey: "rapid_access_over_misuse",
     axis: "x",
-    direction: -1,
-    label: "The Authenticity Crisis (Philosophical/Social)",
-    text: "The proliferation of synthetic, AI-generated media threatens to drown out genuine human connection and the intrinsic value of authentic, original expression.",
+    direction: 1,
+    label: "Rapid Access",
+    text: "Getting AI into people's hands quickly is worth the risk of occasional misuse.",
   },
   {
     id: "x6",
-    answerKey: "geopolitical_race",
+    answerKey: "development_too_fast",
     axis: "x",
-    direction: 1,
-    label: "The Geopolitical Race (Policy/Security)",
-    text: "Accelerating domestic AI development is a geopolitical necessity; artificially slowing down only guarantees that adversarial nations will achieve technological dominance first.",
+    direction: -1,
+    label: "Too Fast",
+    text: "AI development is moving too fast for anyone to understand the consequences.",
   },
   {
     id: "x7",
-    answerKey: "thermodynamic_toll",
+    answerKey: "competition_over_regulation",
     axis: "x",
-    direction: -1,
-    label: "The Thermodynamic Toll (Environmental)",
-    text: "The massive energy consumption, water usage, and ecological footprint required to train and run giant AI models is an unacceptable cost to the environment.",
+    direction: 1,
+    label: "Competition Over Regulation",
+    text: "Competition between companies, not government rules, is the best way to keep AI development responsible.",
   },
   {
     id: "x8",
-    answerKey: "post_scarcity",
-    axis: "x",
-    direction: 1,
-    label: "The Post-Scarcity Vision (Economic)",
-    text: "While AI will inevitably disrupt the labor market, we must push forward rapidly to unlock a post-scarcity economy where the cost of intelligence, healthcare, and services drops to near zero.",
-  },
-  {
-    id: "x9",
-    answerKey: "existential_threat",
+    answerKey: "licensing_frontier_models",
     axis: "x",
     direction: -1,
-    label: "The Existential Threat (Safety/X-Risk)",
-    text: "The development of superintelligent AI poses a literal, existential threat to human survival that justifies extreme caution, even if it means permanently halting progress.",
-  },
-  {
-    id: "x10",
-    answerKey: "regulatory_capture",
-    axis: "x",
-    direction: 1,
-    label: "The Trap of Regulatory Capture (Policy/Business)",
-    text: "Heavy-handed government regulation of AI will ultimately serve as regulatory capture, protecting legacy tech monopolies and stifling independent innovation.",
+    label: "Licensing Requirement",
+    text: "Companies building the most powerful AI systems should be required to get a license from the government.",
   },
 ];
 
@@ -199,7 +168,7 @@ const LAST_SUBMISSION_STORAGE_KEY = "ai_compass_last_submission_v1";
 const DEV_RESULT_PERSISTENCE_ENABLED_STORAGE_KEY =
   "ai_compass_dev_result_persistence_enabled_v1";
 const UNKNOWN_SEGMENT_VALUE = "__UNSPECIFIED__";
-const QUIZ_VERSION = "2026-05-26";
+const QUIZ_VERSION = "2026-05-27";
 const QUESTION_MEDIAN_BY_ID = Object.fromEntries(
   QUESTIONS.map((question) => [question.id, 0]),
 );
@@ -1064,6 +1033,14 @@ function buildPersistableResultSnapshot(scores, userResult) {
   };
 }
 
+function extractQuizVersionFromRecord(record) {
+  if (!record || typeof record !== "object") return "";
+  if (typeof record.quizVersion === "string") return record.quizVersion.trim();
+  if (typeof record.quiz_version === "string")
+    return record.quiz_version.trim();
+  return "";
+}
+
 function clampLabelText(value, maxChars) {
   if (typeof value !== "string") return "";
   const trimmed = value.trim();
@@ -1140,6 +1117,15 @@ function readInitialPersistedResultState() {
     persisted?.userResult && typeof persisted.userResult === "object"
       ? persisted.userResult
       : null;
+  const persistedQuizVersion = extractQuizVersionFromRecord(userResult);
+  if (persistedQuizVersion !== QUIZ_VERSION) {
+    removeLocalStorageItem(LAST_RESULT_STORAGE_KEY);
+    return {
+      scores: null,
+      userResult: null,
+      screen: "home",
+    };
+  }
   const hasPersistedResult = Boolean(scores && userResult);
   return {
     scores: hasPersistedResult ? scores : null,
@@ -1156,6 +1142,11 @@ function normalizeShortText(value, maxLength = 256) {
 function readInitialLocalSubmission() {
   const submission = readJsonFromLocalStorage(LAST_SUBMISSION_STORAGE_KEY);
   if (!submission || typeof submission !== "object") return null;
+  const storedQuizVersion = normalizeShortText(submission.quizVersion, 32);
+  if (storedQuizVersion !== QUIZ_VERSION) {
+    removeLocalStorageItem(LAST_SUBMISSION_STORAGE_KEY);
+    return null;
+  }
   const answers =
     submission.answers && typeof submission.answers === "object"
       ? submission.answers
@@ -1172,7 +1163,7 @@ function readInitialLocalSubmission() {
   const createdAt = Number(submission.createdAt);
   return {
     submissionId: normalizeShortText(submission.submissionId, 128),
-    quizVersion: normalizeShortText(submission.quizVersion, 32) || QUIZ_VERSION,
+    quizVersion: storedQuizVersion,
     answers,
     answersByQuestionId,
     xScore: Number(submission.xScore) || 0,
@@ -1258,6 +1249,10 @@ async function submitCompassResult(payload) {
       const submission = {
         created_at: createdAt,
         ts: createdAt,
+        quiz_version:
+          typeof payload.quiz_version === "string" ? payload.quiz_version : "",
+        quizVersion:
+          typeof payload.quiz_version === "string" ? payload.quiz_version : "",
         x_score: xScore,
         y_score: yScore,
         x: xScore,
@@ -1947,8 +1942,7 @@ function Compass({
 
     // Draw gray dots first so enabled dots always sit above them.
     for (const point of plotPoints) {
-      if (!point.enabled && !point.isUser)
-        drawDot(point, GRAY);
+      if (!point.enabled && !point.isUser) drawDot(point, GRAY);
     }
     for (const point of plotPoints) {
       if (!point.enabled && point.isUser) drawDot(point, userDotGrayColor);
@@ -2396,9 +2390,7 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
     outline: "none",
     boxSizing: "border-box",
   };
-  const lockedFieldTextColor = answersLocked
-    ? GRAY
-    : "var(--color-ink)";
+  const lockedFieldTextColor = answersLocked ? GRAY : "var(--color-ink)";
   const fieldLabelStyle = {
     color: "var(--color-ink)",
     display: "flex",
@@ -2995,6 +2987,7 @@ export default function AICompass() {
     }, 8000);
 
     const payload = {
+      quiz_version: QUIZ_VERSION,
       x_score: activeScores.x,
       y_score: activeScores.y,
       archetype,
@@ -3237,9 +3230,12 @@ export default function AICompass() {
     return { x, y };
   }, [latestLocalSubmission]);
   const resultScores = scores || fallbackSubmissionScores;
-  const quadrant = resultScores ? getQuadrant(resultScores.x, resultScores.y) : null;
+  const quadrant = resultScores
+    ? getQuadrant(resultScores.x, resultScores.y)
+    : null;
   const qi = quadrant ? QUADRANT_INFO[quadrant] : null;
-  const resultArchetypeName = qi?.name || latestLocalSubmission?.archetype || "Unknown";
+  const resultArchetypeName =
+    qi?.name || latestLocalSubmission?.archetype || "Unknown";
   const resultArchetypeDesc = qi?.desc || "";
   const hasCompletedQuiz = Boolean(
     latestLocalSubmission?.answersByQuestionId &&
@@ -3376,11 +3372,11 @@ export default function AICompass() {
           right: 0,
           zIndex: 20,
           boxSizing: "border-box",
-          padding: "14px 16px",
+          padding: "14px 16px 10px",
           background: THEME.SiteText,
           display: "flex",
           flexDirection: "column",
-          gap: 6,
+          gap: 10,
         }}
       >
         <button
@@ -3392,20 +3388,19 @@ export default function AICompass() {
             padding: 0,
             cursor: "pointer",
             alignSelf: "center",
+            maxWidth: "100%",
           }}
         >
-          <h1
-            className="type-display-lg"
+          <img
+            src={aiCompassHeader}
+            alt="AI Compass"
             style={{
-              fontSize: 30,
-              letterSpacing: "0.15em",
-              margin: 0,
-              color: THEME.SiteBG,
-              lineHeight: 1.3,
+              display: "block",
+              height: 20,
+              width: "auto",
+              maxWidth: "100%",
             }}
-          >
-            THE AI COMPASS
-          </h1>
+          />
         </button>
         {showHeaderActionRow && (
           <div
@@ -3438,6 +3433,8 @@ export default function AICompass() {
                     "--compass-action-color": THEME.SiteText,
                     "--compass-action-border":
                       "color-mix(in oklab, var(--color-paper) 65%, transparent)",
+                    "--compass-action-height": "36px",
+                    "--compass-action-padding-inline": "14px",
                   }}
                 >
                   {hasCompletedQuiz ? "YOUR ANSWERS" : "TAKE THE QUIZ"}
@@ -3557,7 +3554,13 @@ export default function AICompass() {
                     background: LIGHT_GRAY,
                   }}
                 >
-                  <div style={{ textAlign: "center", marginInline: "auto", maxWidth: 560 }}>
+                  <div
+                    style={{
+                      textAlign: "center",
+                      marginInline: "auto",
+                      maxWidth: 560,
+                    }}
+                  >
                     <div
                       className="type-label"
                       style={{
@@ -3605,8 +3608,8 @@ export default function AICompass() {
                       {resultScores ? (
                         <>
                           Advancement: {resultScores.x > 0 ? "+" : ""}
-                          {(resultScores.x * 100).toFixed(0)}% &nbsp;|&nbsp; LLM Belief:{" "}
-                          {resultScores.y > 0 ? "+" : ""}
+                          {(resultScores.x * 100).toFixed(0)}% &nbsp;|&nbsp; LLM
+                          Belief: {resultScores.y > 0 ? "+" : ""}
                           {(resultScores.y * 100).toFixed(0)}%
                         </>
                       ) : (
