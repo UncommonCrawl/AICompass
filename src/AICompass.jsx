@@ -10,6 +10,7 @@ import {
   addDoc,
   collection,
   deleteDoc,
+  doc,
   getDocs,
   onSnapshot,
   orderBy,
@@ -180,6 +181,8 @@ function computeStableQuestionSchemaVersion(questionSchema) {
 
 const RESULT_SCHEMA_VERSION = 3;
 const COMPASS_RESULTS_COLLECTION = "compass-results-v2";
+const COMPASS_METRICS_COLLECTION = "compass-metrics-v1";
+const QUESTION_AVERAGES_DOC_ID = "question-averages-v1";
 const COMPASS_SUBMIT_ENDPOINT = (
   import.meta.env.VITE_COMPASS_SUBMIT_ENDPOINT || ""
 ).trim();
@@ -738,6 +741,25 @@ function buildQuestionAnalyticsPayload(answers, questionOrder = []) {
     questionResponses: responses,
     questionMedians: QUESTION_MEDIAN_BY_ID,
   };
+}
+
+function buildQuestionAverageByIdMap(source) {
+  if (!source || typeof source !== "object" || Array.isArray(source)) return {};
+  const averagesById = {};
+  for (const question of QUESTIONS) {
+    const entry = source[question.id];
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const avgTotal = Number(entry.avg_total);
+    const countTotal = Number(entry.count_total);
+    const hasTotalAggregate =
+      Number.isFinite(countTotal) && countTotal > 0 && Number.isFinite(avgTotal);
+    if (!hasTotalAggregate) continue;
+    averagesById[question.id] = Math.max(
+      RESPONSE_RANGE.min,
+      Math.min(RESPONSE_RANGE.max, avgTotal),
+    );
+  }
+  return averagesById;
 }
 
 function readQuestionResponseValueMap(result) {
@@ -2602,6 +2624,7 @@ function QuizPage({
   initialSubmission = null,
   editAnswersEnabled = false,
   editAnswersUnlocked = false,
+  questionAveragesById = {},
 }) {
   const orderedQuestions = QUESTIONS;
   const initialFormState = useMemo(
@@ -2907,6 +2930,27 @@ function QuizPage({
         .response-slider-user-label.is-visible {
           opacity: 1;
         }
+
+        .response-slider-avg-thumb {
+          position: absolute;
+          top: 50%;
+          width: ${RESPONSE_SLIDER_THUMB_SIZE_PX}px;
+          height: ${RESPONSE_SLIDER_THUMB_SIZE_PX}px;
+          border-radius: 50%;
+          background: ${GRAY};
+          border: 1px solid ${GRAY};
+          box-sizing: border-box;
+          transform: translate(-50%, -50%);
+          pointer-events: none;
+          z-index: 2;
+          opacity: 0;
+          transition: opacity 1s ease;
+        }
+
+        .response-slider-avg-thumb.is-visible {
+          opacity: 1;
+        }
+
       `}</style>
       {/* Questions */}
       {orderedQuestions.map((q, i) => {
@@ -2924,6 +2968,21 @@ function QuizPage({
         const sliderThumbCenterLeft = `calc(${RESPONSE_SLIDER_THUMB_SIZE_PX / 2}px + (${sliderThumbPercent} * (100% - ${RESPONSE_SLIDER_THUMB_SIZE_PX}px) / 100))`;
         const hasAnsweredValue = answerValue !== undefined;
         const showSliderYouLabel = isLabelSlidersState && hasAnsweredValue;
+        const avgValue = Number(questionAveragesById[q.id]);
+        const hasAverageValue = Number.isFinite(avgValue);
+        const avgThumbPercent = hasAverageValue
+          ? Math.max(
+              0,
+              Math.min(
+                100,
+                ((avgValue - RESPONSE_RANGE.min) /
+                  (RESPONSE_RANGE.max - RESPONSE_RANGE.min)) *
+                  100,
+              ),
+            )
+          : 0;
+        const avgThumbCenterLeft = `calc(${RESPONSE_SLIDER_THUMB_SIZE_PX / 2}px + (${avgThumbPercent} * (100% - ${RESPONSE_SLIDER_THUMB_SIZE_PX}px) / 100))`;
+        const showSliderAvgMarker = isLabelSlidersState && hasAverageValue;
         return (
           <div
             key={q.id}
@@ -2975,6 +3034,24 @@ function QuizPage({
                   >
                     YOU
                   </span>
+                )}
+                {hasAverageValue && (
+                  <>
+                    <span
+                      className={`response-slider-avg-thumb ${
+                        showSliderAvgMarker ? "is-visible" : ""
+                      }`}
+                      style={{ left: avgThumbCenterLeft }}
+                    />
+                    <span
+                      className={`type-caption-small response-slider-user-label ${
+                        showSliderAvgMarker ? "is-visible" : ""
+                      }`}
+                      style={{ left: avgThumbCenterLeft }}
+                    >
+                      AVG.
+                    </span>
+                  </>
                 )}
                 <input
                   className={`response-slider ${
@@ -3195,6 +3272,7 @@ export default function AICompass() {
   const [quizEditAnswersEnabled, setQuizEditAnswersEnabled] = useState(false);
   const [quizEditAnswersUnlocked, setQuizEditAnswersUnlocked] = useState(false);
   const [results, setResults] = useState([]);
+  const [questionAveragesById, setQuestionAveragesById] = useState({});
   const [userResult, setUserResult] = useState(
     initialPersistedResultState.userResult,
   );
@@ -3340,6 +3418,28 @@ export default function AICompass() {
 
     return unsubscribe;
   }, [devResultPersistenceEnabled, localDeviceId]);
+
+  useEffect(() => {
+    const questionAveragesRef = doc(
+      db,
+      COMPASS_METRICS_COLLECTION,
+      QUESTION_AVERAGES_DOC_ID,
+    );
+    const unsubscribe = onSnapshot(
+      questionAveragesRef,
+      (snapshot) => {
+        const nextAveragesById = buildQuestionAverageByIdMap(
+          snapshot.exists() ? snapshot.data()?.questions_by_id : null,
+        );
+        setQuestionAveragesById(nextAveragesById);
+      },
+      (error) => {
+        console.error("Question averages onSnapshot error:", error);
+        setQuestionAveragesById({});
+      },
+    );
+    return unsubscribe;
+  }, []);
   const handleHomeCanvasDraw = useCallback(() => {
     setHomeCanvasDrawn((prev) => (prev ? prev : true));
   }, []);
@@ -4449,6 +4549,7 @@ export default function AICompass() {
               initialSubmission={latestLocalSubmission}
               editAnswersEnabled={quizEditAnswersEnabled}
               editAnswersUnlocked={quizEditAnswersUnlocked}
+              questionAveragesById={questionAveragesById}
             />
           </div>
         )}
