@@ -4563,6 +4563,84 @@ export default function AICompass() {
                   </button>
                 </div>
               )}
+              {screen === "home" && (
+                <section
+                  style={{
+                    width: "100%",
+                    maxWidth: 640,
+                    margin: `${HOME_SECTION_GAP}px auto 0`,
+                    textAlign: "center",
+                  }}
+                >
+                  <div
+                    className="type-display-lg"
+                    style={{
+                      color: "var(--color-ink)",
+                      marginBottom: 8,
+                    }}
+                  >
+                    ABOUT
+                  </div>
+                  <p
+                    className="type-body-sm"
+                    style={{
+                      color: "var(--color-ink)",
+                      maxWidth: "50%",
+                      margin: "0 auto",
+                      lineHeight: 1.5,
+                      textAlign: "center",
+                    }}
+                  >
+                    As large language models (LLMs) become more visible, more
+                    contested, and more present in our daily lives, public
+                    opinion on AI is no longer captured by a simple divide
+                    between optimism and skepticism.
+                  </p>
+                  <p
+                    className="type-body-sm"
+                    style={{
+                      color: "var(--color-ink)",
+                      maxWidth: "50%",
+                      margin: "12px auto 0",
+                      lineHeight: 1.5,
+                      textAlign: "center",
+                    }}
+                  >
+                    One can believe AI will be transformative while opposing the
+                    way it is being developed; others may doubt its most
+                    ambitious promises while still supporting practical
+                    adoption.
+                  </p>
+                  <p
+                    className="type-body-sm"
+                    style={{
+                      color: "var(--color-ink)",
+                      maxWidth: "50%",
+                      margin: "12px auto 0",
+                      lineHeight: 1.5,
+                      textAlign: "center",
+                    }}
+                  >
+                    The project maps those views across two dimensions:
+                    confidence in AI’s abilities and approval of AI’s direction.
+                  </p>
+                  <p
+                    className="type-body-sm"
+                    style={{
+                      color: "var(--color-ink)",
+                      maxWidth: "50%",
+                      margin: "12px auto 0",
+                      lineHeight: 1.5,
+                      textAlign: "center",
+                    }}
+                  >
+                    By separating belief in what AI can do from judgment about
+                    what should happen next, AI Compass creates a clearer
+                    picture of how individuals, communities, and demographics
+                    relate to one of the defining technologies of our time.
+                  </p>
+                </section>
+              )}
             </div>
           </div>
         )}
@@ -4606,6 +4684,15 @@ export default function AICompass() {
               }}
             >
               Keith Herrmann
+            </a>{" "}
+            •{" "}
+            <a
+              href="mailto:uncommoncrawl@gmail.com"
+              style={{
+                color: THEME.SiteText,
+              }}
+            >
+              Contact
             </a>
           </span>
         </footer>
