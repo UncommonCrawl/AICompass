@@ -307,8 +307,7 @@ export const submitCompassResult = onRequest(
       128,
     );
     const questionSchema = cleanQuestionSchema(payload.question_schema);
-    const isDevSubmission =
-      payload.is_dev === true || payload.isDev === true;
+    const isDevSubmission = payload.is_dev === true;
 
     const deviceUuid = cleanString(payload.device_uuid, 256);
     const sessionUuid = cleanString(payload.session_uuid, 256);

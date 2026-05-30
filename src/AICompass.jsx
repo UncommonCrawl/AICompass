@@ -1409,7 +1409,7 @@ function getClientCountryHint() {
 
 async function submitCompassResult(payload) {
   if (!COMPASS_SUBMIT_ENDPOINT) {
-    if (payload?.is_dev === true || payload?.isDev === true) {
+    if (payload?.is_dev === true) {
       const createdAt = Number(payload.client_created_at) || Date.now();
       const xScore = Number(payload.x_score) || 0;
       const yScore = Number(payload.y_score) || 0;
@@ -3292,7 +3292,7 @@ export default function AICompass() {
     questionData = {},
     options = {},
   ) => {
-    const isDevSubmit = options?.is_dev === true || options?.isDev === true;
+    const isDevSubmit = options?.is_dev === true;
     const activeScores = overrideScores || scores;
     if (!activeScores) return;
     setSubmitting(true);
@@ -3389,8 +3389,6 @@ export default function AICompass() {
       segments: demographicSegments,
       result_schema_version: RESULT_SCHEMA_VERSION,
       is_dev: isDevSubmit,
-      // Temporary compatibility for older deployed functions; canonical flag is is_dev.
-      isDev: isDevSubmit,
       client_created_at: clientCreatedAt,
       device_uuid: getOrCreateStorageId("local", DEVICE_ID_STORAGE_KEY),
       session_uuid: getOrCreateStorageId("session", SESSION_ID_STORAGE_KEY),
