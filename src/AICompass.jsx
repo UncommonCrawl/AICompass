@@ -158,6 +158,7 @@ const RESPONSE_RANGE = {
 };
 const RESPONSE_SLIDER_TRACK_SIZE_PX = 6;
 const RESPONSE_SLIDER_THUMB_SIZE_PX = 18;
+const RESPONSE_SLIDER_THUMB_RADIUS_PX = RESPONSE_SLIDER_THUMB_SIZE_PX / 2;
 const RESPONSE_SLIDER_LABEL_MARGIN_PX = 4;
 
 const QUESTION_SCHEMA = QUESTIONS.map((question) => ({
@@ -2640,6 +2641,7 @@ function QuizPage({
   const [industry, setIndustry] = useState(() => initialFormState.industry);
   const [jobTitle, setJobTitle] = useState(() => initialFormState.jobTitle);
   const [notes, setNotes] = useState(() => initialFormState.notes);
+  const [sliderVisualWidthPx, setSliderVisualWidthPx] = useState(0);
   const [lockCountdownNow, setLockCountdownNow] = useState(() => Date.now());
   const hasSavedAnswers = Object.keys(initialFormState.answers).length > 0;
   const resubmitLockExpiresAt = getLockWindowExpiresAt(
@@ -2983,6 +2985,15 @@ function QuizPage({
           : 0;
         const avgThumbCenterLeft = `calc(${RESPONSE_SLIDER_THUMB_SIZE_PX / 2}px + (${avgThumbPercent} * (100% - ${RESPONSE_SLIDER_THUMB_SIZE_PX}px) / 100))`;
         const showSliderAvgMarker = isLabelSlidersState && hasAverageValue;
+        const thumbCenterDistancePx =
+          (Math.abs(sliderThumbPercent - avgThumbPercent) / 100) *
+          Math.max(0, sliderVisualWidthPx - RESPONSE_SLIDER_THUMB_SIZE_PX);
+        const thumbsOverlap =
+          hasAnsweredValue &&
+          hasAverageValue &&
+          sliderVisualWidthPx > 0 &&
+          thumbCenterDistancePx <= RESPONSE_SLIDER_THUMB_RADIUS_PX * 2;
+        const showSliderAvgLabel = showSliderAvgMarker && !thumbsOverlap;
         return (
           <div
             key={q.id}
@@ -3045,7 +3056,7 @@ function QuizPage({
                     />
                     <span
                       className={`type-caption-small response-slider-user-label ${
-                        showSliderAvgMarker ? "is-visible" : ""
+                        showSliderAvgLabel ? "is-visible" : ""
                       }`}
                       style={{ left: avgThumbCenterLeft }}
                     >
@@ -3062,6 +3073,17 @@ function QuizPage({
                   max={RESPONSE_RANGE.max}
                   step={RESPONSE_RANGE.step}
                   value={sliderValue}
+                  ref={(node) => {
+                    if (!node) return;
+                    const nextWidth = Math.round(node.getBoundingClientRect().width);
+                    if (
+                      Number.isFinite(nextWidth) &&
+                      nextWidth > 0 &&
+                      nextWidth !== sliderVisualWidthPx
+                    ) {
+                      setSliderVisualWidthPx(nextWidth);
+                    }
+                  }}
                   disabled={inputsLocked}
                   aria-label={`Response slider for question ${i + 1}`}
                   onChange={(e) =>
