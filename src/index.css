@@ -214,6 +214,15 @@ h6 {
   text-transform: uppercase;
 }
 
+.type-caption-small {
+  font-family: var(--font-mono);
+  font-size: calc(0.5rem);
+  line-height: 1.35;
+  letter-spacing: 0.1em;
+  font-weight: var(--font-weight-regular);
+  text-transform: uppercase;
+}
+
 .compass-action-button {
   --compass-action-bg: var(--color-paper);
   --compass-action-color: var(--color-ink);

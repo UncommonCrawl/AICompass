@@ -155,6 +155,9 @@ const RESPONSE_RANGE = {
   max: 2,
   step: 0.01,
 };
+const RESPONSE_SLIDER_TRACK_SIZE_PX = 6;
+const RESPONSE_SLIDER_THUMB_SIZE_PX = 18;
+const RESPONSE_SLIDER_LABEL_MARGIN_PX = 4;
 
 const QUESTION_SCHEMA = QUESTIONS.map((question) => ({
   id: question.id,
@@ -1203,9 +1206,26 @@ function parseColorToRgb(color) {
 
 function createFadedUserDotColor(baseColor) {
   const rgb = parseColorToRgb(baseColor);
-  if (!rgb) return "rgba(139, 209, 165, 0.78)";
+  if (!rgb) return "rgba(139, 209, 165, 1)";
   const mixRatioWithWhite = 0.5;
-  const alpha = 0.78;
+  const alpha = 1;
+  const r = Math.round(
+    rgb.r * (1 - mixRatioWithWhite) + 255 * mixRatioWithWhite,
+  );
+  const g = Math.round(
+    rgb.g * (1 - mixRatioWithWhite) + 255 * mixRatioWithWhite,
+  );
+  const b = Math.round(
+    rgb.b * (1 - mixRatioWithWhite) + 255 * mixRatioWithWhite,
+  );
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function createWhitenedGreenFromColor(baseColor) {
+  const rgb = parseColorToRgb(baseColor);
+  if (!rgb) return "rgba(174, 223, 191, 1)";
+  const mixRatioWithWhite = 0.28;
+  const alpha = 1;
   const r = Math.round(
     rgb.r * (1 - mixRatioWithWhite) + 255 * mixRatioWithWhite,
   );
@@ -2612,6 +2632,7 @@ function QuizPage({
   const isEditingPaused =
     isRetakeReady && editAnswersUnlocked && !editAnswersEnabled;
   const inputsLocked = answersLocked || needsEditToResubmit || isEditingPaused;
+  const useFadedUserGreenLockedSlider = answersLocked || isEditingPaused;
   const resubmitCountdown = formatDayHourCountdown(remainingLockMs);
   const allAnswered = orderedQuestions.every(
     (q) => answers[q.id] !== undefined,
@@ -2711,6 +2732,14 @@ function QuizPage({
     boxSizing: "border-box",
   };
   const lockedFieldTextColor = inputsLocked ? GRAY : "var(--color-ink)";
+  const userDotColor = useMemo(
+    () => resolveCssColorVar("--user-button", DEFAULT_USER_DOT_COLOR),
+    [],
+  );
+  const reviewEditingOffSliderThumbColor = useMemo(
+    () => createWhitenedGreenFromColor(createFadedUserDotColor(userDotColor)),
+    [userDotColor],
+  );
   const fieldLabelStyle = {
     color: "var(--color-ink)",
     display: "flex",
@@ -2790,7 +2819,7 @@ function QuizPage({
         }
 
         .response-slider::-webkit-slider-runnable-track {
-          height: 6px;
+          height: ${RESPONSE_SLIDER_TRACK_SIZE_PX}px;
           border-radius: 999px;
           background: transparent;
           border: 0;
@@ -2799,9 +2828,9 @@ function QuizPage({
         .response-slider::-webkit-slider-thumb {
           -webkit-appearance: none;
           appearance: none;
-          width: 18px;
-          height: 18px;
-          margin-top: -6px;
+          width: ${RESPONSE_SLIDER_THUMB_SIZE_PX}px;
+          height: ${RESPONSE_SLIDER_THUMB_SIZE_PX}px;
+          margin-top: ${(RESPONSE_SLIDER_TRACK_SIZE_PX - RESPONSE_SLIDER_THUMB_SIZE_PX) / 2}px;
           border-radius: 50%;
           background: ${THEME.SiteText};
           border: 1px solid ${THEME.SiteText};
@@ -2813,15 +2842,15 @@ function QuizPage({
         }
 
         .response-slider::-moz-range-track {
-          height: 6px;
+          height: ${RESPONSE_SLIDER_TRACK_SIZE_PX}px;
           border-radius: 999px;
           background: transparent;
           border: 0;
         }
 
         .response-slider::-moz-range-thumb {
-          width: 18px;
-          height: 18px;
+          width: ${RESPONSE_SLIDER_THUMB_SIZE_PX}px;
+          height: ${RESPONSE_SLIDER_THUMB_SIZE_PX}px;
           border-radius: 50%;
           background: ${THEME.SiteText};
           border: 1px solid ${THEME.SiteText};
@@ -2856,86 +2885,136 @@ function QuizPage({
           border: 1px solid ${GRAY};
         }
 
+        .response-slider.is-locked.is-faded-user-green::-webkit-slider-thumb {
+          background: ${reviewEditingOffSliderThumbColor};
+          border: 1px solid ${reviewEditingOffSliderThumbColor};
+        }
+
+        .response-slider.is-locked.is-faded-user-green::-moz-range-thumb {
+          background: ${reviewEditingOffSliderThumbColor};
+          border: 1px solid ${reviewEditingOffSliderThumbColor};
+        }
+
         .response-slider-wrap.is-locked .response-slider-rail {
           border-color: ${GRAY};
         }
+
+        .response-slider-user-label {
+          position: absolute;
+          top: 50%;
+          transform: translate(
+            -50%,
+            calc(-100% - ${(RESPONSE_SLIDER_THUMB_SIZE_PX / 2) + RESPONSE_SLIDER_LABEL_MARGIN_PX}px)
+          );
+          margin: ${RESPONSE_SLIDER_LABEL_MARGIN_PX}px 0;
+          white-space: nowrap;
+          color: var(--color-ink);
+          pointer-events: none;
+          z-index: 3;
+        }
       `}</style>
       {/* Questions */}
-      {orderedQuestions.map((q, i) => (
-        <div
-          key={q.id}
-          style={{
-            marginTop: i === 0 ? 0 : 0,
-            marginBottom: 20,
-            padding: "80px 40px",
-            background:
-              answers[q.id] !== undefined ? "rgba(0,0,0,0.015)" : THEME.SiteBG,
-            border:
-              answers[q.id] !== undefined
-                ? `1px solid ${THEME.SiteText}`
-                : `1px solid ${THEME.SiteBorder}`,
-            borderRadius: "var(--radius-base)",
-            transition: "background-color 1s ease, border-color 1s ease",
-          }}
-        >
+      {orderedQuestions.map((q, i) => {
+        const answerValue = answers[q.id];
+        const sliderValue = answerValue ?? 0;
+        const sliderThumbPercent = Math.max(
+          0,
+          Math.min(
+            100,
+            ((sliderValue - RESPONSE_RANGE.min) /
+              (RESPONSE_RANGE.max - RESPONSE_RANGE.min)) *
+              100,
+          ),
+        );
+        const sliderThumbCenterLeft = `calc(${RESPONSE_SLIDER_THUMB_SIZE_PX / 2}px + (${sliderThumbPercent} * (100% - ${RESPONSE_SLIDER_THUMB_SIZE_PX}px) / 100))`;
+        const showSliderYouLabel =
+          useFadedUserGreenLockedSlider && answerValue !== undefined;
+        return (
           <div
-            className="type-label"
+            key={q.id}
             style={{
-              color: "var(--color-ink)",
-              marginBottom: 8,
+              marginTop: i === 0 ? 0 : 0,
+              marginBottom: 20,
+              padding: "80px 40px",
+              background:
+                answerValue !== undefined ? "rgba(0,0,0,0.015)" : THEME.SiteBG,
+              border:
+                answerValue !== undefined
+                  ? `1px solid ${THEME.SiteText}`
+                  : `1px solid ${THEME.SiteBorder}`,
+              borderRadius: "var(--radius-base)",
+              transition: "background-color 1s ease, border-color 1s ease",
             }}
           >
-            Q{i + 1}
-          </div>
-          <div
-            className="type-body"
-            style={{
-              color: "var(--color-ink)",
-              marginBottom: 16,
-            }}
-          >
-            {q.text}
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <div
-              className={`response-slider-wrap ${inputsLocked ? "is-locked" : ""}`}
-            >
-              <div className="response-slider-rail" />
-              <input
-                className={`response-slider ${
-                  answers[q.id] === undefined ? "is-unanswered" : ""
-                } ${inputsLocked ? "is-locked" : ""}`}
-                type="range"
-                min={RESPONSE_RANGE.min}
-                max={RESPONSE_RANGE.max}
-                step={RESPONSE_RANGE.step}
-                value={answers[q.id] ?? 0}
-                disabled={inputsLocked}
-                aria-label={`Response slider for question ${i + 1}`}
-                onChange={(e) =>
-                  inputsLocked
-                    ? undefined
-                    : setAnswers((prev) => ({
-                        ...prev,
-                        [q.id]: Number(e.target.value),
-                      }))
-                }
-              />
-            </div>
-            <div
-              className="type-caption"
+              className="type-label"
               style={{
-                display: "flex",
-                justifyContent: "space-between",
                 color: "var(--color-ink)",
+                marginBottom: 8,
               }}
             >
-              <span>Strongly Disagree</span>
-              <span>Strongly Agree</span>
+              Q{i + 1}
+            </div>
+            <div
+              className="type-body"
+              style={{
+                color: "var(--color-ink)",
+                marginBottom: 16,
+              }}
+            >
+              {q.text}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div
+                className={`response-slider-wrap ${inputsLocked ? "is-locked" : ""}`}
+              >
+                <div className="response-slider-rail" />
+                {showSliderYouLabel && (
+                  <span
+                    className="type-caption-small response-slider-user-label"
+                    style={{ left: sliderThumbCenterLeft }}
+                  >
+                    YOU
+                  </span>
+                )}
+                <input
+                  className={`response-slider ${
+                    answerValue === undefined ? "is-unanswered" : ""
+                  } ${inputsLocked ? "is-locked" : ""} ${
+                    useFadedUserGreenLockedSlider ? "is-faded-user-green" : ""
+                  }`}
+                  type="range"
+                  min={RESPONSE_RANGE.min}
+                  max={RESPONSE_RANGE.max}
+                  step={RESPONSE_RANGE.step}
+                  value={sliderValue}
+                  disabled={inputsLocked}
+                  aria-label={`Response slider for question ${i + 1}`}
+                  onChange={(e) =>
+                    inputsLocked
+                      ? undefined
+                      : setAnswers((prev) => ({
+                          ...prev,
+                          [q.id]: Number(e.target.value),
+                        }))
+                  }
+                />
+              </div>
+              <div
+                className="type-caption"
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  color: "var(--color-ink)",
+                }}
+              >
+                <span>Strongly Disagree</span>
+                <span>Strongly Agree</span>
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       <div
         style={{
