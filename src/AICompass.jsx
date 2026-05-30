@@ -2524,6 +2524,35 @@ function QuizPage({
   );
   const trimmedJobTitle = jobTitle.slice(0, OCCUPATION_CHAR_LIMIT);
   const trimmedNotes = notes.slice(0, NOTES_CHAR_LIMIT);
+  const hasEditedFromLastSubmitted = useMemo(() => {
+    if (!hasSavedAnswers) return false;
+    for (const question of orderedQuestions) {
+      const initialValue = normalizeAnswerValue(initialFormState.answers[question.id]);
+      const currentValue = normalizeAnswerValue(answers[question.id]);
+      if (initialValue !== currentValue) return true;
+    }
+    if (ageRange !== initialFormState.ageRange) return true;
+    if (countryCode !== initialFormState.countryCode) return true;
+    if (industry !== initialFormState.industry) return true;
+    if (trimmedJobTitle !== initialFormState.jobTitle) return true;
+    if (trimmedNotes !== initialFormState.notes) return true;
+    return false;
+  }, [
+    hasSavedAnswers,
+    orderedQuestions,
+    initialFormState.answers,
+    initialFormState.ageRange,
+    initialFormState.countryCode,
+    initialFormState.industry,
+    initialFormState.jobTitle,
+    initialFormState.notes,
+    answers,
+    ageRange,
+    countryCode,
+    industry,
+    trimmedJobTitle,
+    trimmedNotes,
+  ]);
   const inputStyle = {
     width: "100%",
     padding: "10px 14px",
@@ -2906,7 +2935,7 @@ function QuizPage({
           }}
         >
           {canSubmit ? (
-            "Submit"
+            hasEditedFromLastSubmitted ? "Resubmit" : "See Results"
           ) : answersLocked ? (
             `Resubmission opens in ${resubmitCountdown}`
           ) : needsEditToResubmit ? (
@@ -3452,8 +3481,12 @@ export default function AICompass() {
     const now = Date.now();
     setDevRetakableDummyEnabled(nextRetakable);
     setDevResultPersistenceEnabled(true);
-    setScores((prev) => prev || dummyScores);
-    setUserResult((prev) => prev || dummyUserResult);
+    if (!scores) {
+      setScores(dummyScores);
+    }
+    if (!userResult) {
+      setUserResult(dummyUserResult);
+    }
     setLatestLocalSubmission((prev) => {
       const base =
         prev && typeof prev === "object" ? prev : dummyLocalSubmission;
