@@ -1735,6 +1735,7 @@ function Compass({
   disabledCountries,
   disabledIndustries,
   onCanvasDraw,
+  showResultMarkers = false,
 }) {
   const svgRef = useRef(null);
   const plotRef = useRef(null);
@@ -1915,6 +1916,43 @@ function Compass({
     activeHoveredPoint && activeHoveredPoint.enabled
       ? activeHoveredPoint.dot
       : null;
+  const userScores = useMemo(
+    () => extractScoresFromResult(userResult),
+    [userResult],
+  );
+  const userMarkerPoint = useMemo(() => {
+    if (!showResultMarkers || !userScores) return null;
+    return {
+      sx: cx + userScores.x * xRange,
+      sy: cy - userScores.y * yRange,
+    };
+  }, [showResultMarkers, userScores, cx, cy, xRange, yRange]);
+  const globalAverageScores = useMemo(() => {
+    if (!showResultMarkers) return null;
+    let sumX = 0;
+    let sumY = 0;
+    let count = 0;
+    for (const result of results) {
+      if (userResult && result?.id === userResult.id) continue;
+      const pointScores = extractScoresFromResult(result);
+      if (!pointScores) continue;
+      sumX += pointScores.x;
+      sumY += pointScores.y;
+      count += 1;
+    }
+    if (count === 0) return null;
+    return {
+      x: sumX / count,
+      y: sumY / count,
+    };
+  }, [showResultMarkers, results, userResult]);
+  const globalAveragePoint = useMemo(() => {
+    if (!globalAverageScores) return null;
+    return {
+      sx: cx + globalAverageScores.x * xRange,
+      sy: cy - globalAverageScores.y * yRange,
+    };
+  }, [globalAverageScores, cx, cy, xRange, yRange]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -2168,6 +2206,45 @@ function Compass({
           zIndex: 3,
         }}
       >
+        {showResultMarkers && userMarkerPoint && (
+          <>
+            <circle
+              cx={userMarkerPoint.sx}
+              cy={userMarkerPoint.sy}
+              r={COMPASS_DOT_GEOMETRY.radius}
+              fill={userDotColor}
+            />
+            <text
+              className="type-caption color-ink"
+              x={userMarkerPoint.sx}
+              y={userMarkerPoint.sy - COMPASS_DOT_GEOMETRY.radius - 8}
+              fill="currentColor"
+              textAnchor="middle"
+            >
+              YOU
+            </text>
+          </>
+        )}
+        {showResultMarkers && globalAveragePoint && (
+          <>
+            <circle
+              cx={globalAveragePoint.sx}
+              cy={globalAveragePoint.sy}
+              r={COMPASS_DOT_GEOMETRY.radius}
+              fill={GRAY}
+            />
+            <text
+              className="type-caption color-muted"
+              x={globalAveragePoint.sx}
+              y={globalAveragePoint.sy + COMPASS_DOT_GEOMETRY.radius + 6}
+              fill="currentColor"
+              textAnchor="middle"
+              dominantBaseline="hanging"
+            >
+              AVG.
+            </text>
+          </>
+        )}
         {activeHoveredPoint && activeHoveredPoint.enabled && (
           <circle
             cx={activeHoveredPoint.sx}
@@ -3240,6 +3317,39 @@ export default function AICompass() {
   const resultArchetypeName =
     qi?.name || latestLocalSubmission?.archetype || "Unknown";
   const resultArchetypeDesc = qi?.desc || "";
+  const handleShare = useCallback(async () => {
+    if (typeof window === "undefined") return;
+
+    const archetype = resultArchetypeName || "Unknown";
+    const message = `I'm a ${archetype}. Where do you stand on AI?`;
+    const shareUrl = window.location.href;
+    const shareText = `${message} ${shareUrl}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "The AI Compass",
+          text: message,
+          url: shareUrl,
+        });
+        return;
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") return;
+      }
+    }
+
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(shareText);
+        return;
+      } catch {
+        // Continue to web share fallback when clipboard is unavailable.
+      }
+    }
+
+    const tweetIntent = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
+    window.open(tweetIntent, "_blank", "noopener,noreferrer");
+  }, [resultArchetypeName]);
   const hasCompletedQuiz = Boolean(
     latestLocalSubmission?.answersByQuestionId &&
     typeof latestLocalSubmission.answersByQuestionId === "object" &&
@@ -3631,6 +3741,7 @@ export default function AICompass() {
                       <button
                         type="button"
                         className="type-body-sm compass-action-button"
+                        onClick={handleShare}
                         style={{
                           "--compass-action-width": "120px",
                           "--compass-action-border": GRAY,
@@ -3670,6 +3781,7 @@ export default function AICompass() {
                   disabledCountries={disabledCountries}
                   disabledIndustries={disabledIndustries}
                   onCanvasDraw={handleHomeCanvasDraw}
+                  showResultMarkers={screen === "results"}
                 />
               </div>
 
