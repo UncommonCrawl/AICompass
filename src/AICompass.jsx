@@ -305,6 +305,7 @@ const OCCUPATION_CHAR_LIMIT = 30;
 const NOTES_CHAR_LIMIT = 120;
 const HEADER_ACTION_HEIGHT = 44;
 const HEADER_BAR_HEIGHT = 118;
+const FOOTER_BAR_HEIGHT = 20;
 const HOME_SECTION_GAP = 20;
 const GRAY = "#b8b8b8";
 const LIGHT_GRAY = `color-mix(in oklab, ${GRAY} 20%, var(--color-paper) 80%)`;
@@ -753,7 +754,9 @@ function buildQuestionAverageByIdMap(source) {
     const avgTotal = Number(entry.avg_total);
     const countTotal = Number(entry.count_total);
     const hasTotalAggregate =
-      Number.isFinite(countTotal) && countTotal > 0 && Number.isFinite(avgTotal);
+      Number.isFinite(countTotal) &&
+      countTotal > 0 &&
+      Number.isFinite(avgTotal);
     if (!hasTotalAggregate) continue;
     averagesById[question.id] = Math.max(
       RESPONSE_RANGE.min,
@@ -1281,10 +1284,7 @@ function readInitialPersistedResultState() {
   const isQuestionSchemaMatch =
     persistedQuestionSchemaVersion === "" ||
     persistedQuestionSchemaVersion === QUESTION_SCHEMA_VERSION;
-  if (
-    persistedQuizVersion !== QUIZ_VERSION ||
-    !isQuestionSchemaMatch
-  ) {
+  if (persistedQuizVersion !== QUIZ_VERSION || !isQuestionSchemaMatch) {
     removeLocalStorageItem(LAST_RESULT_STORAGE_KEY);
     return {
       scores: null,
@@ -2721,7 +2721,9 @@ function QuizPage({
   const hasEditedFromLastSubmitted = useMemo(() => {
     if (!hasSavedAnswers) return false;
     for (const question of orderedQuestions) {
-      const initialValue = normalizeAnswerValue(initialFormState.answers[question.id]);
+      const initialValue = normalizeAnswerValue(
+        initialFormState.answers[question.id],
+      );
       const currentValue = normalizeAnswerValue(answers[question.id]);
       if (initialValue !== currentValue) return true;
     }
@@ -2918,7 +2920,7 @@ function QuizPage({
           top: 50%;
           transform: translate(
             -50%,
-            calc(-100% - ${(RESPONSE_SLIDER_THUMB_SIZE_PX / 2) + RESPONSE_SLIDER_LABEL_MARGIN_PX}px)
+            calc(-100% - ${RESPONSE_SLIDER_THUMB_SIZE_PX / 2 + RESPONSE_SLIDER_LABEL_MARGIN_PX}px)
           );
           margin: ${RESPONSE_SLIDER_LABEL_MARGIN_PX}px 0;
           white-space: nowrap;
@@ -3075,7 +3077,9 @@ function QuizPage({
                   value={sliderValue}
                   ref={(node) => {
                     if (!node) return;
-                    const nextWidth = Math.round(node.getBoundingClientRect().width);
+                    const nextWidth = Math.round(
+                      node.getBoundingClientRect().width,
+                    );
                     if (
                       Number.isFinite(nextWidth) &&
                       nextWidth > 0 &&
@@ -3257,7 +3261,11 @@ function QuizPage({
           }}
         >
           {canSubmit ? (
-            hasEditedFromLastSubmitted ? "Resubmit" : "See Results"
+            hasEditedFromLastSubmitted ? (
+              "Resubmit"
+            ) : (
+              "See Results"
+            )
           ) : answersLocked ? (
             `Resubmission opens in ${resubmitCountdown}`
           ) : needsEditToResubmit ? (
@@ -3605,10 +3613,9 @@ export default function AICompass() {
           ...saved,
           id: savedId,
         };
-        const normalizedSavedEntry =
-          isDevSubmit
-            ? normalizeDevResultToCurrentQuestionSchema(mergedSavedEntry)
-            : mergedSavedEntry;
+        const normalizedSavedEntry = isDevSubmit
+          ? normalizeDevResultToCurrentQuestionSchema(mergedSavedEntry)
+          : mergedSavedEntry;
         setFirestoreError("");
         setSubmissionLockRetryAt(0);
         if (isDevSubmit && !COMPASS_SUBMIT_ENDPOINT) {
@@ -3620,9 +3627,7 @@ export default function AICompass() {
           });
         }
         setUserResult((prev) =>
-          prev?.id === localId
-            ? normalizedSavedEntry
-            : prev,
+          prev?.id === localId ? normalizedSavedEntry : prev,
         );
         setLatestLocalSubmission({
           ...localSubmissionSnapshot,
@@ -4228,7 +4233,7 @@ export default function AICompass() {
           <div
             style={{
               position: "relative",
-              minHeight: `calc(100vh - ${HEADER_BAR_HEIGHT + 24 + 48}px)`,
+              minHeight: `calc(100vh - ${HEADER_BAR_HEIGHT + (screen === "home" ? FOOTER_BAR_HEIGHT : 0) + 24 + 48}px)`,
             }}
           >
             {showHomeLoading && (
@@ -4576,6 +4581,35 @@ export default function AICompass() {
           </div>
         )}
       </div>
+
+      {screen === "home" && (
+        <footer
+          style={{
+            height: FOOTER_BAR_HEIGHT,
+            background: THEME.SiteBG,
+            color: THEME.SiteText,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "0 12px",
+            boxSizing: "border-box",
+          }}
+        >
+          <span className="type-body-sm">
+            Created by{" "}
+            <a
+              href="https://www.linkedin.com/in/keithherrmann/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: THEME.SiteText,
+              }}
+            >
+              Keith Herrmann
+            </a>
+          </span>
+        </footer>
+      )}
 
       {submitting && (
         <div
