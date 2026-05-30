@@ -13,6 +13,13 @@ const REPEAT_SIGNALS_COLLECTION = "compass-repeat-signals-v1";
 const METRICS_COLLECTION = "compass-metrics-v1";
 const QUESTION_AVERAGES_DOC_ID = "question-averages-v1";
 const DAY_MS = 24 * 60 * 60 * 1000;
+const RESUBMIT_LOCK_WINDOW_MS = DAY_MS;
+const IP_SOFT_WINDOW_MS = DAY_MS;
+const IP_SOFT_ALLOW_COUNT = 3;
+const IP_HARD_WINDOW_MS = 10 * 60 * 1000;
+const IP_HARD_BLOCK_COUNT = 20;
+const SUSPICIOUS_PATTERN_WINDOW_MS = 10 * 60 * 1000;
+const SIGNAL_HISTORY_LIMIT = 120;
 
 function hashValue(secret, value) {
   return createHmac("sha256", secret).update(value).digest("hex");
@@ -145,6 +152,47 @@ function upsertQuestionMetricEntry(
   };
 }
 
+function applyQuestionMetricDelta(
+  existingEntry,
+  {
+    totalValueDelta = 0,
+    totalCountDelta = 0,
+    defaultValueDelta = 0,
+    defaultCountDelta = 0,
+    now,
+    questionId,
+    questionKey,
+  },
+) {
+  const prev = readMetricEntry(existingEntry);
+  const rawCountTotal = prev.count_total + totalCountDelta;
+  const rawCountDefault = prev.count_default + defaultCountDelta;
+  const countTotal = Math.max(0, rawCountTotal);
+  const countDefault = Math.max(0, rawCountDefault);
+  const sumTotal = countTotal > 0
+    ? Number((prev.sum_total + totalValueDelta).toFixed(4))
+    : 0;
+  const sumDefault = countDefault > 0
+    ? Number((prev.sum_default + defaultValueDelta).toFixed(4))
+    : 0;
+  const avgTotal = countTotal > 0 ? Number((sumTotal / countTotal).toFixed(4)) : 0;
+  const avgDefault = countDefault > 0
+    ? Number((sumDefault / countDefault).toFixed(4))
+    : 0;
+
+  return {
+    question_id: questionId || prev.question_id,
+    question_key: questionKey || prev.question_key,
+    sum_total: sumTotal,
+    count_total: countTotal,
+    avg_total: avgTotal,
+    sum_default: sumDefault,
+    count_default: countDefault,
+    avg_default: avgDefault,
+    updated_at: now,
+  };
+}
+
 function cleanDemographics(demo) {
   const source = demo && typeof demo === "object" ? demo : {};
   return {
@@ -154,6 +202,32 @@ function cleanDemographics(demo) {
     occupation: cleanString(source.occupation, 128),
     notes: cleanString(source.notes, 512),
   };
+}
+
+function readRecentSubmissionTimestamps(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => Number(entry))
+    .filter((entry) => Number.isFinite(entry) && entry > 0);
+}
+
+function readRecentSignatureEntries(value) {
+  if (!Array.isArray(value)) return [];
+  const entries = [];
+  for (const rawEntry of value) {
+    if (!rawEntry || typeof rawEntry !== "object") continue;
+    const at = Number(rawEntry.at);
+    const answersHash = cleanString(rawEntry.answers_hash, 128);
+    const demographicsHash = cleanString(rawEntry.demographics_hash, 128);
+    if (!Number.isFinite(at) || at <= 0) continue;
+    if (!answersHash || !demographicsHash) continue;
+    entries.push({
+      at,
+      answers_hash: answersHash,
+      demographics_hash: demographicsHash,
+    });
+  }
+  return entries;
 }
 
 export const submitCompassResult = onRequest(
@@ -176,6 +250,7 @@ export const submitCompassResult = onRequest(
     const cutoff = now - DAY_MS;
     const secret = HASH_SECRET.value();
     const quizVersion = cleanString(payload.quiz_version, 32);
+    const isDevSubmission = payload.is_dev === true;
 
     const deviceUuid = cleanString(payload.device_uuid, 256);
     const sessionUuid = cleanString(payload.session_uuid, 256);
@@ -203,6 +278,15 @@ export const submitCompassResult = onRequest(
     );
     const questionEntries = cleanQuestionEntries(payload);
     const answersHash = hashValue(secret, `answers:${JSON.stringify(answers)}`);
+    const demographicsHash = hashValue(
+      secret,
+      `demographics:${JSON.stringify({
+        age: demographics.age,
+        country: demographics.country,
+        industry: demographics.industry,
+        occupation: demographics.occupation,
+      })}`,
+    );
     const segments =
       payload.segments && typeof payload.segments === "object"
         ? payload.segments
@@ -212,8 +296,7 @@ export const submitCompassResult = onRequest(
             industry: demographics.industry || "__UNSPECIFIED__",
           };
 
-    const submissionId = `sub_${randomUUID()}`;
-    const submissionRef = db.collection(SUBMISSIONS_COLLECTION).doc(submissionId);
+    const fallbackSubmissionId = `sub_${randomUUID()}`;
     const ipSignalRef = ipHash
       ? db.collection(REPEAT_SIGNALS_COLLECTION).doc(`ip_${ipHash}`)
       : null;
@@ -254,34 +337,134 @@ export const submitCompassResult = onRequest(
           lockedQuizVersion !== "" &&
           quizVersion !== "" &&
           lockedQuizVersion === quizVersion;
-        if (sameQuizVersion && lockedAnswersHash && lockedAnswersHash !== answersHash) {
-          const error = new Error("Answers are locked for this device.");
-          error.code = "answers_locked";
-          throw error;
-        }
-
         const ipLast = typeof ipSignal?.last_submission_at === "number"
           ? ipSignal.last_submission_at
           : 0;
         const deviceLast = typeof deviceSignal?.last_submission_at === "number"
           ? deviceSignal.last_submission_at
           : 0;
+        const lockWindowExpiresAt =
+          deviceLast > 0 ? deviceLast + RESUBMIT_LOCK_WINDOW_MS : 0;
+        const isLockWindowActive = lockWindowExpiresAt > now;
+        if (
+          !isDevSubmission &&
+          sameQuizVersion &&
+          lockedAnswersHash &&
+          lockedAnswersHash !== answersHash &&
+          isLockWindowActive
+        ) {
+          const error = new Error("Answers are locked for this device.");
+          error.code = "answers_locked";
+          error.retryAfterMs = Math.max(0, lockWindowExpiresAt - now);
+          error.retryAt = lockWindowExpiresAt;
+          throw error;
+        }
 
         const isRepeatIp24h = ipLast >= cutoff;
         const isRepeatDevice24h = deviceLast >= cutoff;
-        const includeInDefaultAggregate = !(isRepeatIp24h || isRepeatDevice24h);
-        const includeInDevicePriorityAggregate = !isRepeatDevice24h;
-        const repeatClassification = isRepeatDevice24h
-          ? "repeat_device_24h"
-          : isRepeatIp24h
-            ? "repeat_ip_24h_only"
-            : "first_or_stale";
+        const recentIpSubmissionTimestamps = readRecentSubmissionTimestamps(
+          ipSignal?.recent_submission_timestamps,
+        );
+        const ipSoftWindowCutoff = now - IP_SOFT_WINDOW_MS;
+        const ipHardWindowCutoff = now - IP_HARD_WINDOW_MS;
+        const recentIpSubmissionsInSoftWindow = recentIpSubmissionTimestamps
+          .filter((timestamp) => timestamp >= ipSoftWindowCutoff)
+          .sort((a, b) => a - b);
+        const recentIpSubmissionsInHardWindow = recentIpSubmissionsInSoftWindow
+          .filter((timestamp) => timestamp >= ipHardWindowCutoff)
+          .sort((a, b) => a - b);
+        if (
+          !isDevSubmission &&
+          recentIpSubmissionsInHardWindow.length >= IP_HARD_BLOCK_COUNT
+        ) {
+          const earliestHardWindowTimestamp = recentIpSubmissionsInHardWindow[0];
+          const retryAt = earliestHardWindowTimestamp + IP_HARD_WINDOW_MS;
+          const error = new Error(
+            "Too many submissions from this network. Please try again later.",
+          );
+          error.code = "ip_rate_limited";
+          error.retryAfterMs = Math.max(0, retryAt - now);
+          error.retryAt = retryAt;
+          throw error;
+        }
+        const recentSignatureEntries = readRecentSignatureEntries(
+          ipSignal?.recent_submission_signatures,
+        );
+        const recentSignatureEntriesInSoftWindow = recentSignatureEntries.filter(
+          (entry) => entry.at >= ipSoftWindowCutoff,
+        );
+        const recentSignatureEntriesInSuspiciousWindow =
+          recentSignatureEntries.filter(
+            (entry) => entry.at >= now - SUSPICIOUS_PATTERN_WINDOW_MS,
+          );
+        const isIpSoftLimited =
+          !isDevSubmission &&
+          ipHash !== "" &&
+          recentIpSubmissionsInSoftWindow.length >= IP_SOFT_ALLOW_COUNT;
+        const hasRapidDuplicatePattern = !isDevSubmission &&
+          recentSignatureEntriesInSuspiciousWindow.some(
+            (entry) =>
+              entry.answers_hash === answersHash &&
+              entry.demographics_hash === demographicsHash,
+          );
+        const excludedByDuplicatePolicy =
+          isRepeatDevice24h || isIpSoftLimited || hasRapidDuplicatePattern;
+        const includeInDefaultAggregate = !excludedByDuplicatePolicy;
+        const includeInDevicePriorityAggregate = !excludedByDuplicatePolicy;
+        const repeatClassification = isDevSubmission
+          ? "dev_submission"
+          : hasRapidDuplicatePattern
+          ? "duplicate_pattern_rapid"
+          : isRepeatDevice24h
+            ? "repeat_device_24h"
+            : isIpSoftLimited
+              ? "repeat_ip_rate_limited"
+              : isRepeatIp24h
+                ? "repeat_ip_24h_only"
+                : "first_or_stale";
+        const duplicatePolicyFlags = [
+          isRepeatDevice24h ? "repeat_device_24h" : "",
+          isIpSoftLimited ? "ip_soft_limit_exceeded" : "",
+          hasRapidDuplicatePattern ? "rapid_duplicate_pattern" : "",
+        ].filter(Boolean);
+        const nextRecentIpSubmissionTimestamps = [
+          ...recentIpSubmissionsInSoftWindow,
+          now,
+        ].slice(-SIGNAL_HISTORY_LIMIT);
+        const nextRecentSignatureEntries = [
+          ...recentSignatureEntriesInSoftWindow,
+          {
+            at: now,
+            answers_hash: answersHash,
+            demographics_hash: demographicsHash,
+          },
+        ].slice(-SIGNAL_HISTORY_LIMIT);
         const repeatGroupId = isRepeatIp24h || isRepeatDevice24h
           ? cleanString(
               ipSignal?.repeat_group_id || deviceSignal?.repeat_group_id || "",
               96,
             ) || `rg_${randomUUID()}`
           : "";
+        const previousSubmissionIdRaw = cleanString(
+          deviceSignal?.latest_submission_id || deviceSignal?.submission_id,
+          128,
+        );
+        const previousSubmissionId =
+          previousSubmissionIdRaw.startsWith("sub_") &&
+          !previousSubmissionIdRaw.includes("/")
+            ? previousSubmissionIdRaw
+            : "";
+        const submissionId = isDevSubmission
+          ? fallbackSubmissionId
+          : previousSubmissionId || fallbackSubmissionId;
+        const submissionRef = db.collection(SUBMISSIONS_COLLECTION).doc(submissionId);
+        const previousSubmissionSnap = !isDevSubmission && previousSubmissionId
+          ? await txn.get(submissionRef)
+          : null;
+        const previousSubmission =
+          previousSubmissionSnap?.exists ? previousSubmissionSnap.data() : null;
+        const previousIncludedInDefaultAggregate =
+          previousSubmission?.include_in_default_aggregate === true;
 
         const xScore = cleanNumber(payload.x_score);
         const yScore = cleanNumber(payload.y_score);
@@ -331,6 +514,10 @@ export const submitCompassResult = onRequest(
           include_in_default_aggregate: includeInDefaultAggregate,
           include_in_device_priority_aggregate: includeInDevicePriorityAggregate,
           repeat_classification: repeatClassification,
+          duplicate_policy_flags: duplicatePolicyFlags,
+          ip_submission_count_24h: recentIpSubmissionsInSoftWindow.length + 1,
+          is_ip_soft_limited: isIpSoftLimited,
+          is_suspicious_repeat_pattern: hasRapidDuplicatePattern,
           ip_hash: ipHash,
           device_id_hash: deviceIdHash,
           session_id_hash: sessionIdHash,
@@ -341,7 +528,7 @@ export const submitCompassResult = onRequest(
 
         txn.set(submissionRef, submissionDoc);
 
-        if (ipSignalRef) {
+        if (ipSignalRef && !isDevSubmission) {
           txn.set(
             ipSignalRef,
             {
@@ -349,13 +536,15 @@ export const submitCompassResult = onRequest(
               hash: ipHash,
               last_submission_at: now,
               repeat_group_id: repeatGroupId,
+              recent_submission_timestamps: nextRecentIpSubmissionTimestamps,
+              recent_submission_signatures: nextRecentSignatureEntries,
               updated_at: now,
             },
             { merge: true },
           );
         }
 
-        if (deviceSignalRef) {
+        if (deviceSignalRef && !isDevSubmission) {
           txn.set(
             deviceSignalRef,
             {
@@ -363,8 +552,9 @@ export const submitCompassResult = onRequest(
               hash: deviceIdHash,
               last_submission_at: now,
               repeat_group_id: repeatGroupId,
-              locked_answers_hash: lockedAnswersHash || answersHash,
-              locked_quiz_version: lockedQuizVersion || quizVersion,
+              locked_answers_hash: answersHash,
+              locked_quiz_version: quizVersion || lockedQuizVersion,
+              latest_submission_id: submissionId,
               updated_at: now,
             },
             { merge: true },
@@ -377,6 +567,39 @@ export const submitCompassResult = onRequest(
         const metricsByKey = {
           ...readMetricGroup(questionAverages?.questions_by_key),
         };
+        const previousQuestionEntries = previousSubmission
+          ? cleanQuestionEntries(previousSubmission)
+          : [];
+        for (const entry of previousQuestionEntries) {
+          metricsById[entry.questionId] = applyQuestionMetricDelta(
+            metricsById[entry.questionId],
+            {
+              totalValueDelta: -entry.value,
+              totalCountDelta: -1,
+              defaultValueDelta: previousIncludedInDefaultAggregate
+                ? -entry.value
+                : 0,
+              defaultCountDelta: previousIncludedInDefaultAggregate ? -1 : 0,
+              now,
+              questionId: entry.questionId,
+              questionKey: entry.questionKey,
+            },
+          );
+          metricsByKey[entry.questionKey] = applyQuestionMetricDelta(
+            metricsByKey[entry.questionKey],
+            {
+              totalValueDelta: -entry.value,
+              totalCountDelta: -1,
+              defaultValueDelta: previousIncludedInDefaultAggregate
+                ? -entry.value
+                : 0,
+              defaultCountDelta: previousIncludedInDefaultAggregate ? -1 : 0,
+              now,
+              questionId: entry.questionId,
+              questionKey: entry.questionKey,
+            },
+          );
+        }
         for (const entry of questionEntries) {
           metricsById[entry.questionId] = upsertQuestionMetricEntry(
             metricsById[entry.questionId],
@@ -406,14 +629,25 @@ export const submitCompassResult = onRequest(
         const previousSubmissionCountDefault = cleanNumber(
           questionAverages?.submission_count_default,
         );
+        const totalCountDelta = previousSubmission ? 0 : 1;
+        const defaultCountDelta = previousSubmission
+          ? (includeInDefaultAggregate ? 1 : 0) -
+            (previousIncludedInDefaultAggregate ? 1 : 0)
+          : includeInDefaultAggregate
+            ? 1
+            : 0;
         txn.set(
           questionAveragesRef,
           {
             updated_at: now,
-            submission_count_total: previousSubmissionCountTotal + 1,
-            submission_count_default: includeInDefaultAggregate
-              ? previousSubmissionCountDefault + 1
-              : previousSubmissionCountDefault,
+            submission_count_total: Math.max(
+              0,
+              previousSubmissionCountTotal + totalCountDelta,
+            ),
+            submission_count_default: Math.max(
+              0,
+              previousSubmissionCountDefault + defaultCountDelta,
+            ),
             questions_by_id: metricsById,
             questions_by_key: metricsByKey,
           },
@@ -424,7 +658,22 @@ export const submitCompassResult = onRequest(
       });
     } catch (error) {
       if (error?.code === "answers_locked") {
-        res.status(409).json({ error: "Answers are locked for this device." });
+        res.status(409).json({
+          error: "Answers are locked for this device.",
+          code: "answers_locked",
+          retry_after_ms: Math.max(0, Number(error.retryAfterMs) || 0),
+          retry_at: Number(error.retryAt) || 0,
+        });
+        return;
+      }
+      if (error?.code === "ip_rate_limited") {
+        res.status(429).json({
+          error:
+            "Too many submissions from this network. Please try again later.",
+          code: "ip_rate_limited",
+          retry_after_ms: Math.max(0, Number(error.retryAfterMs) || 0),
+          retry_at: Number(error.retryAt) || 0,
+        });
         return;
       }
       throw error;

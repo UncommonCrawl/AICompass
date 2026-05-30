@@ -167,6 +167,9 @@ const LAST_RESULT_STORAGE_KEY = "ai_compass_last_result_v1";
 const LAST_SUBMISSION_STORAGE_KEY = "ai_compass_last_submission_v1";
 const DEV_RESULT_PERSISTENCE_ENABLED_STORAGE_KEY =
   "ai_compass_dev_result_persistence_enabled_v1";
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+const RESUBMIT_LOCK_WINDOW_MS = DAY_MS;
 const UNKNOWN_SEGMENT_VALUE = "__UNSPECIFIED__";
 const QUIZ_VERSION = "2026-05-29";
 const QUESTION_MEDIAN_BY_ID = Object.fromEntries(
@@ -1139,6 +1142,37 @@ function normalizeShortText(value, maxLength = 256) {
   return value.trim().slice(0, maxLength);
 }
 
+function getLockWindowExpiresAt(timestamp) {
+  const base = Number(timestamp);
+  if (!Number.isFinite(base) || base <= 0) return 0;
+  return base + RESUBMIT_LOCK_WINDOW_MS;
+}
+
+function getRemainingLockMs(lockExpiresAt, now = Date.now()) {
+  const expiresAt = Number(lockExpiresAt);
+  if (!Number.isFinite(expiresAt) || expiresAt <= 0) return 0;
+  return Math.max(0, expiresAt - now);
+}
+
+function formatDayHourCountdown(remainingMs) {
+  const safeMs = Math.max(0, Number(remainingMs) || 0);
+  if (safeMs <= 0) return "0d 0h";
+  const totalHours = Math.ceil(safeMs / HOUR_MS);
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+  return `${days}d ${hours}h`;
+}
+
+function readRetryAtFromError(error) {
+  const retryAt = Number(error?.retryAt);
+  if (Number.isFinite(retryAt) && retryAt > 0) return retryAt;
+  const retryAfterMs = Number(error?.retryAfterMs);
+  if (Number.isFinite(retryAfterMs) && retryAfterMs > 0) {
+    return Date.now() + retryAfterMs;
+  }
+  return 0;
+}
+
 function readInitialLocalSubmission() {
   const submission = readJsonFromLocalStorage(LAST_SUBMISSION_STORAGE_KEY);
   if (!submission || typeof submission !== "object") return null;
@@ -1185,7 +1219,7 @@ function readInitialLocalSubmission() {
     questionKeys: Array.isArray(submission.questionKeys)
       ? submission.questionKeys
       : [],
-    createdAt: Number.isFinite(createdAt) ? createdAt : Date.now(),
+    createdAt: Number.isFinite(createdAt) ? createdAt : 0,
   };
 }
 
@@ -1316,12 +1350,13 @@ async function submitCompassResult(payload) {
         collection(db, COMPASS_RESULTS_COLLECTION),
         submission,
       );
+      const savedId = docRef.id;
       return {
         ok: true,
         submission: {
           ...submission,
-          submission_id: docRef.id,
-          id: docRef.id,
+          submission_id: savedId,
+          id: savedId,
         },
       };
     }
@@ -1342,7 +1377,11 @@ async function submitCompassResult(payload) {
       typeof body?.error === "string" && body.error.trim() !== ""
         ? body.error
         : `HTTP ${response.status}`;
-    throw new Error(message);
+    const error = new Error(message);
+    error.code = typeof body?.code === "string" ? body.code : "";
+    error.retryAfterMs = Number(body?.retry_after_ms) || 0;
+    error.retryAt = Number(body?.retry_at) || 0;
+    throw error;
   }
   return body;
 }
@@ -2405,7 +2444,15 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
   const [industry, setIndustry] = useState(() => initialFormState.industry);
   const [jobTitle, setJobTitle] = useState(() => initialFormState.jobTitle);
   const [notes, setNotes] = useState(() => initialFormState.notes);
-  const answersLocked = Object.keys(initialFormState.answers).length > 0;
+  const [lockCountdownNow, setLockCountdownNow] = useState(() => Date.now());
+  const hasSavedAnswers = Object.keys(initialFormState.answers).length > 0;
+  const resubmitLockExpiresAt = getLockWindowExpiresAt(initialSubmission?.createdAt);
+  const answersLocked =
+    hasSavedAnswers &&
+    getRemainingLockMs(resubmitLockExpiresAt, lockCountdownNow) > 0;
+  const resubmitCountdown = formatDayHourCountdown(
+    getRemainingLockMs(resubmitLockExpiresAt, lockCountdownNow),
+  );
   const allAnswered = orderedQuestions.every(
     (q) => answers[q.id] !== undefined,
   );
@@ -2487,6 +2534,14 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
       canSubmit,
     });
   }, [answeredCount, orderedQuestions.length, canSubmit, onProgressChange]);
+
+  useEffect(() => {
+    if (!hasSavedAnswers) return undefined;
+    const timer = setInterval(() => {
+      setLockCountdownNow(Date.now());
+    }, 60 * 1000);
+    return () => clearInterval(timer);
+  }, [hasSavedAnswers]);
 
   return (
     <div style={{ maxWidth: 640, margin: "0 auto" }}>
@@ -2825,7 +2880,7 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
           {canSubmit ? (
             "See Results"
           ) : answersLocked ? (
-            "Saved answers are locked"
+            `Resubmission opens in ${resubmitCountdown}`
           ) : !allAnswered ? (
             <span className="type-label">
               {`Answer all ${orderedQuestions.length} questions to continue`}
@@ -2878,6 +2933,13 @@ export default function AICompass() {
     useState(false);
   const [homeCanvasDrawn, setHomeCanvasDrawn] = useState(false);
   const [showHomeLoading, setShowHomeLoading] = useState(true);
+  const [submissionLockRetryAt, setSubmissionLockRetryAt] = useState(0);
+  const [lockCountdownNow, setLockCountdownNow] = useState(() => Date.now());
+  const lockCountdownText = useMemo(() => {
+    const remaining = getRemainingLockMs(submissionLockRetryAt, lockCountdownNow);
+    if (remaining <= 0) return "";
+    return formatDayHourCountdown(remaining);
+  }, [submissionLockRetryAt, lockCountdownNow]);
   const resetQuizProgress = () =>
     setQuizProgress({
       answered: 0,
@@ -2907,6 +2969,13 @@ export default function AICompass() {
       JSON.stringify(latestLocalSubmission),
     );
   }, [latestLocalSubmission]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setLockCountdownNow(Date.now());
+    }, 60 * 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Subscribe to live Firestore updates once on first render.
   useEffect(() => {
@@ -3056,7 +3125,6 @@ export default function AICompass() {
     };
 
     setUserResult({ ...entry, id: localId });
-    setLatestLocalSubmission(localSubmissionSnapshot);
     setScreen("results");
 
     const stallTimer = setTimeout(() => {
@@ -3095,6 +3163,7 @@ export default function AICompass() {
         }
         const savedId = saved.submission_id || saved.id || localId;
         setFirestoreError("");
+        setSubmissionLockRetryAt(0);
         if (options.isDev === true && !COMPASS_SUBMIT_ENDPOINT) {
           setResults((prev) => {
             const next = {
@@ -3114,17 +3183,24 @@ export default function AICompass() {
               }
             : prev,
         );
-        setLatestLocalSubmission((prev) => {
-          if (!prev || prev.submissionId !== localId) return prev;
-          return {
-            ...prev,
-            submissionId: savedId,
-            createdAt: Number(saved.created_at ?? saved.ts) || prev.createdAt,
-          };
+        setLatestLocalSubmission({
+          ...localSubmissionSnapshot,
+          submissionId: savedId,
+          createdAt: Number(saved.created_at ?? saved.ts) || clientCreatedAt,
         });
       })
       .catch((error) => {
         console.error("Survey submission error:", error);
+        if (error?.code === "answers_locked") {
+          const fallbackRetryAt = getLockWindowExpiresAt(
+            latestLocalSubmission?.createdAt,
+          );
+          const retryAt = readRetryAtFromError(error) || fallbackRetryAt;
+          setSubmissionLockRetryAt(retryAt);
+          setFirestoreError("");
+          return;
+        }
+        setSubmissionLockRetryAt(0);
         setFirestoreError(
           error?.message
             ? `Unable to submit (${error.message}).`
@@ -3607,7 +3683,7 @@ export default function AICompass() {
           boxSizing: "border-box",
         }}
       >
-        {firestoreError && (
+        {(lockCountdownText || firestoreError) && (
           <div
             className="type-body-sm"
             style={{
@@ -3620,7 +3696,9 @@ export default function AICompass() {
               color: "var(--color-ink)",
             }}
           >
-            {firestoreError}
+            {lockCountdownText
+              ? `Resubmission opens in ${lockCountdownText}.`
+              : firestoreError}
           </div>
         )}
 
