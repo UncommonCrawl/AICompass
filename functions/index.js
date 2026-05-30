@@ -87,12 +87,64 @@ function cleanQuestionIdToKeyMap(questionOrder, questionKeys) {
   return map;
 }
 
+function cleanQuestionSchema(value) {
+  if (!Array.isArray(value)) return [];
+  const schema = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const id = cleanString(entry.id, 64);
+    const answerKey = cleanString(entry.answerKey || entry.questionKey, 64);
+    if (!id || !answerKey) continue;
+    schema.push({
+      id,
+      answerKey,
+      axis: cleanString(entry.axis, 8),
+      direction: cleanNumber(entry.direction),
+      label: cleanString(entry.label, 128),
+      text: cleanString(entry.text, 512),
+    });
+  }
+  return schema;
+}
+
+function cleanQuestionIdToKeyMapFromSchema(questionSchema) {
+  if (!Array.isArray(questionSchema)) return {};
+  const map = {};
+  for (const entry of questionSchema) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const id = cleanString(entry.id, 64);
+    const key = cleanString(entry.answerKey || entry.questionKey, 64);
+    if (!id || !key) continue;
+    map[id] = key;
+  }
+  return map;
+}
+
+function cleanQuestionIdToKeyMapFromResponses(questionResponses) {
+  if (!Array.isArray(questionResponses)) return {};
+  const map = {};
+  for (const response of questionResponses) {
+    if (!response || typeof response !== "object" || Array.isArray(response)) {
+      continue;
+    }
+    const id = cleanString(response.questionId, 64);
+    const key = cleanString(response.questionKey, 64);
+    if (!id || !key) continue;
+    map[id] = key;
+  }
+  return map;
+}
+
 function cleanQuestionEntries(payload) {
   const valuesById = cleanAnswersMap(payload?.question_values);
-  const idToKey = cleanQuestionIdToKeyMap(
-    payload?.question_order,
-    payload?.question_keys,
-  );
+  const idToKey = {
+    ...cleanQuestionIdToKeyMapFromResponses(payload?.question_responses),
+    ...cleanQuestionIdToKeyMap(
+      payload?.question_order,
+      payload?.question_keys,
+    ),
+    ...cleanQuestionIdToKeyMapFromSchema(payload?.question_schema),
+  };
   return Object.entries(valuesById).map(([questionId, value]) => ({
     questionId,
     questionKey: idToKey[questionId] || questionId,
@@ -250,6 +302,11 @@ export const submitCompassResult = onRequest(
     const cutoff = now - DAY_MS;
     const secret = HASH_SECRET.value();
     const quizVersion = cleanString(payload.quiz_version, 32);
+    const questionSchemaVersion = cleanString(
+      payload.question_schema_version,
+      128,
+    );
+    const questionSchema = cleanQuestionSchema(payload.question_schema);
     const isDevSubmission = payload.is_dev === true;
 
     const deviceUuid = cleanString(payload.device_uuid, 256);
@@ -474,6 +531,9 @@ export const submitCompassResult = onRequest(
           ts: now,
           quiz_version: quizVersion,
           quizVersion: quizVersion,
+          question_schema_version: questionSchemaVersion,
+          questionSchemaVersion: questionSchemaVersion,
+          question_schema: questionSchema,
           x_score: xScore,
           y_score: yScore,
           x: xScore,

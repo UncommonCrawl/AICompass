@@ -156,6 +156,25 @@ const RESPONSE_RANGE = {
   step: 0.01,
 };
 
+const QUESTION_SCHEMA = QUESTIONS.map((question) => ({
+  id: question.id,
+  answerKey: question.answerKey,
+  axis: question.axis,
+  direction: question.direction,
+  label: question.label,
+  text: question.text,
+}));
+
+function computeStableQuestionSchemaVersion(questionSchema) {
+  const input = JSON.stringify(questionSchema);
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `qs_${questionSchema.length}_${(hash >>> 0).toString(16)}`;
+}
+
 const RESULT_SCHEMA_VERSION = 3;
 const COMPASS_RESULTS_COLLECTION = "compass-results-v2";
 const COMPASS_SUBMIT_ENDPOINT = (
@@ -172,6 +191,8 @@ const DAY_MS = 24 * HOUR_MS;
 const RESUBMIT_LOCK_WINDOW_MS = DAY_MS;
 const UNKNOWN_SEGMENT_VALUE = "__UNSPECIFIED__";
 const QUIZ_VERSION = "2026-05-29";
+const QUESTION_SCHEMA_VERSION =
+  computeStableQuestionSchemaVersion(QUESTION_SCHEMA);
 const QUESTION_MEDIAN_BY_ID = Object.fromEntries(
   QUESTIONS.map((question) => [question.id, 0]),
 );
@@ -699,6 +720,8 @@ function buildQuestionAnalyticsPayload(answers, questionOrder = []) {
   }
 
   return {
+    questionSchemaVersion: QUESTION_SCHEMA_VERSION,
+    questionSchema: QUESTION_SCHEMA,
     questionOrder:
       questionOrder.length > 0 ? questionOrder : QUESTIONS.map((q) => q.id),
     questionKeys:
@@ -711,6 +734,81 @@ function buildQuestionAnalyticsPayload(answers, questionOrder = []) {
     questionValuesByKey: valuesByQuestionKey,
     questionResponses: responses,
     questionMedians: QUESTION_MEDIAN_BY_ID,
+  };
+}
+
+function readQuestionResponseValueMap(result) {
+  if (!result || typeof result !== "object") return {};
+  if (!Array.isArray(result.question_responses)) return {};
+  const valueMap = {};
+  for (const response of result.question_responses) {
+    if (!response || typeof response !== "object") continue;
+    const questionId =
+      typeof response.questionId === "string" ? response.questionId : "";
+    if (!questionId) continue;
+    const value = normalizeAnswerValue(response.value);
+    if (value === null) continue;
+    valueMap[questionId] = value;
+  }
+  return valueMap;
+}
+
+function extractAnswersByQuestionIdFromResult(result) {
+  if (!result || typeof result !== "object") return {};
+  const fromQuestionValues =
+    result.questionValues && typeof result.questionValues === "object"
+      ? result.questionValues
+      : result.question_values && typeof result.question_values === "object"
+        ? result.question_values
+        : {};
+  const fromAnswers =
+    result.answers && typeof result.answers === "object" ? result.answers : {};
+  const fromResponseValueMap = readQuestionResponseValueMap(result);
+  const values = {};
+
+  for (const question of QUESTIONS) {
+    const rawValue =
+      fromQuestionValues[question.id] ??
+      fromAnswers[question.id] ??
+      fromAnswers[question.answerKey] ??
+      fromResponseValueMap[question.id] ??
+      null;
+    const normalizedValue = normalizeAnswerValue(rawValue);
+    if (normalizedValue === null) continue;
+    values[question.id] = normalizedValue;
+  }
+
+  return values;
+}
+
+function normalizeDevResultToCurrentQuestionSchema(result) {
+  if (!result || typeof result !== "object") return result;
+  const isDevEntry = result.isDev === true || result.is_dev === true;
+  if (!isDevEntry) return result;
+
+  const answersByQuestionId = extractAnswersByQuestionIdFromResult(result);
+  const questionAnalytics = buildQuestionAnalyticsPayload(
+    answersByQuestionId,
+    QUESTIONS.map((question) => question.id),
+  );
+
+  return {
+    ...result,
+    quiz_version: QUIZ_VERSION,
+    quizVersion: QUIZ_VERSION,
+    question_schema_version: QUESTION_SCHEMA_VERSION,
+    questionSchemaVersion: QUESTION_SCHEMA_VERSION,
+    question_schema: QUESTION_SCHEMA,
+    questionSchema: QUESTION_SCHEMA,
+    question_order: questionAnalytics.questionOrder,
+    question_keys: questionAnalytics.questionKeys,
+    question_values: questionAnalytics.questionValues,
+    question_responses: questionAnalytics.questionResponses,
+    question_medians: questionAnalytics.questionMedians,
+    ...questionAnalytics,
+    answers: questionAnalytics.questionValuesByKey,
+    is_dev: true,
+    isDev: true,
   };
 }
 
@@ -1044,6 +1142,17 @@ function extractQuizVersionFromRecord(record) {
   return "";
 }
 
+function extractQuestionSchemaVersionFromRecord(record) {
+  if (!record || typeof record !== "object") return "";
+  if (typeof record.questionSchemaVersion === "string") {
+    return record.questionSchemaVersion.trim();
+  }
+  if (typeof record.question_schema_version === "string") {
+    return record.question_schema_version.trim();
+  }
+  return "";
+}
+
 function clampLabelText(value, maxChars) {
   if (typeof value !== "string") return "";
   const trimmed = value.trim();
@@ -1121,7 +1230,15 @@ function readInitialPersistedResultState() {
       ? persisted.userResult
       : null;
   const persistedQuizVersion = extractQuizVersionFromRecord(userResult);
-  if (persistedQuizVersion !== QUIZ_VERSION) {
+  const persistedQuestionSchemaVersion =
+    extractQuestionSchemaVersionFromRecord(userResult);
+  const isQuestionSchemaMatch =
+    persistedQuestionSchemaVersion === "" ||
+    persistedQuestionSchemaVersion === QUESTION_SCHEMA_VERSION;
+  if (
+    persistedQuizVersion !== QUIZ_VERSION ||
+    !isQuestionSchemaMatch
+  ) {
     removeLocalStorageItem(LAST_RESULT_STORAGE_KEY);
     return {
       scores: null,
@@ -1195,9 +1312,26 @@ function readInitialLocalSubmission() {
       ? submission.demographics
       : {};
   const createdAt = Number(submission.createdAt);
+  const questionSchemaVersion = normalizeShortText(
+    submission.questionSchemaVersion || submission.question_schema_version,
+    128,
+  );
+  const normalizedQuestionSchemaVersion =
+    questionSchemaVersion || QUESTION_SCHEMA_VERSION;
+  if (normalizedQuestionSchemaVersion !== QUESTION_SCHEMA_VERSION) {
+    removeLocalStorageItem(LAST_SUBMISSION_STORAGE_KEY);
+    return null;
+  }
+  const questionSchema =
+    Array.isArray(submission.questionSchema) ||
+    Array.isArray(submission.question_schema)
+      ? submission.questionSchema || submission.question_schema
+      : QUESTION_SCHEMA;
   return {
     submissionId: normalizeShortText(submission.submissionId, 128),
     quizVersion: storedQuizVersion,
+    questionSchemaVersion: normalizedQuestionSchemaVersion,
+    questionSchema,
     answers,
     answersByQuestionId,
     xScore: Number(submission.xScore) || 0,
@@ -1287,6 +1421,17 @@ async function submitCompassResult(payload) {
           typeof payload.quiz_version === "string" ? payload.quiz_version : "",
         quizVersion:
           typeof payload.quiz_version === "string" ? payload.quiz_version : "",
+        question_schema_version:
+          typeof payload.question_schema_version === "string"
+            ? payload.question_schema_version
+            : QUESTION_SCHEMA_VERSION,
+        questionSchemaVersion:
+          typeof payload.question_schema_version === "string"
+            ? payload.question_schema_version
+            : QUESTION_SCHEMA_VERSION,
+        question_schema: Array.isArray(payload.question_schema)
+          ? payload.question_schema
+          : QUESTION_SCHEMA,
         x_score: xScore,
         y_score: yScore,
         x: xScore,
@@ -3070,10 +3215,12 @@ export default function AICompass() {
     const unsubscribe = onSnapshot(
       resultsQuery,
       (snapshot) => {
-        const nextResults = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+        const nextResults = snapshot.docs.map((doc) =>
+          normalizeDevResultToCurrentQuestionSchema({
+            id: doc.id,
+            ...doc.data(),
+          }),
+        );
         setHasInitialResultsSnapshot(true);
         setFirestoreError("");
         setResults((prev) => {
@@ -3174,6 +3321,9 @@ export default function AICompass() {
       },
       resultSchemaVersion: RESULT_SCHEMA_VERSION,
       ...questionAnalytics,
+      question_schema_version: questionAnalytics.questionSchemaVersion,
+      questionSchemaVersion: questionAnalytics.questionSchemaVersion,
+      question_schema: questionAnalytics.questionSchema,
       answers: questionAnalytics.questionValuesByKey,
       segments: demographicSegments,
       is_repeat_ip_24h: false,
@@ -3190,6 +3340,8 @@ export default function AICompass() {
     const localSubmissionSnapshot = {
       submissionId: localId,
       quizVersion: QUIZ_VERSION,
+      questionSchemaVersion: questionAnalytics.questionSchemaVersion,
+      questionSchema: questionAnalytics.questionSchema,
       answers: questionAnalytics.questionValuesByKey,
       answersByQuestionId: questionAnalytics.questionValues,
       xScore: activeScores.x,
@@ -3219,6 +3371,8 @@ export default function AICompass() {
 
     const payload = {
       quiz_version: QUIZ_VERSION,
+      question_schema_version: questionAnalytics.questionSchemaVersion,
+      question_schema: questionAnalytics.questionSchema,
       x_score: activeScores.x,
       y_score: activeScores.y,
       archetype,
@@ -3245,25 +3399,28 @@ export default function AICompass() {
           throw new Error("Invalid submit response");
         }
         const savedId = saved.submission_id || saved.id || localId;
+        const mergedSavedEntry = {
+          ...entry,
+          ...saved,
+          id: savedId,
+        };
+        const normalizedSavedEntry =
+          options.isDev === true
+            ? normalizeDevResultToCurrentQuestionSchema(mergedSavedEntry)
+            : mergedSavedEntry;
         setFirestoreError("");
         setSubmissionLockRetryAt(0);
         if (options.isDev === true && !COMPASS_SUBMIT_ENDPOINT) {
           setResults((prev) => {
-            const next = {
-              ...entry,
-              ...saved,
-              id: savedId,
-            };
-            return [...prev.filter((dot) => dot.id !== savedId), next];
+            return [
+              ...prev.filter((dot) => dot.id !== savedId),
+              normalizedSavedEntry,
+            ];
           });
         }
         setUserResult((prev) =>
           prev?.id === localId
-            ? {
-                ...entry,
-                ...saved,
-                id: savedId,
-              }
+            ? normalizedSavedEntry
             : prev,
         );
         setLatestLocalSubmission({
@@ -3397,7 +3554,7 @@ export default function AICompass() {
     const dummyScores = calculateScores(dummyAnswersById);
     const archetype =
       QUADRANT_INFO[getQuadrant(dummyScores.x, dummyScores.y)].name;
-    const dummyUserResult = {
+    const dummyUserResult = normalizeDevResultToCurrentQuestionSchema({
       id: `${LOCAL_DEV_DUMMY_RESULT_ID_PREFIX}${now}`,
       x: dummyScores.x,
       y: dummyScores.y,
@@ -3417,6 +3574,9 @@ export default function AICompass() {
         notes: "",
       },
       ...dummyQuestionAnalytics,
+      question_schema_version: dummyQuestionAnalytics.questionSchemaVersion,
+      questionSchemaVersion: dummyQuestionAnalytics.questionSchemaVersion,
+      question_schema: dummyQuestionAnalytics.questionSchema,
       answers: dummyQuestionAnalytics.questionValuesByKey,
       isDev: true,
       is_dev: true,
@@ -3424,10 +3584,12 @@ export default function AICompass() {
       ts: now,
       device_uuid: localDeviceId,
       deviceUuid: localDeviceId,
-    };
+    });
     const dummyLocalSubmission = {
       submissionId: dummyUserResult.id,
       quizVersion: QUIZ_VERSION,
+      questionSchemaVersion: dummyQuestionAnalytics.questionSchemaVersion,
+      questionSchema: dummyQuestionAnalytics.questionSchema,
       answers: dummyQuestionAnalytics.questionValuesByKey,
       answersByQuestionId: dummyQuestionAnalytics.questionValues,
       xScore: dummyScores.x,
