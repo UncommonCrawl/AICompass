@@ -2632,7 +2632,8 @@ function QuizPage({
   const isEditingPaused =
     isRetakeReady && editAnswersUnlocked && !editAnswersEnabled;
   const inputsLocked = answersLocked || needsEditToResubmit || isEditingPaused;
-  const useFadedUserGreenLockedSlider = answersLocked || isEditingPaused;
+  const isLabelSlidersState =
+    answersLocked || (isRetakeReady && !editAnswersEnabled);
   const resubmitCountdown = formatDayHourCountdown(remainingLockMs);
   const allAnswered = orderedQuestions.every(
     (q) => answers[q.id] !== undefined,
@@ -2736,7 +2737,7 @@ function QuizPage({
     () => resolveCssColorVar("--user-button", DEFAULT_USER_DOT_COLOR),
     [],
   );
-  const reviewEditingOffSliderThumbColor = useMemo(
+  const labelSliderIconColor = useMemo(
     () => createWhitenedGreenFromColor(createFadedUserDotColor(userDotColor)),
     [userDotColor],
   );
@@ -2780,11 +2781,22 @@ function QuizPage({
     <div style={{ maxWidth: 640, margin: "0 auto" }}>
       <style>{`
         .response-slider-wrap {
+          --slider-thumb-color: ${THEME.SiteText};
+          --slider-rail-color: ${THEME.SiteText};
           position: relative;
           width: 100%;
           height: 18px;
           display: flex;
           align-items: center;
+        }
+
+        .response-slider-wrap.is-locked {
+          --slider-thumb-color: ${GRAY};
+          --slider-rail-color: ${GRAY};
+        }
+
+        .response-slider-wrap.is-label-sliders {
+          --slider-thumb-color: ${labelSliderIconColor};
         }
 
         .response-slider-rail {
@@ -2794,12 +2806,13 @@ function QuizPage({
           top: 50%;
           transform: translateY(-50%);
           height: 6px;
-          border: 1px solid ${THEME.SiteText};
+          border: 1px solid var(--slider-rail-color);
           border-radius: 999px;
           background: transparent;
           pointer-events: none;
           box-sizing: border-box;
           z-index: 1;
+          transition: border-color 1s ease;
         }
 
         .response-slider {
@@ -2832,8 +2845,8 @@ function QuizPage({
           height: ${RESPONSE_SLIDER_THUMB_SIZE_PX}px;
           margin-top: ${(RESPONSE_SLIDER_TRACK_SIZE_PX - RESPONSE_SLIDER_THUMB_SIZE_PX) / 2}px;
           border-radius: 50%;
-          background: ${THEME.SiteText};
-          border: 1px solid ${THEME.SiteText};
+          background: var(--slider-thumb-color);
+          border: 1px solid var(--slider-thumb-color);
           box-shadow: none;
           box-sizing: border-box;
           transition:
@@ -2852,8 +2865,8 @@ function QuizPage({
           width: ${RESPONSE_SLIDER_THUMB_SIZE_PX}px;
           height: ${RESPONSE_SLIDER_THUMB_SIZE_PX}px;
           border-radius: 50%;
-          background: ${THEME.SiteText};
-          border: 1px solid ${THEME.SiteText};
+          background: var(--slider-thumb-color);
+          border: 1px solid var(--slider-thumb-color);
           box-shadow: none;
           box-sizing: border-box;
           transition:
@@ -2875,30 +2888,6 @@ function QuizPage({
           cursor: not-allowed;
         }
 
-        .response-slider.is-locked::-webkit-slider-thumb {
-          background: ${GRAY};
-          border: 1px solid ${GRAY};
-        }
-
-        .response-slider.is-locked::-moz-range-thumb {
-          background: ${GRAY};
-          border: 1px solid ${GRAY};
-        }
-
-        .response-slider.is-locked.is-faded-user-green::-webkit-slider-thumb {
-          background: ${reviewEditingOffSliderThumbColor};
-          border: 1px solid ${reviewEditingOffSliderThumbColor};
-        }
-
-        .response-slider.is-locked.is-faded-user-green::-moz-range-thumb {
-          background: ${reviewEditingOffSliderThumbColor};
-          border: 1px solid ${reviewEditingOffSliderThumbColor};
-        }
-
-        .response-slider-wrap.is-locked .response-slider-rail {
-          border-color: ${GRAY};
-        }
-
         .response-slider-user-label {
           position: absolute;
           top: 50%;
@@ -2911,6 +2900,12 @@ function QuizPage({
           color: var(--color-ink);
           pointer-events: none;
           z-index: 3;
+          opacity: 0;
+          transition: opacity 1s ease;
+        }
+
+        .response-slider-user-label.is-visible {
+          opacity: 1;
         }
       `}</style>
       {/* Questions */}
@@ -2927,8 +2922,8 @@ function QuizPage({
           ),
         );
         const sliderThumbCenterLeft = `calc(${RESPONSE_SLIDER_THUMB_SIZE_PX / 2}px + (${sliderThumbPercent} * (100% - ${RESPONSE_SLIDER_THUMB_SIZE_PX}px) / 100))`;
-        const showSliderYouLabel =
-          useFadedUserGreenLockedSlider && answerValue !== undefined;
+        const hasAnsweredValue = answerValue !== undefined;
+        const showSliderYouLabel = isLabelSlidersState && hasAnsweredValue;
         return (
           <div
             key={q.id}
@@ -2966,12 +2961,16 @@ function QuizPage({
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <div
-                className={`response-slider-wrap ${inputsLocked ? "is-locked" : ""}`}
+                className={`response-slider-wrap ${inputsLocked ? "is-locked" : ""} ${
+                  isLabelSlidersState ? "is-label-sliders" : ""
+                }`}
               >
                 <div className="response-slider-rail" />
-                {showSliderYouLabel && (
+                {hasAnsweredValue && (
                   <span
-                    className="type-caption-small response-slider-user-label"
+                    className={`type-caption-small response-slider-user-label ${
+                      showSliderYouLabel ? "is-visible" : ""
+                    }`}
                     style={{ left: sliderThumbCenterLeft }}
                   >
                     YOU
@@ -2980,9 +2979,7 @@ function QuizPage({
                 <input
                   className={`response-slider ${
                     answerValue === undefined ? "is-unanswered" : ""
-                  } ${inputsLocked ? "is-locked" : ""} ${
-                    useFadedUserGreenLockedSlider ? "is-faded-user-green" : ""
-                  }`}
+                  } ${inputsLocked ? "is-locked" : ""}`}
                   type="range"
                   min={RESPONSE_RANGE.min}
                   max={RESPONSE_RANGE.max}
