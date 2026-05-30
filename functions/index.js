@@ -10,6 +10,8 @@ const db = getFirestore();
 const HASH_SECRET = defineSecret("COMPASS_HASH_SECRET");
 const SUBMISSIONS_COLLECTION = "compass-results-v2";
 const REPEAT_SIGNALS_COLLECTION = "compass-repeat-signals-v1";
+const METRICS_COLLECTION = "compass-metrics-v1";
+const QUESTION_AVERAGES_DOC_ID = "question-averages-v1";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function hashValue(secret, value) {
@@ -63,6 +65,84 @@ function cleanAnswersMap(value) {
   }
   entries.sort(([a], [b]) => a.localeCompare(b));
   return Object.fromEntries(entries);
+}
+
+function cleanQuestionIdToKeyMap(questionOrder, questionKeys) {
+  if (!Array.isArray(questionOrder) || !Array.isArray(questionKeys)) return {};
+  const map = {};
+  const total = Math.min(questionOrder.length, questionKeys.length);
+  for (let i = 0; i < total; i += 1) {
+    const id = cleanString(questionOrder[i], 64);
+    const key = cleanString(questionKeys[i], 64);
+    if (!id || !key) continue;
+    map[id] = key;
+  }
+  return map;
+}
+
+function cleanQuestionEntries(payload) {
+  const valuesById = cleanAnswersMap(payload?.question_values);
+  const idToKey = cleanQuestionIdToKeyMap(
+    payload?.question_order,
+    payload?.question_keys,
+  );
+  return Object.entries(valuesById).map(([questionId, value]) => ({
+    questionId,
+    questionKey: idToKey[questionId] || questionId,
+    value,
+  }));
+}
+
+function readMetricGroup(source) {
+  return source && typeof source === "object" && !Array.isArray(source)
+    ? source
+    : {};
+}
+
+function readMetricEntry(source) {
+  const safe = source && typeof source === "object" ? source : {};
+  return {
+    sum_total: cleanNumber(safe.sum_total),
+    count_total: cleanNumber(safe.count_total),
+    avg_total: cleanNumber(safe.avg_total),
+    sum_default: cleanNumber(safe.sum_default),
+    count_default: cleanNumber(safe.count_default),
+    avg_default: cleanNumber(safe.avg_default),
+    updated_at: cleanNumber(safe.updated_at),
+    question_id: cleanString(safe.question_id, 64),
+    question_key: cleanString(safe.question_key, 64),
+  };
+}
+
+function upsertQuestionMetricEntry(
+  existingEntry,
+  { value, now, includeInDefaultAggregate, questionId, questionKey },
+) {
+  const prev = readMetricEntry(existingEntry);
+  const sumTotal = Number((prev.sum_total + value).toFixed(4));
+  const countTotal = prev.count_total + 1;
+  const avgTotal = Number((sumTotal / countTotal).toFixed(4));
+
+  const sumDefault = includeInDefaultAggregate
+    ? Number((prev.sum_default + value).toFixed(4))
+    : prev.sum_default;
+  const countDefault = includeInDefaultAggregate
+    ? prev.count_default + 1
+    : prev.count_default;
+  const avgDefault =
+    countDefault > 0 ? Number((sumDefault / countDefault).toFixed(4)) : 0;
+
+  return {
+    question_id: questionId,
+    question_key: questionKey,
+    sum_total: sumTotal,
+    count_total: countTotal,
+    avg_total: avgTotal,
+    sum_default: sumDefault,
+    count_default: countDefault,
+    avg_default: avgDefault,
+    updated_at: now,
+  };
 }
 
 function cleanDemographics(demo) {
@@ -121,6 +201,7 @@ export const submitCompassResult = onRequest(
         ? payload.answers
         : payload.question_values,
     );
+    const questionEntries = cleanQuestionEntries(payload);
     const answersHash = hashValue(secret, `answers:${JSON.stringify(answers)}`);
     const segments =
       payload.segments && typeof payload.segments === "object"
@@ -139,6 +220,9 @@ export const submitCompassResult = onRequest(
     const deviceSignalRef = deviceIdHash
       ? db.collection(REPEAT_SIGNALS_COLLECTION).doc(`device_${deviceIdHash}`)
       : null;
+    const questionAveragesRef = db
+      .collection(METRICS_COLLECTION)
+      .doc(QUESTION_AVERAGES_DOC_ID);
 
     let savedSubmission = null;
 
@@ -152,6 +236,10 @@ export const submitCompassResult = onRequest(
         const ipSignal = ipSignalSnap?.exists ? ipSignalSnap.data() : null;
         const deviceSignal = deviceSignalSnap?.exists
           ? deviceSignalSnap.data()
+          : null;
+        const questionAveragesSnap = await txn.get(questionAveragesRef);
+        const questionAverages = questionAveragesSnap?.exists
+          ? questionAveragesSnap.data()
           : null;
 
         const lockedAnswersHash = cleanString(
@@ -282,6 +370,55 @@ export const submitCompassResult = onRequest(
             { merge: true },
           );
         }
+
+        const metricsById = {
+          ...readMetricGroup(questionAverages?.questions_by_id),
+        };
+        const metricsByKey = {
+          ...readMetricGroup(questionAverages?.questions_by_key),
+        };
+        for (const entry of questionEntries) {
+          metricsById[entry.questionId] = upsertQuestionMetricEntry(
+            metricsById[entry.questionId],
+            {
+              value: entry.value,
+              now,
+              includeInDefaultAggregate,
+              questionId: entry.questionId,
+              questionKey: entry.questionKey,
+            },
+          );
+          metricsByKey[entry.questionKey] = upsertQuestionMetricEntry(
+            metricsByKey[entry.questionKey],
+            {
+              value: entry.value,
+              now,
+              includeInDefaultAggregate,
+              questionId: entry.questionId,
+              questionKey: entry.questionKey,
+            },
+          );
+        }
+
+        const previousSubmissionCountTotal = cleanNumber(
+          questionAverages?.submission_count_total,
+        );
+        const previousSubmissionCountDefault = cleanNumber(
+          questionAverages?.submission_count_default,
+        );
+        txn.set(
+          questionAveragesRef,
+          {
+            updated_at: now,
+            submission_count_total: previousSubmissionCountTotal + 1,
+            submission_count_default: includeInDefaultAggregate
+              ? previousSubmissionCountDefault + 1
+              : previousSubmissionCountDefault,
+            questions_by_id: metricsById,
+            questions_by_key: metricsByKey,
+          },
+          { merge: true },
+        );
 
         savedSubmission = submissionDoc;
       });
