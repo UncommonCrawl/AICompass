@@ -9,6 +9,7 @@
     "start": "node server.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test:compass-results-v2": "node scripts/test-compass-results-v2.mjs",
     "prestart": "npm run build"
   },
   "dependencies": {

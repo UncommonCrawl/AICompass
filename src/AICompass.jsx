@@ -3389,6 +3389,8 @@ export default function AICompass() {
       segments: demographicSegments,
       result_schema_version: RESULT_SCHEMA_VERSION,
       is_dev: isDevSubmit,
+      // Temporary compatibility for older deployed functions; canonical flag is is_dev.
+      isDev: isDevSubmit,
       client_created_at: clientCreatedAt,
       device_uuid: getOrCreateStorageId("local", DEVICE_ID_STORAGE_KEY),
       session_uuid: getOrCreateStorageId("session", SESSION_ID_STORAGE_KEY),
