@@ -783,7 +783,7 @@ function extractAnswersByQuestionIdFromResult(result) {
 
 function normalizeDevResultToCurrentQuestionSchema(result) {
   if (!result || typeof result !== "object") return result;
-  const isDevEntry = result.isDev === true || result.is_dev === true;
+  const isDevEntry = isDevRecord(result);
   if (!isDevEntry) return result;
 
   const answersByQuestionId = extractAnswersByQuestionIdFromResult(result);
@@ -808,8 +808,11 @@ function normalizeDevResultToCurrentQuestionSchema(result) {
     ...questionAnalytics,
     answers: questionAnalytics.questionValuesByKey,
     is_dev: true,
-    isDev: true,
   };
+}
+
+function isDevRecord(record) {
+  return record?.is_dev === true || record?.isDev === true;
 }
 
 function normalizeSegmentValue(value) {
@@ -1406,7 +1409,7 @@ function getClientCountryHint() {
 
 async function submitCompassResult(payload) {
   if (!COMPASS_SUBMIT_ENDPOINT) {
-    if (payload?.is_dev === true) {
+    if (payload?.is_dev === true || payload?.isDev === true) {
       const createdAt = Number(payload.client_created_at) || Date.now();
       const xScore = Number(payload.x_score) || 0;
       const yScore = Number(payload.y_score) || 0;
@@ -1489,7 +1492,6 @@ async function submitCompassResult(payload) {
         include_in_device_priority_aggregate: true,
         repeat_classification: "first_or_stale",
         is_dev: true,
-        isDev: true,
       };
       const docRef = await addDoc(
         collection(db, COMPASS_RESULTS_COLLECTION),
@@ -3226,7 +3228,7 @@ export default function AICompass() {
         setResults((prev) => {
           const nextIds = new Set(nextResults.map((dot) => dot.id));
           const localOnlyDevDots = prev.filter((dot) => {
-            if (dot?.isDev !== true) return false;
+            if (!isDevRecord(dot)) return false;
             if (typeof dot.id !== "string") return false;
             if (!dot.id.startsWith(LOCAL_DEV_ID_PREFIX)) return false;
             return !nextIds.has(dot.id);
@@ -3290,6 +3292,7 @@ export default function AICompass() {
     questionData = {},
     options = {},
   ) => {
+    const isDevSubmit = options?.is_dev === true || options?.isDev === true;
     const activeScores = overrideScores || scores;
     if (!activeScores) return;
     setSubmitting(true);
@@ -3333,7 +3336,7 @@ export default function AICompass() {
       repeat_classification: "first_or_stale",
       repeat_group_id: "",
       created_at: clientCreatedAt,
-      isDev: options.isDev === true,
+      is_dev: isDevSubmit,
       ts: clientCreatedAt,
     };
     const localId = `local-${Date.now()}`;
@@ -3385,7 +3388,7 @@ export default function AICompass() {
       question_medians: questionAnalytics.questionMedians,
       segments: demographicSegments,
       result_schema_version: RESULT_SCHEMA_VERSION,
-      is_dev: options.isDev === true,
+      is_dev: isDevSubmit,
       client_created_at: clientCreatedAt,
       device_uuid: getOrCreateStorageId("local", DEVICE_ID_STORAGE_KEY),
       session_uuid: getOrCreateStorageId("session", SESSION_ID_STORAGE_KEY),
@@ -3405,12 +3408,12 @@ export default function AICompass() {
           id: savedId,
         };
         const normalizedSavedEntry =
-          options.isDev === true
+          isDevSubmit
             ? normalizeDevResultToCurrentQuestionSchema(mergedSavedEntry)
             : mergedSavedEntry;
         setFirestoreError("");
         setSubmissionLockRetryAt(0);
-        if (options.isDev === true && !COMPASS_SUBMIT_ENDPOINT) {
+        if (isDevSubmit && !COMPASS_SUBMIT_ENDPOINT) {
           setResults((prev) => {
             return [
               ...prev.filter((dot) => dot.id !== savedId),
@@ -3502,7 +3505,7 @@ export default function AICompass() {
         answers: devAnswers,
         questionOrder: QUESTIONS.map((question) => question.id),
       },
-      { isDev: true },
+      { is_dev: true },
     );
   };
 
@@ -3515,12 +3518,12 @@ export default function AICompass() {
 
       const docsToDelete = allDocsSnap.docs.filter((docSnap) => {
         const data = docSnap.data();
-        return data?.isDev === true;
+        return isDevRecord(data);
       });
 
       await Promise.all(docsToDelete.map((docSnap) => deleteDoc(docSnap.ref)));
-      setResults((prev) => prev.filter((r) => r.isDev !== true));
-      setUserResult((prev) => (prev?.isDev === true ? null : prev));
+      setResults((prev) => prev.filter((r) => !isDevRecord(r)));
+      setUserResult((prev) => (isDevRecord(prev) ? null : prev));
       setFirestoreError("");
     } catch (error) {
       console.error("Clear dev dots error:", error);
@@ -3578,7 +3581,6 @@ export default function AICompass() {
       questionSchemaVersion: dummyQuestionAnalytics.questionSchemaVersion,
       question_schema: dummyQuestionAnalytics.questionSchema,
       answers: dummyQuestionAnalytics.questionValuesByKey,
-      isDev: true,
       is_dev: true,
       created_at: now,
       ts: now,
