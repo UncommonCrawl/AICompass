@@ -2429,7 +2429,13 @@ function Compass({
 }
 
 // --- Quiz Page ---
-function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
+function QuizPage({
+  onComplete,
+  onProgressChange,
+  initialSubmission = null,
+  editAnswersEnabled = false,
+  editAnswersUnlocked = false,
+}) {
   const orderedQuestions = QUESTIONS;
   const initialFormState = useMemo(
     () => buildInitialQuizFormState(initialSubmission),
@@ -2446,13 +2452,20 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
   const [notes, setNotes] = useState(() => initialFormState.notes);
   const [lockCountdownNow, setLockCountdownNow] = useState(() => Date.now());
   const hasSavedAnswers = Object.keys(initialFormState.answers).length > 0;
-  const resubmitLockExpiresAt = getLockWindowExpiresAt(initialSubmission?.createdAt);
-  const answersLocked =
-    hasSavedAnswers &&
-    getRemainingLockMs(resubmitLockExpiresAt, lockCountdownNow) > 0;
-  const resubmitCountdown = formatDayHourCountdown(
-    getRemainingLockMs(resubmitLockExpiresAt, lockCountdownNow),
+  const resubmitLockExpiresAt = getLockWindowExpiresAt(
+    initialSubmission?.createdAt,
   );
+  const remainingLockMs = getRemainingLockMs(
+    resubmitLockExpiresAt,
+    lockCountdownNow,
+  );
+  const answersLocked = hasSavedAnswers && remainingLockMs > 0;
+  const isRetakeReady = hasSavedAnswers && remainingLockMs <= 0;
+  const needsEditToResubmit = isRetakeReady && !editAnswersUnlocked;
+  const isEditingPaused =
+    isRetakeReady && editAnswersUnlocked && !editAnswersEnabled;
+  const inputsLocked = answersLocked || needsEditToResubmit || isEditingPaused;
+  const resubmitCountdown = formatDayHourCountdown(remainingLockMs);
   const allAnswered = orderedQuestions.every(
     (q) => answers[q.id] !== undefined,
   );
@@ -2461,7 +2474,11 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
   ).length;
   const hasDemographicSelections =
     ageRange !== "" && countryCode !== "" && industry !== "";
-  const canSubmit = !answersLocked && allAnswered && hasDemographicSelections;
+  const canSubmit =
+    !answersLocked &&
+    !needsEditToResubmit &&
+    allAnswered &&
+    hasDemographicSelections;
   const normalizedCountry =
     countryCode === PREFER_NOT_TO_SAY_VALUE ? "" : countryCode;
   const normalizedAge = ageRange === PREFER_NOT_TO_SAY_VALUE ? "" : ageRange;
@@ -2517,7 +2534,7 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
     outline: "none",
     boxSizing: "border-box",
   };
-  const lockedFieldTextColor = answersLocked ? GRAY : "var(--color-ink)";
+  const lockedFieldTextColor = inputsLocked ? GRAY : "var(--color-ink)";
   const fieldLabelStyle = {
     color: "var(--color-ink)",
     display: "flex",
@@ -2532,8 +2549,19 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
       answered: answeredCount,
       total: orderedQuestions.length,
       canSubmit,
+      canEditAnswers: isRetakeReady,
+      editAnswersEnabled,
+      editAnswersUnlocked,
     });
-  }, [answeredCount, orderedQuestions.length, canSubmit, onProgressChange]);
+  }, [
+    answeredCount,
+    orderedQuestions.length,
+    canSubmit,
+    isRetakeReady,
+    editAnswersEnabled,
+    editAnswersUnlocked,
+    onProgressChange,
+  ]);
 
   useEffect(() => {
     if (!hasSavedAnswers) return undefined;
@@ -2694,22 +2722,22 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <div
-              className={`response-slider-wrap ${answersLocked ? "is-locked" : ""}`}
+              className={`response-slider-wrap ${inputsLocked ? "is-locked" : ""}`}
             >
               <div className="response-slider-rail" />
               <input
                 className={`response-slider ${
                   answers[q.id] === undefined ? "is-unanswered" : ""
-                } ${answersLocked ? "is-locked" : ""}`}
+                } ${inputsLocked ? "is-locked" : ""}`}
                 type="range"
                 min={RESPONSE_RANGE.min}
                 max={RESPONSE_RANGE.max}
                 step={RESPONSE_RANGE.step}
                 value={answers[q.id] ?? 0}
-                disabled={answersLocked}
+                disabled={inputsLocked}
                 aria-label={`Response slider for question ${i + 1}`}
                 onChange={(e) =>
-                  answersLocked
+                  inputsLocked
                     ? undefined
                     : setAnswers((prev) => ({
                         ...prev,
@@ -2759,7 +2787,7 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
             onChange={setAgeRange}
             options={quizAgeOptions}
             placeholder="Select..."
-            disabled={answersLocked}
+            disabled={inputsLocked}
             textColor={lockedFieldTextColor}
           />
         </div>
@@ -2770,7 +2798,7 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
             onChange={setCountryCode}
             options={quizCountryOptions}
             placeholder="Select..."
-            disabled={answersLocked}
+            disabled={inputsLocked}
             textColor={lockedFieldTextColor}
           />
         </div>
@@ -2781,7 +2809,7 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
             onChange={setIndustry}
             options={quizIndustryOptions}
             placeholder="Select..."
-            disabled={answersLocked}
+            disabled={inputsLocked}
             textColor={lockedFieldTextColor}
           />
         </div>
@@ -2796,15 +2824,15 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
             className="type-body"
             value={jobTitle}
             onChange={(e) =>
-              answersLocked ? undefined : setJobTitle(e.target.value)
+              inputsLocked ? undefined : setJobTitle(e.target.value)
             }
-            placeholder={answersLocked ? "" : "e.g. Software Engineer"}
+            placeholder={inputsLocked ? "" : "e.g. Software Engineer"}
             maxLength={OCCUPATION_CHAR_LIMIT}
-            disabled={answersLocked}
+            disabled={inputsLocked}
             style={{
               ...inputStyle,
               color: lockedFieldTextColor,
-              cursor: answersLocked ? "not-allowed" : "text",
+              cursor: inputsLocked ? "not-allowed" : "text",
             }}
           />
         </div>
@@ -2819,7 +2847,7 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
             className="type-body"
             value={notes}
             onChange={(e) =>
-              answersLocked
+              inputsLocked
                 ? undefined
                 : setNotes(e.target.value.replace(/[\r\n]+/g, " "))
             }
@@ -2827,10 +2855,10 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
               if (e.key === "Enter") e.preventDefault();
             }}
             placeholder={
-              answersLocked ? "" : "Anything else you'd like to share"
+              inputsLocked ? "" : "Anything else you'd like to share"
             }
             maxLength={NOTES_CHAR_LIMIT}
-            disabled={answersLocked}
+            disabled={inputsLocked}
             rows={3}
             style={{
               ...inputStyle,
@@ -2839,7 +2867,7 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
               minHeight: 88,
               maxHeight: 88,
               resize: "none",
-              cursor: answersLocked ? "not-allowed" : "text",
+              cursor: inputsLocked ? "not-allowed" : "text",
             }}
           />
         </div>
@@ -2878,9 +2906,11 @@ function QuizPage({ onComplete, onProgressChange, initialSubmission = null }) {
           }}
         >
           {canSubmit ? (
-            "See Results"
+            "Submit"
           ) : answersLocked ? (
             `Resubmission opens in ${resubmitCountdown}`
+          ) : needsEditToResubmit ? (
+            "SELECT 'EDIT ANSWERS' TO RESUBMIT"
           ) : !allAnswered ? (
             <span className="type-label">
               {`Answer all ${orderedQuestions.length} questions to continue`}
@@ -2906,7 +2936,12 @@ export default function AICompass() {
     answered: 0,
     total: QUESTIONS.length,
     canSubmit: false,
+    canEditAnswers: false,
+    editAnswersEnabled: false,
+    editAnswersUnlocked: false,
   });
+  const [quizEditAnswersEnabled, setQuizEditAnswersEnabled] = useState(false);
+  const [quizEditAnswersUnlocked, setQuizEditAnswersUnlocked] = useState(false);
   const [results, setResults] = useState([]);
   const [userResult, setUserResult] = useState(
     initialPersistedResultState.userResult,
@@ -2921,6 +2956,8 @@ export default function AICompass() {
   const [clearingDevDots, setClearingDevDots] = useState(false);
   const [devResultPersistenceEnabled, setDevResultPersistenceEnabled] =
     useState(() => readDevResultPersistenceEnabled());
+  const [devRetakableDummyEnabled, setDevRetakableDummyEnabled] =
+    useState(false);
   const [disabledAges, setDisabledAges] = useState([]);
   const [disabledCountries, setDisabledCountries] = useState([]);
   const [disabledIndustries, setDisabledIndustries] = useState([]);
@@ -2936,7 +2973,10 @@ export default function AICompass() {
   const [submissionLockRetryAt, setSubmissionLockRetryAt] = useState(0);
   const [lockCountdownNow, setLockCountdownNow] = useState(() => Date.now());
   const lockCountdownText = useMemo(() => {
-    const remaining = getRemainingLockMs(submissionLockRetryAt, lockCountdownNow);
+    const remaining = getRemainingLockMs(
+      submissionLockRetryAt,
+      lockCountdownNow,
+    );
     if (remaining <= 0) return "";
     return formatDayHourCountdown(remaining);
   }, [submissionLockRetryAt, lockCountdownNow]);
@@ -2945,7 +2985,21 @@ export default function AICompass() {
       answered: 0,
       total: QUESTIONS.length,
       canSubmit: false,
+      canEditAnswers: false,
+      editAnswersEnabled: false,
+      editAnswersUnlocked: false,
     });
+
+  useEffect(() => {
+    if (quizProgress.canEditAnswers) return;
+    if (!quizEditAnswersEnabled && !quizEditAnswersUnlocked) return;
+    setQuizEditAnswersEnabled(false);
+    setQuizEditAnswersUnlocked(false);
+  }, [
+    quizProgress.canEditAnswers,
+    quizEditAnswersEnabled,
+    quizEditAnswersUnlocked,
+  ]);
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;
@@ -3294,19 +3348,7 @@ export default function AICompass() {
     }
   };
 
-  const handleToggleDevResultPersistence = () => {
-    const nextEnabled = !devResultPersistenceEnabled;
-    setDevResultPersistenceEnabled(nextEnabled);
-    if (!nextEnabled) {
-      removeLocalStorageItem(LAST_RESULT_STORAGE_KEY);
-      removeLocalStorageItem(LAST_SUBMISSION_STORAGE_KEY);
-      setLatestLocalSubmission(null);
-      setUserResult(null);
-      setScores(null);
-      setScreen("home");
-      return;
-    }
-    // Dev-only unified toggle behavior: enabling always loads a dummy user dot.
+  const buildDummyDevState = () => {
     const now = Date.now();
     const dummyAnswersById = Object.fromEntries(
       QUESTIONS.map((question) => [
@@ -3371,11 +3413,60 @@ export default function AICompass() {
       },
       questionOrder: dummyQuestionAnalytics.questionOrder,
       questionKeys: dummyQuestionAnalytics.questionKeys,
-      createdAt: now,
+      // Dev convenience: start from a 23h remaining lock window.
+      createdAt: now - HOUR_MS,
     };
+    return { dummyScores, dummyUserResult, dummyLocalSubmission };
+  };
+
+  const handleToggleDevResultPersistence = () => {
+    const nextEnabled = !devResultPersistenceEnabled;
+    setDevResultPersistenceEnabled(nextEnabled);
+    setDevRetakableDummyEnabled(false);
+    if (!nextEnabled) {
+      removeLocalStorageItem(LAST_RESULT_STORAGE_KEY);
+      removeLocalStorageItem(LAST_SUBMISSION_STORAGE_KEY);
+      setLatestLocalSubmission(null);
+      setUserResult(null);
+      setScores(null);
+      setScreen("home");
+      return;
+    }
+    // Dev-only unified toggle behavior: enabling always loads a dummy user dot.
+    const { dummyScores, dummyUserResult, dummyLocalSubmission } =
+      buildDummyDevState();
     setScores(dummyScores);
     setUserResult(dummyUserResult);
     setLatestLocalSubmission(dummyLocalSubmission);
+    setSubmissionLockRetryAt(0);
+    setFirestoreError("");
+    resetQuizProgress();
+    setScreen("results");
+  };
+
+  const handleToggleDummyRetakable = () => {
+    if (!devResultPersistenceEnabled) return;
+    const nextRetakable = !devRetakableDummyEnabled;
+    const { dummyScores, dummyUserResult, dummyLocalSubmission } =
+      buildDummyDevState();
+    const now = Date.now();
+    setDevRetakableDummyEnabled(nextRetakable);
+    setDevResultPersistenceEnabled(true);
+    setScores((prev) => prev || dummyScores);
+    setUserResult((prev) => prev || dummyUserResult);
+    setLatestLocalSubmission((prev) => {
+      const base =
+        prev && typeof prev === "object" ? prev : dummyLocalSubmission;
+      return {
+        ...base,
+        createdAt: nextRetakable ? now - (DAY_MS + HOUR_MS) : now - HOUR_MS,
+      };
+    });
+    setQuizEditAnswersEnabled(nextRetakable);
+    setQuizEditAnswersUnlocked(nextRetakable);
+    setSubmissionLockRetryAt(0);
+    setFirestoreError("");
+    resetQuizProgress();
     setScreen("results");
   };
 
@@ -3427,9 +3518,10 @@ export default function AICompass() {
     window.open(tweetIntent, "_blank", "noopener,noreferrer");
   }, [resultArchetypeName]);
   const hasCompletedQuiz = Boolean(
-    latestLocalSubmission?.answersByQuestionId &&
-    typeof latestLocalSubmission.answersByQuestionId === "object" &&
-    Object.keys(latestLocalSubmission.answersByQuestionId).length > 0,
+    (latestLocalSubmission?.answersByQuestionId &&
+      typeof latestLocalSubmission.answersByQuestionId === "object" &&
+      Object.keys(latestLocalSubmission.answersByQuestionId).length > 0) ||
+    (userResult && typeof userResult === "object"),
   );
   const visibleResults = useMemo(() => {
     const withUser =
@@ -3615,6 +3707,8 @@ export default function AICompass() {
                   onClick={() => {
                     setScreen("quiz");
                     setScores(null);
+                    setQuizEditAnswersEnabled(false);
+                    setQuizEditAnswersUnlocked(false);
                     resetQuizProgress();
                   }}
                   style={{
@@ -3667,9 +3761,41 @@ export default function AICompass() {
                     alignItems: "center",
                     justifyContent: "center",
                     color: THEME.SiteBG,
+                    gap: 8,
                   }}
                 >
-                  {quizProgress.answered} / {quizProgress.total} ANSWERED
+                  <span>
+                    {quizProgress.answered} / {quizProgress.total} ANSWERED
+                  </span>
+                  {quizProgress.canEditAnswers && (
+                    <>
+                      <span aria-hidden="true">•</span>
+                      <button
+                        type="button"
+                        className="type-caption"
+                        onClick={() => {
+                          setQuizEditAnswersEnabled((prev) => {
+                            const next = !prev;
+                            if (next) setQuizEditAnswersUnlocked(true);
+                            return next;
+                          });
+                        }}
+                        style={{
+                          border: "none",
+                          background: "none",
+                          padding: 0,
+                          margin: 0,
+                          color: THEME.SiteBG,
+                          textDecoration: "underline",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {quizProgress.editAnswersEnabled
+                          ? "EDITING ANSWERS"
+                          : "EDIT ANSWERS"}
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             )}
@@ -3835,6 +3961,8 @@ export default function AICompass() {
                         onClick={() => {
                           setScreen("quiz");
                           setScores(null);
+                          setQuizEditAnswersEnabled(false);
+                          setQuizEditAnswersUnlocked(false);
                           resetQuizProgress();
                         }}
                         style={{
@@ -4010,6 +4138,29 @@ export default function AICompass() {
                     Result persistence + dummy user:{" "}
                     {devResultPersistenceEnabled ? "On" : "Off"}
                   </button>
+                  <button
+                    className="type-body-sm"
+                    onClick={handleToggleDummyRetakable}
+                    disabled={!devResultPersistenceEnabled}
+                    style={{
+                      padding: "8px 14px",
+                      background: !devResultPersistenceEnabled
+                        ? "rgba(0,0,0,0.04)"
+                        : "rgba(0,0,0,0.08)",
+                      border: "1px solid rgba(0,0,0,0.14)",
+                      color: !devResultPersistenceEnabled
+                        ? "rgba(0,0,0,0.45)"
+                        : "var(--color-ink)",
+                      borderRadius: "var(--radius-base)",
+                      cursor: !devResultPersistenceEnabled
+                        ? "not-allowed"
+                        : "pointer",
+                      opacity: !devResultPersistenceEnabled ? 0.7 : 1,
+                    }}
+                  >
+                    Dummy user + retakable quiz:{" "}
+                    {devRetakableDummyEnabled ? "On" : "Off"}
+                  </button>
                 </div>
               )}
             </div>
@@ -4023,6 +4174,8 @@ export default function AICompass() {
               onComplete={handleQuizComplete}
               onProgressChange={setQuizProgress}
               initialSubmission={latestLocalSubmission}
+              editAnswersEnabled={quizEditAnswersEnabled}
+              editAnswersUnlocked={quizEditAnswersUnlocked}
             />
           </div>
         )}
