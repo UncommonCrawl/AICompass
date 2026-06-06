@@ -310,7 +310,7 @@ const HOME_SECTION_GAP = 20;
 const GRAY = "#b8b8b8";
 const LIGHT_GRAY = `color-mix(in oklab, ${GRAY} 20%, var(--color-paper) 80%)`;
 const RESULTS_STRIP_TOP_MARGIN = -24;
-const RESULTS_STRIP_BOTTOM_MARGIN = 28;
+const RESULTS_STRIP_BOTTOM_MARGIN = 16;
 const UNSPECIFIED_FILTER_VALUE = "__UNSPECIFIED__";
 const DROPDOWN_VIEWPORT_BUFFER = 10;
 const DROPDOWN_MENU_MAX_HEIGHT = 200;
@@ -3927,6 +3927,7 @@ export default function AICompass() {
   const showCompassView = screen === "home" || screen === "results";
   const showHomepageChrome = showCompassView;
   const showHeaderActionRow = screen === "home" || screen === "quiz";
+  const showResultsStrip = screen === "results" && hasCompletedQuiz;
   const activeQuadrant = pinnedQuadrant || hoveredQuadrant;
   const homeBodyReady = hasInitialResultsSnapshot && homeCanvasDrawn;
   useEffect(() => {
@@ -4015,6 +4016,253 @@ export default function AICompass() {
       body.style.overscrollBehaviorY = prevBodyOverscroll;
     };
   }, []);
+
+  const homepageBelowCompassContent = (
+    <>
+      {/* Keep homepage body content here so it appears in both home and results states. */}
+      <div
+        style={{
+          marginTop: HOME_SECTION_GAP,
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: 10,
+        }}
+      >
+        <MultiSelectFilter
+          label="AGE"
+          options={ageFilterOptions}
+          disabledValues={disabledAges}
+          setDisabledValues={setDisabledAges}
+        />
+        <MultiSelectFilter
+          label="LOCATION"
+          options={countryFilterOptions}
+          disabledValues={disabledCountries}
+          setDisabledValues={setDisabledCountries}
+        />
+        <MultiSelectFilter
+          label="INDUSTRY"
+          options={industryFilterOptions}
+          disabledValues={disabledIndustries}
+          setDisabledValues={setDisabledIndustries}
+        />
+      </div>
+
+      <div
+        style={{
+          width: "100%",
+          margin: `${HOME_SECTION_GAP}px auto 0`,
+          display: "grid",
+          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+          gap: 12,
+        }}
+      >
+        {ARCHETYPE_GRID_ORDER.map((key) => {
+          const val = QUADRANT_INFO[key];
+          return (
+            <div
+              key={key}
+              onMouseEnter={() => {
+                if (!pinnedQuadrant) setHoveredQuadrant(key);
+              }}
+              onMouseLeave={() => {
+                if (!pinnedQuadrant) setHoveredQuadrant(null);
+              }}
+              onClick={() =>
+                setPinnedQuadrant((prev) => {
+                  if (prev === key) return null;
+                  setHoveredQuadrant(null);
+                  return key;
+                })
+              }
+              style={{
+                padding: "24px 14px",
+                background: TAB_STYLE_VARS.outerBackground,
+                border:
+                  activeQuadrant === key
+                    ? tabBorder(TAB_STYLE_VARS.borderColorStrong)
+                    : tabBorder(TAB_STYLE_VARS.borderColorSubtle),
+                borderRadius: TAB_STYLE_VARS.borderRadius,
+                cursor: "pointer",
+                transition: "border-color 220ms ease",
+              }}
+            >
+              <div
+                className="type-heading"
+                style={{
+                  color: val.color,
+                  marginBottom: 4,
+                }}
+              >
+                {val.name}
+              </div>
+              <div
+                className="type-body-sm"
+                style={{
+                  color: "var(--color-ink)",
+                }}
+              >
+                {val.desc}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {import.meta.env.DEV && (
+        <div
+          style={{
+            marginTop: 18,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            flexWrap: "wrap",
+          }}
+        >
+          <button
+            className="type-body-sm"
+            onClick={handleDevShortcutSubmit}
+            style={{
+              padding: "8px 14px",
+              background: "rgba(0,0,0,0.08)",
+              border: "1px solid rgba(0,0,0,0.14)",
+              color: "var(--color-ink)",
+              borderRadius: "var(--radius-base)",
+              cursor: "pointer",
+            }}
+          >
+            Dev shortcut: random dot
+          </button>
+          <button
+            className="type-body-sm"
+            onClick={handleClearDevDots}
+            disabled={clearingDevDots}
+            style={{
+              padding: "8px 14px",
+              background: "rgba(0,0,0,0.08)",
+              border: "1px solid rgba(0,0,0,0.14)",
+              color: "var(--color-ink)",
+              borderRadius: "var(--radius-base)",
+              cursor: clearingDevDots ? "wait" : "pointer",
+              opacity: clearingDevDots ? 0.7 : 1,
+            }}
+          >
+            {clearingDevDots ? "Clearing dev dots..." : "Reset dev dots"}
+          </button>
+          <button
+            className="type-body-sm"
+            onClick={handleToggleDevResultPersistence}
+            style={{
+              padding: "8px 14px",
+              background: "rgba(0,0,0,0.08)",
+              border: "1px solid rgba(0,0,0,0.14)",
+              color: "var(--color-ink)",
+              borderRadius: "var(--radius-base)",
+              cursor: "pointer",
+            }}
+          >
+            Result persistence + dummy user:{" "}
+            {devResultPersistenceEnabled ? "On" : "Off"}
+          </button>
+          <button
+            className="type-body-sm"
+            onClick={handleToggleDummyRetakable}
+            disabled={!devResultPersistenceEnabled}
+            style={{
+              padding: "8px 14px",
+              background: !devResultPersistenceEnabled
+                ? "rgba(0,0,0,0.04)"
+                : "rgba(0,0,0,0.08)",
+              border: "1px solid rgba(0,0,0,0.14)",
+              color: !devResultPersistenceEnabled
+                ? "rgba(0,0,0,0.45)"
+                : "var(--color-ink)",
+              borderRadius: "var(--radius-base)",
+              cursor: !devResultPersistenceEnabled ? "not-allowed" : "pointer",
+              opacity: !devResultPersistenceEnabled ? 0.7 : 1,
+            }}
+          >
+            Dummy user + retakable quiz:{" "}
+            {devRetakableDummyEnabled ? "On" : "Off"}
+          </button>
+        </div>
+      )}
+      <section
+        style={{
+          width: "100%",
+          maxWidth: 640,
+          margin: "26px auto 0",
+          textAlign: "center",
+        }}
+      >
+        <div
+          className="type-display-lg"
+          style={{
+            color: "var(--color-ink)",
+            marginBottom: 8,
+          }}
+        >
+          ABOUT
+        </div>
+        <p
+          className="type-body-sm"
+          style={{
+            color: "var(--color-ink)",
+            maxWidth: "50%",
+            margin: "0 auto",
+            lineHeight: 1.5,
+            textAlign: "center",
+          }}
+        >
+          As large language models (LLMs) become more visible, more contested,
+          and more present in our daily lives, public opinion on AI is no longer
+          captured by a simple divide between optimism and skepticism.
+        </p>
+        <p
+          className="type-body-sm"
+          style={{
+            color: "var(--color-ink)",
+            maxWidth: "50%",
+            margin: "12px auto 0",
+            lineHeight: 1.5,
+            textAlign: "center",
+          }}
+        >
+          One can believe AI will be transformative while opposing the way it is
+          being developed; others may doubt its most ambitious promises while
+          still supporting practical adoption.
+        </p>
+        <p
+          className="type-body-sm"
+          style={{
+            color: "var(--color-ink)",
+            maxWidth: "50%",
+            margin: "12px auto 0",
+            lineHeight: 1.5,
+            textAlign: "center",
+          }}
+        >
+          The project maps those views across two dimensions: confidence in AI’s
+          abilities and approval of AI’s direction.
+        </p>
+        <p
+          className="type-body-sm"
+          style={{
+            color: "var(--color-ink)",
+            maxWidth: "50%",
+            margin: "12px auto 0",
+            lineHeight: 1.5,
+            textAlign: "center",
+          }}
+        >
+          By separating belief in what AI can do from judgment about what should
+          happen next, AI Compass creates a clearer picture of how individuals,
+          communities, and demographics relate to one of the defining
+          technologies of our time.
+        </p>
+      </section>
+    </>
+  );
 
   return (
     <div
@@ -4195,7 +4443,7 @@ export default function AICompass() {
 
       <div
         style={{
-          padding: `24px 48px ${showHomepageChrome ? 20 : 48}px`,
+          padding: `16px 48px ${showHomepageChrome ? 20 : 48}px`,
           boxSizing: "border-box",
         }}
       >
@@ -4251,7 +4499,7 @@ export default function AICompass() {
                 pointerEvents: homeBodyReady ? "auto" : "none",
               }}
             >
-              {screen === "results" && hasCompletedQuiz && (
+              {showResultsStrip && (
                 <div
                   style={{
                     marginTop: RESULTS_STRIP_TOP_MARGIN,
@@ -4380,257 +4628,7 @@ export default function AICompass() {
                   showResultMarkers={screen === "results"}
                 />
               </div>
-
-              <div
-                style={{
-                  marginTop: HOME_SECTION_GAP,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                  gap: 10,
-                }}
-              >
-                <MultiSelectFilter
-                  label="AGE"
-                  options={ageFilterOptions}
-                  disabledValues={disabledAges}
-                  setDisabledValues={setDisabledAges}
-                />
-                <MultiSelectFilter
-                  label="LOCATION"
-                  options={countryFilterOptions}
-                  disabledValues={disabledCountries}
-                  setDisabledValues={setDisabledCountries}
-                />
-                <MultiSelectFilter
-                  label="INDUSTRY"
-                  options={industryFilterOptions}
-                  disabledValues={disabledIndustries}
-                  setDisabledValues={setDisabledIndustries}
-                />
-              </div>
-
-              {/* Quadrant legend */}
-              <div
-                style={{
-                  width: "100%",
-                  margin: `${HOME_SECTION_GAP}px auto 0`,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                  gap: 12,
-                }}
-              >
-                {ARCHETYPE_GRID_ORDER.map((key) => {
-                  const val = QUADRANT_INFO[key];
-                  return (
-                    <div
-                      key={key}
-                      onMouseEnter={() => {
-                        if (!pinnedQuadrant) setHoveredQuadrant(key);
-                      }}
-                      onMouseLeave={() => {
-                        if (!pinnedQuadrant) setHoveredQuadrant(null);
-                      }}
-                      onClick={() =>
-                        setPinnedQuadrant((prev) => {
-                          if (prev === key) return null;
-                          setHoveredQuadrant(null);
-                          return key;
-                        })
-                      }
-                      style={{
-                        padding: "24px 14px",
-                        background: TAB_STYLE_VARS.outerBackground,
-                        border:
-                          activeQuadrant === key
-                            ? tabBorder(TAB_STYLE_VARS.borderColorStrong)
-                            : tabBorder(TAB_STYLE_VARS.borderColorSubtle),
-                        borderRadius: TAB_STYLE_VARS.borderRadius,
-                        cursor: "pointer",
-                        transition: "border-color 220ms ease",
-                      }}
-                    >
-                      <div
-                        className="type-heading"
-                        style={{
-                          color: val.color,
-                          marginBottom: 4,
-                        }}
-                      >
-                        {val.name}
-                      </div>
-                      <div
-                        className="type-body-sm"
-                        style={{
-                          color: "var(--color-ink)",
-                        }}
-                      >
-                        {val.desc}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              {import.meta.env.DEV && (
-                <div
-                  style={{
-                    marginTop: 18,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 8,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <button
-                    className="type-body-sm"
-                    onClick={handleDevShortcutSubmit}
-                    style={{
-                      padding: "8px 14px",
-                      background: "rgba(0,0,0,0.08)",
-                      border: "1px solid rgba(0,0,0,0.14)",
-                      color: "var(--color-ink)",
-                      borderRadius: "var(--radius-base)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Dev shortcut: random dot
-                  </button>
-                  <button
-                    className="type-body-sm"
-                    onClick={handleClearDevDots}
-                    disabled={clearingDevDots}
-                    style={{
-                      padding: "8px 14px",
-                      background: "rgba(0,0,0,0.08)",
-                      border: "1px solid rgba(0,0,0,0.14)",
-                      color: "var(--color-ink)",
-                      borderRadius: "var(--radius-base)",
-                      cursor: clearingDevDots ? "wait" : "pointer",
-                      opacity: clearingDevDots ? 0.7 : 1,
-                    }}
-                  >
-                    {clearingDevDots
-                      ? "Clearing dev dots..."
-                      : "Reset dev dots"}
-                  </button>
-                  <button
-                    className="type-body-sm"
-                    onClick={handleToggleDevResultPersistence}
-                    style={{
-                      padding: "8px 14px",
-                      background: "rgba(0,0,0,0.08)",
-                      border: "1px solid rgba(0,0,0,0.14)",
-                      color: "var(--color-ink)",
-                      borderRadius: "var(--radius-base)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Result persistence + dummy user:{" "}
-                    {devResultPersistenceEnabled ? "On" : "Off"}
-                  </button>
-                  <button
-                    className="type-body-sm"
-                    onClick={handleToggleDummyRetakable}
-                    disabled={!devResultPersistenceEnabled}
-                    style={{
-                      padding: "8px 14px",
-                      background: !devResultPersistenceEnabled
-                        ? "rgba(0,0,0,0.04)"
-                        : "rgba(0,0,0,0.08)",
-                      border: "1px solid rgba(0,0,0,0.14)",
-                      color: !devResultPersistenceEnabled
-                        ? "rgba(0,0,0,0.45)"
-                        : "var(--color-ink)",
-                      borderRadius: "var(--radius-base)",
-                      cursor: !devResultPersistenceEnabled
-                        ? "not-allowed"
-                        : "pointer",
-                      opacity: !devResultPersistenceEnabled ? 0.7 : 1,
-                    }}
-                  >
-                    Dummy user + retakable quiz:{" "}
-                    {devRetakableDummyEnabled ? "On" : "Off"}
-                  </button>
-                </div>
-              )}
-              {showHomepageChrome && (
-                <section
-                  style={{
-                    width: "100%",
-                    maxWidth: 640,
-                    margin: `26px auto 0`,
-                    textAlign: "center",
-                  }}
-                >
-                  <div
-                    className="type-display-lg"
-                    style={{
-                      color: "var(--color-ink)",
-                      marginBottom: 8,
-                    }}
-                  >
-                    ABOUT
-                  </div>
-                  <p
-                    className="type-body-sm"
-                    style={{
-                      color: "var(--color-ink)",
-                      maxWidth: "50%",
-                      margin: "0 auto",
-                      lineHeight: 1.5,
-                      textAlign: "center",
-                    }}
-                  >
-                    As large language models (LLMs) become more visible, more
-                    contested, and more present in our daily lives, public
-                    opinion on AI is no longer captured by a simple divide
-                    between optimism and skepticism.
-                  </p>
-                  <p
-                    className="type-body-sm"
-                    style={{
-                      color: "var(--color-ink)",
-                      maxWidth: "50%",
-                      margin: "12px auto 0",
-                      lineHeight: 1.5,
-                      textAlign: "center",
-                    }}
-                  >
-                    One can believe AI will be transformative while opposing the
-                    way it is being developed; others may doubt its most
-                    ambitious promises while still supporting practical
-                    adoption.
-                  </p>
-                  <p
-                    className="type-body-sm"
-                    style={{
-                      color: "var(--color-ink)",
-                      maxWidth: "50%",
-                      margin: "12px auto 0",
-                      lineHeight: 1.5,
-                      textAlign: "center",
-                    }}
-                  >
-                    The project maps those views across two dimensions:
-                    confidence in AI’s abilities and approval of AI’s direction.
-                  </p>
-                  <p
-                    className="type-body-sm"
-                    style={{
-                      color: "var(--color-ink)",
-                      maxWidth: "50%",
-                      margin: "12px auto 0",
-                      lineHeight: 1.5,
-                      textAlign: "center",
-                    }}
-                  >
-                    By separating belief in what AI can do from judgment about
-                    what should happen next, AI Compass creates a clearer
-                    picture of how individuals, communities, and demographics
-                    relate to one of the defining technologies of our time.
-                  </p>
-                </section>
-              )}
+              {homepageBelowCompassContent}
             </div>
           </div>
         )}
