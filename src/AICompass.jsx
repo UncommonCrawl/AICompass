@@ -3351,17 +3351,6 @@ export default function AICompass() {
     });
 
   useEffect(() => {
-    if (quizProgress.canEditAnswers) return;
-    if (!quizEditAnswersEnabled && !quizEditAnswersUnlocked) return;
-    setQuizEditAnswersEnabled(false);
-    setQuizEditAnswersUnlocked(false);
-  }, [
-    quizProgress.canEditAnswers,
-    quizEditAnswersEnabled,
-    quizEditAnswersUnlocked,
-  ]);
-
-  useEffect(() => {
     if (!import.meta.env.DEV) return;
     writeLocalStorageItem(
       DEV_RESULT_PERSISTENCE_ENABLED_STORAGE_KEY,
@@ -3936,6 +3925,7 @@ export default function AICompass() {
     });
   }, [results, userResult, devResultPersistenceEnabled, localDeviceId]);
   const showCompassView = screen === "home" || screen === "results";
+  const showHomepageChrome = showCompassView;
   const showHeaderActionRow = screen === "home" || screen === "quiz";
   const activeQuadrant = pinnedQuadrant || hoveredQuadrant;
   const homeBodyReady = hasInitialResultsSnapshot && homeCanvasDrawn;
@@ -4205,7 +4195,7 @@ export default function AICompass() {
 
       <div
         style={{
-          padding: `24px 48px 48px`,
+          padding: `24px 48px ${showHomepageChrome ? 20 : 48}px`,
           boxSizing: "border-box",
         }}
       >
@@ -4233,7 +4223,7 @@ export default function AICompass() {
           <div
             style={{
               position: "relative",
-              minHeight: `calc(100vh - ${HEADER_BAR_HEIGHT + (screen === "home" ? FOOTER_BAR_HEIGHT : 0) + 24 + 48}px)`,
+              minHeight: `calc(100vh - ${HEADER_BAR_HEIGHT + (showHomepageChrome ? FOOTER_BAR_HEIGHT + 5 : 0) + 24 + (showHomepageChrome ? 40 : 48)}px)`,
             }}
           >
             {showHomeLoading && (
@@ -4563,12 +4553,12 @@ export default function AICompass() {
                   </button>
                 </div>
               )}
-              {screen === "home" && (
+              {showHomepageChrome && (
                 <section
                   style={{
                     width: "100%",
                     maxWidth: 640,
-                    margin: `${HOME_SECTION_GAP}px auto 0`,
+                    margin: `26px auto 0`,
                     textAlign: "center",
                   }}
                 >
@@ -4660,10 +4650,11 @@ export default function AICompass() {
         )}
       </div>
 
-      {screen === "home" && (
+      {showHomepageChrome && (
         <footer
           style={{
             height: FOOTER_BAR_HEIGHT,
+            marginBottom: 5,
             background: THEME.SiteBG,
             color: THEME.SiteText,
             display: "flex",
