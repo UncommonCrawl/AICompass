@@ -45,3 +45,24 @@ Analytics-friendly fields:
 - `repeat_classification`: `first_or_stale`, `repeat_ip_24h_only`, `repeat_device_24h`
 - `include_in_default_aggregate`: strict default map
 - `include_in_device_priority_aggregate`: device-priority map
+
+## GitHub Pages Deployment
+
+This repo now includes a GitHub Pages workflow at `.github/workflows/deploy-pages.yml`.
+
+Required GitHub Actions secrets:
+
+- `VITE_FIREBASE_API_KEY`
+- `VITE_FIREBASE_AUTH_DOMAIN`
+- `VITE_FIREBASE_PROJECT_ID`
+- `VITE_FIREBASE_STORAGE_BUCKET`
+- `VITE_FIREBASE_MESSAGING_SENDER_ID`
+- `VITE_FIREBASE_APP_ID`
+- `VITE_FIREBASE_MEASUREMENT_ID`
+- `VITE_COMPASS_SUBMIT_ENDPOINT`
+
+Custom domain:
+
+- `public/CNAME` is set to `theaicompass.io`.
+- In GitHub repo settings, set Pages to `GitHub Actions`.
+- In DNS, point `theaicompass.io` at GitHub Pages instead of the current parked/GoDaddy site.
