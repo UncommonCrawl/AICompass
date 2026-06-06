@@ -4021,10 +4021,10 @@ export default function AICompass() {
     <>
       {/* Keep homepage body content here so it appears in both home and results states. */}
       <div
+        className="homepage-filter-grid"
         style={{
           marginTop: HOME_SECTION_GAP,
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
           gap: 10,
         }}
       >

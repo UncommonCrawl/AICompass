@@ -223,6 +223,16 @@ h6 {
   text-transform: uppercase;
 }
 
+.homepage-filter-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 780px) {
+  .homepage-filter-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .compass-action-button {
   --compass-action-bg: var(--color-paper);
   --compass-action-color: var(--color-ink);
