@@ -7,6 +7,10 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    match /compass-submission-private-v1/{submissionId} {
+      allow read, write: if false;
+    }
+
     match /compass-repeat-signals-v1/{signalId} {
       allow read, write: if false;
     }

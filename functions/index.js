@@ -9,6 +9,7 @@ initializeApp();
 const db = getFirestore();
 const HASH_SECRET = defineSecret("COMPASS_HASH_SECRET");
 const SUBMISSIONS_COLLECTION = "compass-results-v2";
+const SUBMISSION_PRIVATE_COLLECTION = "compass-submission-private-v1";
 const REPEAT_SIGNALS_COLLECTION = "compass-repeat-signals-v1";
 const METRICS_COLLECTION = "compass-metrics-v1";
 const QUESTION_AVERAGES_DOC_ID = "question-averages-v1";
@@ -516,6 +517,9 @@ export const submitCompassResult = onRequest(
           ? fallbackSubmissionId
           : previousSubmissionId || fallbackSubmissionId;
         const submissionRef = db.collection(SUBMISSIONS_COLLECTION).doc(submissionId);
+        const privateSubmissionRef = db
+          .collection(SUBMISSION_PRIVATE_COLLECTION)
+          .doc(submissionId);
         const previousSubmissionSnap = !isDevSubmission && previousSubmissionId
           ? await txn.get(submissionRef)
           : null;
@@ -579,6 +583,13 @@ export const submitCompassResult = onRequest(
           ip_submission_count_24h: recentIpSubmissionsInSoftWindow.length + 1,
           is_ip_soft_limited: isIpSoftLimited,
           is_suspicious_repeat_pattern: hasRapidDuplicatePattern,
+          is_dev: isDevSubmission,
+        };
+        const privateSubmissionDoc = {
+          submission_id: submissionId,
+          created_at: now,
+          updated_at: now,
+          quiz_version: quizVersion,
           ip_hash: ipHash,
           device_id_hash: deviceIdHash,
           session_id_hash: sessionIdHash,
@@ -587,6 +598,7 @@ export const submitCompassResult = onRequest(
         };
 
         txn.set(submissionRef, submissionDoc);
+        txn.set(privateSubmissionRef, privateSubmissionDoc);
 
         if (ipSignalRef && !isDevSubmission) {
           txn.set(

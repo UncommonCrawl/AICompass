@@ -9,6 +9,8 @@
     "start": "node server.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
+    "check:dots": "node scripts/check-live-dots.mjs",
+    "check:dots:temp": "node scripts/check-live-dots.mjs --temp",
     "test:compass-results-v2": "node scripts/test-compass-results-v2.mjs",
     "prestart": "npm run build"
   },
