@@ -14,6 +14,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  where,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { ISO_COUNTRIES } from "./isoCountries";
@@ -3427,53 +3428,94 @@ export default function AICompass() {
     return () => clearInterval(timer);
   }, []);
 
-  // Subscribe to live Firestore updates once on first render.
+  // Load the public map once, then listen only for dots created after this page
+  // session started. The submitter's own dot remains optimistic via userResult.
   useEffect(() => {
-    const resultsQuery = query(
-      collection(db, COMPASS_PUBLIC_DOTS_COLLECTION),
+    let cancelled = false;
+    const pageLoadStartedAt = Date.now();
+    const publicDotsCollection = collection(db, COMPASS_PUBLIC_DOTS_COLLECTION);
+    const normalizePublicDots = (docs) =>
+      docs.map((doc) =>
+        normalizeDevResultToCurrentQuestionSchema({
+          id: doc.id,
+          ...doc.data(),
+        }),
+      );
+    const mergePublicDots = (prev, nextDots) => {
+      const byId = new Map();
+      for (const dot of prev) {
+        const id = typeof dot?.id === "string" ? dot.id : "";
+        if (id) byId.set(id, dot);
+      }
+      for (const dot of nextDots) {
+        const id = typeof dot?.id === "string" ? dot.id : "";
+        if (id) byId.set(id, dot);
+      }
+      return [...byId.values()].sort(
+        (a, b) => extractResultTimestamp(a) - extractResultTimestamp(b),
+      );
+    };
+    const applyLatestLocalMatch = (nextResults) => {
+      if (!devResultPersistenceEnabled) return;
+      const latestMatch = nextResults
+        .filter((result) => extractDeviceUuidFromResult(result) === localDeviceId)
+        .sort((a, b) => extractResultTimestamp(b) - extractResultTimestamp(a))[0];
+      const latestScores = extractScoresFromResult(latestMatch);
+      if (latestMatch && latestScores) {
+        setUserResult((prev) => prev || latestMatch);
+        setScores((prev) => prev || latestScores);
+        setScreen((prev) => (prev === "home" ? "results" : prev));
+      }
+    };
+
+    getDocs(query(publicDotsCollection, orderBy("ts", "asc")))
+      .then((snapshot) => {
+        if (cancelled) return;
+        const nextResults = normalizePublicDots(snapshot.docs);
+        setHasInitialResultsSnapshot(true);
+        setFirestoreError("");
+        setResults((prev) => mergePublicDots(prev, nextResults));
+        applyLatestLocalMatch(nextResults);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.error("Firestore initial load error:", error);
+        setHasInitialResultsSnapshot(true);
+        setFirestoreError(
+          error?.code
+            ? `Live sync unavailable (${error.code}).`
+            : "Live sync unavailable right now.",
+        );
+      });
+
+    const recentResultsQuery = query(
+      publicDotsCollection,
+      where("ts", ">", pageLoadStartedAt),
       orderBy("ts", "asc"),
     );
 
     const unsubscribe = onSnapshot(
-      resultsQuery,
+      recentResultsQuery,
       (snapshot) => {
-        const nextResults = snapshot.docs.map((doc) =>
-          normalizeDevResultToCurrentQuestionSchema({
-            id: doc.id,
-            ...doc.data(),
-          }),
-        );
-        setHasInitialResultsSnapshot(true);
+        if (cancelled) return;
+        const nextResults = normalizePublicDots(snapshot.docs);
         setFirestoreError("");
         setResults((prev) => {
-          const nextIds = new Set(nextResults.map((dot) => dot.id));
-          const localOnlyDevDots = prev.filter((dot) => {
-            if (!isDevRecord(dot)) return false;
-            if (typeof dot.id !== "string") return false;
-            if (!dot.id.startsWith(LOCAL_DEV_ID_PREFIX)) return false;
-            return !nextIds.has(dot.id);
-          });
-          return [...nextResults, ...localOnlyDevDots];
+          const removedIds = new Set(
+            snapshot
+              .docChanges()
+              .filter((change) => change.type === "removed")
+              .map((change) => change.doc.id),
+          );
+          const keptResults = removedIds.size
+            ? prev.filter((dot) => !removedIds.has(dot.id))
+            : prev;
+          return mergePublicDots(keptResults, nextResults);
         });
-        if (devResultPersistenceEnabled) {
-          const latestMatch = nextResults
-            .filter(
-              (result) => extractDeviceUuidFromResult(result) === localDeviceId,
-            )
-            .sort(
-              (a, b) => extractResultTimestamp(b) - extractResultTimestamp(a),
-            )[0];
-          const latestScores = extractScoresFromResult(latestMatch);
-          if (latestMatch && latestScores) {
-            setUserResult((prev) => prev || latestMatch);
-            setScores((prev) => prev || latestScores);
-            setScreen((prev) => (prev === "home" ? "results" : prev));
-          }
-        }
+        applyLatestLocalMatch(nextResults);
       },
       (error) => {
         console.error("Firestore onSnapshot error:", error);
-        setHasInitialResultsSnapshot(true);
         setFirestoreError(
           error?.code
             ? `Live sync unavailable (${error.code}).`
@@ -3482,7 +3524,10 @@ export default function AICompass() {
       },
     );
 
-    return unsubscribe;
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, [devResultPersistenceEnabled, localDeviceId]);
 
   useEffect(() => {
