@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase-admin/app";
 import { FieldPath, FieldValue, getFirestore } from "firebase-admin/firestore";
 
-const PUBLIC_COLLECTION = "compass-results-v2";
+const PUBLIC_COLLECTION = "compass-public-dots-v1";
 const PRIVATE_COLLECTION = "compass-submission-private-v1";
 const MAX_DOCS_PER_BATCH = 250;
 const FINGERPRINT_FIELDS = [

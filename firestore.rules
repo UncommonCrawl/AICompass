@@ -3,8 +3,14 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /compass-results-v2/{submissionId} {
-      allow read: if true;
+      allow read: if false;
       allow create, update, delete: if false;
+    }
+
+    match /compass-public-dots-v1/{submissionId} {
+      allow read: if true;
+      allow create, update: if false;
+      allow delete: if resource.data.is_dev == true;
     }
 
     match /compass-submission-private-v1/{submissionId} {

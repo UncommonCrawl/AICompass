@@ -180,7 +180,7 @@ function computeStableQuestionSchemaVersion(questionSchema) {
 }
 
 const RESULT_SCHEMA_VERSION = 3;
-const COMPASS_RESULTS_COLLECTION = "compass-results-v2";
+const COMPASS_PUBLIC_DOTS_COLLECTION = "compass-public-dots-v1";
 const COMPASS_METRICS_COLLECTION = "compass-metrics-v1";
 const QUESTION_AVERAGES_DOC_ID = "question-averages-v1";
 const COMPASS_SUBMIT_ENDPOINT = (
@@ -3430,7 +3430,7 @@ export default function AICompass() {
   // Subscribe to live Firestore updates once on first render.
   useEffect(() => {
     const resultsQuery = query(
-      collection(db, COMPASS_RESULTS_COLLECTION),
+      collection(db, COMPASS_PUBLIC_DOTS_COLLECTION),
       orderBy("ts", "asc"),
     );
 
@@ -3753,7 +3753,7 @@ export default function AICompass() {
     setClearingDevDots(true);
     try {
       const allDocsSnap = await getDocs(
-        collection(db, COMPASS_RESULTS_COLLECTION),
+        collection(db, COMPASS_PUBLIC_DOTS_COLLECTION),
       );
 
       const docsToDelete = allDocsSnap.docs.filter((docSnap) => {

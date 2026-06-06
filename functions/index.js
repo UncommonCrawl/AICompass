@@ -9,6 +9,7 @@ initializeApp();
 const db = getFirestore();
 const HASH_SECRET = defineSecret("COMPASS_HASH_SECRET");
 const SUBMISSIONS_COLLECTION = "compass-results-v2";
+const PUBLIC_DOTS_COLLECTION = "compass-public-dots-v1";
 const SUBMISSION_PRIVATE_COLLECTION = "compass-submission-private-v1";
 const REPEAT_SIGNALS_COLLECTION = "compass-repeat-signals-v1";
 const METRICS_COLLECTION = "compass-metrics-v1";
@@ -596,8 +597,35 @@ export const submitCompassResult = onRequest(
           user_agent_hash: userAgentHash,
           is_dev: isDevSubmission,
         };
+        const publicDotDoc = {
+          submission_id: submissionId,
+          created_at: now,
+          ts: now,
+          x_score: xScore,
+          y_score: yScore,
+          x: xScore,
+          y: yScore,
+          archetype: submissionDoc.archetype,
+          demographics,
+          age: demographics.age,
+          country: demographics.country,
+          industry: demographics.industry,
+          occupation: demographics.occupation,
+          notes: demographics.notes,
+          segments,
+          include_in_default_aggregate: includeInDefaultAggregate,
+          include_in_device_priority_aggregate: includeInDevicePriorityAggregate,
+          is_repeat_ip_24h: isRepeatIp24h,
+          is_repeat_device_24h: isRepeatDevice24h,
+          repeat_classification: repeatClassification,
+          is_dev: isDevSubmission,
+        };
 
         txn.set(submissionRef, submissionDoc);
+        txn.set(
+          db.collection(PUBLIC_DOTS_COLLECTION).doc(submissionId),
+          publicDotDoc,
+        );
         txn.set(privateSubmissionRef, privateSubmissionDoc);
 
         if (ipSignalRef && !isDevSubmission) {

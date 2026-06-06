@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { loadEnv } from "vite";
 
-const RESULTS_COLLECTION = "compass-results-v2";
+const RESULTS_COLLECTION = "compass-public-dots-v1";
 const PRIVATE_FINGERPRINT_FIELDS = [
   "ip_hash",
   "device_id_hash",
@@ -20,8 +20,6 @@ const DOT_FIELDS = [
   "occupation",
   "notes",
   "demographics",
-  "answers",
-  "answers_hash",
 ];
 const DEFAULT_LIMIT = 100;
 const OPERATION_TIMEOUT_MS = 15_000;
@@ -201,11 +199,6 @@ function buildTemporaryDot(docId) {
     submission_id: docId,
     created_at: now,
     ts: now,
-    quiz_version: "codex-live-check",
-    quizVersion: "codex-live-check",
-    question_schema_version: "codex-live-check",
-    questionSchemaVersion: "codex-live-check",
-    question_schema: [],
     x_score: 0.12,
     y_score: -0.34,
     x: 0.12,
@@ -223,15 +216,6 @@ function buildTemporaryDot(docId) {
     industry: "Technology",
     occupation: "Temporary verification dot",
     notes: "Temporary live Firestore dot render check.",
-    question_order: ["q1"],
-    question_keys: ["q1"],
-    question_values: { q1: 0.5 },
-    answers: { q1: 0.5 },
-    answers_hash: "codex-live-check-answer-hash",
-    question_responses: [],
-    question_medians: {},
-    result_schema_version: 3,
-    resultSchemaVersion: 3,
     segments: {
       age: "30_44",
       country: "US",
@@ -239,14 +223,9 @@ function buildTemporaryDot(docId) {
     },
     is_repeat_ip_24h: false,
     is_repeat_device_24h: false,
-    repeat_group_id: "",
     include_in_default_aggregate: false,
     include_in_device_priority_aggregate: false,
     repeat_classification: "codex_live_check",
-    duplicate_policy_flags: [],
-    ip_submission_count_24h: 0,
-    is_ip_soft_limited: false,
-    is_suspicious_repeat_pattern: false,
     is_dev: true,
   };
 }
