@@ -3,6 +3,8 @@ import { FieldPath, getFirestore } from "firebase-admin/firestore";
 
 const SOURCE_COLLECTION = "compass-results-v2";
 const PUBLIC_DOTS_COLLECTION = "compass-public-dots-v1";
+const PUBLIC_DOT_ARCHIVE_COLLECTION = "compass-public-dot-archive-v1";
+const PUBLIC_DOT_ARCHIVE_DOC_ID = "latest";
 const MAX_DOCS_PER_BATCH = 250;
 
 function readLimit() {
@@ -62,6 +64,15 @@ function pickPublicDot(data, submissionId) {
   };
 }
 
+function pickArchivePoint(publicDot, submissionId) {
+  return {
+    id: submissionId,
+    x: publicDot.x,
+    y: publicDot.y,
+    ts: publicDot.ts,
+  };
+}
+
 initializeApp();
 
 const shouldWrite = process.argv.includes("--write");
@@ -71,6 +82,7 @@ const db = getFirestore();
 let scannedCount = 0;
 let projectedCount = 0;
 let lastDoc = null;
+const archivePoints = [];
 
 for (;;) {
   let query = db
@@ -89,11 +101,13 @@ for (;;) {
   for (const doc of snap.docs) {
     scannedCount += 1;
     projectedCount += 1;
+    const publicDot = pickPublicDot(doc.data(), doc.id);
+    archivePoints.push(pickArchivePoint(publicDot, doc.id));
     if (!shouldWrite) continue;
 
     batch.set(
       db.collection(PUBLIC_DOTS_COLLECTION).doc(doc.id),
-      pickPublicDot(doc.data(), doc.id),
+      publicDot,
       { merge: true },
     );
   }
@@ -103,6 +117,19 @@ for (;;) {
   }
 
   lastDoc = snap.docs.at(-1);
+}
+
+if (shouldWrite) {
+  await db
+    .collection(PUBLIC_DOT_ARCHIVE_COLLECTION)
+    .doc(PUBLIC_DOT_ARCHIVE_DOC_ID)
+    .set(
+      {
+        updated_at: Date.now(),
+        points: archivePoints,
+      },
+      { merge: true },
+    );
 }
 
 console.log(

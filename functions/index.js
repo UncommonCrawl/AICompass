@@ -10,6 +10,8 @@ const db = getFirestore();
 const HASH_SECRET = defineSecret("COMPASS_HASH_SECRET");
 const SUBMISSIONS_COLLECTION = "compass-results-v2";
 const PUBLIC_DOTS_COLLECTION = "compass-public-dots-v1";
+const PUBLIC_DOT_ARCHIVE_COLLECTION = "compass-public-dot-archive-v1";
+const PUBLIC_DOT_ARCHIVE_DOC_ID = "latest";
 const SUBMISSION_PRIVATE_COLLECTION = "compass-submission-private-v1";
 const REPEAT_SIGNALS_COLLECTION = "compass-repeat-signals-v1";
 const METRICS_COLLECTION = "compass-metrics-v1";
@@ -521,9 +523,13 @@ export const submitCompassResult = onRequest(
         const privateSubmissionRef = db
           .collection(SUBMISSION_PRIVATE_COLLECTION)
           .doc(submissionId);
+        const archiveRef = db
+          .collection(PUBLIC_DOT_ARCHIVE_COLLECTION)
+          .doc(PUBLIC_DOT_ARCHIVE_DOC_ID);
         const previousSubmissionSnap = !isDevSubmission && previousSubmissionId
           ? await txn.get(submissionRef)
           : null;
+        const archiveSnap = await txn.get(archiveRef);
         const previousSubmission =
           previousSubmissionSnap?.exists ? previousSubmissionSnap.data() : null;
         const previousIncludedInDefaultAggregate =
@@ -620,11 +626,34 @@ export const submitCompassResult = onRequest(
           repeat_classification: repeatClassification,
           is_dev: isDevSubmission,
         };
+        const archivePoint = {
+          id: submissionId,
+          x: xScore,
+          y: yScore,
+          ts: now,
+        };
 
         txn.set(submissionRef, submissionDoc);
         txn.set(
           db.collection(PUBLIC_DOTS_COLLECTION).doc(submissionId),
           publicDotDoc,
+        );
+        txn.set(
+          db
+            .collection(PUBLIC_DOT_ARCHIVE_COLLECTION)
+            .doc(PUBLIC_DOT_ARCHIVE_DOC_ID),
+          {
+            updated_at: now,
+            points: [
+              ...(Array.isArray(archiveSnap.data()?.points)
+                ? archiveSnap
+                    .data()
+                    .points.filter((point) => point?.id !== submissionId)
+                : []),
+              archivePoint,
+            ],
+          },
+          { merge: true },
         );
         txn.set(privateSubmissionRef, privateSubmissionDoc);
 

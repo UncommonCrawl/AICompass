@@ -10,7 +10,9 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
+  limit,
   onSnapshot,
   orderBy,
   query,
@@ -182,6 +184,8 @@ function computeStableQuestionSchemaVersion(questionSchema) {
 
 const RESULT_SCHEMA_VERSION = 3;
 const COMPASS_PUBLIC_DOTS_COLLECTION = "compass-public-dots-v1";
+const COMPASS_PUBLIC_DOT_ARCHIVE_COLLECTION = "compass-public-dot-archive-v1";
+const COMPASS_PUBLIC_DOT_ARCHIVE_DOC_ID = "latest";
 const COMPASS_METRICS_COLLECTION = "compass-metrics-v1";
 const QUESTION_AVERAGES_DOC_ID = "question-averages-v1";
 const COMPASS_SUBMIT_ENDPOINT = (
@@ -318,6 +322,8 @@ const DROPDOWN_MENU_MAX_HEIGHT = 200;
 const COMPASS_CANVAS_DPR_CAP_BASE = 2;
 const COMPASS_CANVAS_DPR_CAP_HIGH = 3;
 const COMPASS_CANVAS_HIGH_DPR_POINT_LIMIT = 1200;
+const INTERACTIVE_DOT_LIMIT = 1000;
+const FIRESTORE_IN_FILTER_LIMIT = 30;
 const COMPASS_DOT_COLOR = "#000000";
 const DEFAULT_USER_DOT_COLOR = "#17a34a";
 const COMPASS_DOT_GEOMETRY = {
@@ -1015,6 +1021,72 @@ function normalizeFilterValue(value) {
   return typeof value === "string" && value.trim() !== ""
     ? value
     : UNSPECIFIED_FILTER_VALUE;
+}
+
+function toFirestoreFilterValue(value) {
+  return value === UNSPECIFIED_FILTER_VALUE ? "" : value;
+}
+
+function buildPublicDotQueryFilter(field, selectedValues, optionCount) {
+  if (selectedValues.length === 0) return { empty: true, constraints: [] };
+  if (selectedValues.length === optionCount) {
+    return { empty: false, constraints: [] };
+  }
+
+  const firestoreValues = selectedValues.map(toFirestoreFilterValue);
+  if (firestoreValues.length === 1) {
+    return {
+      empty: false,
+      constraints: [where(field, "==", firestoreValues[0])],
+      clientValues: selectedValues,
+    };
+  }
+  if (firestoreValues.length <= FIRESTORE_IN_FILTER_LIMIT) {
+    return {
+      empty: false,
+      constraints: [where(field, "in", firestoreValues)],
+      clientValues: selectedValues,
+    };
+  }
+
+  return { empty: false, constraints: [], clientValues: selectedValues };
+}
+
+function publicDotMatchesClientFilters(dot, clientFilters) {
+  if (clientFilters.age) {
+    if (!clientFilters.age.has(normalizeFilterValue(dot.age))) return false;
+  }
+  if (clientFilters.country) {
+    if (!clientFilters.country.has(normalizeFilterValue(dot.country))) {
+      return false;
+    }
+  }
+  if (clientFilters.industry) {
+    if (!clientFilters.industry.has(normalizeFilterValue(dot.industry))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function normalizeArchivePoints(source) {
+  if (!source || typeof source !== "object") return [];
+  const rawPoints = Array.isArray(source.points) ? source.points : [];
+  return rawPoints
+    .map((point, index) => {
+      const x = Number(point?.x ?? point?.x_score);
+      const y = Number(point?.y ?? point?.y_score);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+      return {
+        id:
+          typeof point?.id === "string" && point.id.trim()
+            ? point.id
+            : `archive-${index}`,
+        x,
+        y,
+      };
+    })
+    .filter(Boolean);
 }
 
 function useDropdownMenuLayout(open, rootRef) {
@@ -1963,6 +2035,7 @@ function SingleSelectDropdown({
 // --- Compass Visualization ---
 function Compass({
   results,
+  archivePoints = [],
   userResult,
   activeQuadrant,
   disabledAges,
@@ -2193,8 +2266,9 @@ function Compass({
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    const totalCanvasPoints = plotPoints.length + archivePoints.length;
     const dprCap =
-      plotPoints.length <= COMPASS_CANVAS_HIGH_DPR_POINT_LIMIT
+      totalCanvasPoints <= COMPASS_CANVAS_HIGH_DPR_POINT_LIMIT
         ? COMPASS_CANVAS_DPR_CAP_HIGH
         : COMPASS_CANVAS_DPR_CAP_BASE;
     const dpr = Math.min(window.devicePixelRatio || 1, dprCap);
@@ -2211,9 +2285,23 @@ function Compass({
       ctx.arc(point.sx, point.sy, point.dotRadius, 0, Math.PI * 2);
       ctx.fill();
     };
+    const drawArchiveDot = (point) => {
+      const sx = cx + point.x * xRange;
+      const sy = cy - point.y * yRange;
+      ctx.fillStyle = GRAY;
+      ctx.globalAlpha = 0.28;
+      ctx.beginPath();
+      ctx.arc(sx, sy, COMPASS_DOT_GEOMETRY.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    };
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, dims.w, dims.h);
+
+    for (const point of archivePoints) {
+      drawArchiveDot(point);
+    }
 
     // Draw gray dots first so enabled dots always sit above them.
     for (const point of plotPoints) {
@@ -2237,6 +2325,11 @@ function Compass({
     onCanvasDraw,
     userDotColor,
     userDotGrayColor,
+    archivePoints,
+    cx,
+    cy,
+    xRange,
+    yRange,
   ]);
 
   useEffect(
@@ -3342,6 +3435,7 @@ export default function AICompass() {
   const [quizEditAnswersEnabled, setQuizEditAnswersEnabled] = useState(false);
   const [quizEditAnswersUnlocked, setQuizEditAnswersUnlocked] = useState(false);
   const [results, setResults] = useState([]);
+  const [archivePoints, setArchivePoints] = useState([]);
   const [questionAveragesById, setQuestionAveragesById] = useState({});
   const [userResult, setUserResult] = useState(
     initialPersistedResultState.userResult,
@@ -3428,19 +3522,81 @@ export default function AICompass() {
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    getDoc(
+      doc(
+        db,
+        COMPASS_PUBLIC_DOT_ARCHIVE_COLLECTION,
+        COMPASS_PUBLIC_DOT_ARCHIVE_DOC_ID,
+      ),
+    )
+      .then((snapshot) => {
+        if (cancelled || !snapshot.exists()) return;
+        setArchivePoints(normalizeArchivePoints(snapshot.data()));
+      })
+      .catch((error) => {
+        console.error("Firestore archive load error:", error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Load the public map once, then listen only for dots created after this page
   // session started. The submitter's own dot remains optimistic via userResult.
   useEffect(() => {
     let cancelled = false;
     const pageLoadStartedAt = Date.now();
     const publicDotsCollection = collection(db, COMPASS_PUBLIC_DOTS_COLLECTION);
+    const ageOptionValues = [...AGE_RANGES, UNSPECIFIED_FILTER_VALUE];
+    const countryOptionValues = [
+      ...COUNTRY_OPTIONS.map((country) => country.code),
+      UNSPECIFIED_FILTER_VALUE,
+    ];
+    const industryOptionValues = [...INDUSTRY_OPTIONS, UNSPECIFIED_FILTER_VALUE];
+    const selectedAges = ageOptionValues.filter(
+      (value) => !disabledAges.includes(value),
+    );
+    const selectedCountries = countryOptionValues.filter(
+      (value) => !disabledCountries.includes(value),
+    );
+    const selectedIndustries = industryOptionValues.filter(
+      (value) => !disabledIndustries.includes(value),
+    );
+    const queryFilters = [];
+    const clientFilters = {};
+    let hasInFilter = false;
+    let hasEmptyFilter = false;
+    const addFilter = (field, selectedValues, optionCount) => {
+      const filter = buildPublicDotQueryFilter(field, selectedValues, optionCount);
+      if (filter.empty) {
+        hasEmptyFilter = true;
+        return;
+      }
+      const constraint = filter.constraints[0];
+      if (constraint) {
+        const usesIn = selectedValues.length > 1;
+        if (!usesIn || !hasInFilter) {
+          queryFilters.push(constraint);
+          if (usesIn) hasInFilter = true;
+          return;
+        }
+      }
+      if (filter.clientValues) {
+        clientFilters[field] = new Set(filter.clientValues);
+      }
+    };
+    addFilter("age", selectedAges, ageOptionValues.length);
+    addFilter("country", selectedCountries, countryOptionValues.length);
+    addFilter("industry", selectedIndustries, industryOptionValues.length);
     const normalizePublicDots = (docs) =>
       docs.map((doc) =>
         normalizeDevResultToCurrentQuestionSchema({
           id: doc.id,
           ...doc.data(),
         }),
-      );
+      ).filter((dot) => publicDotMatchesClientFilters(dot, clientFilters));
     const mergePublicDots = (prev, nextDots) => {
       const byId = new Map();
       for (const dot of prev) {
@@ -3452,30 +3608,35 @@ export default function AICompass() {
         if (id) byId.set(id, dot);
       }
       return [...byId.values()].sort(
-        (a, b) => extractResultTimestamp(a) - extractResultTimestamp(b),
-      );
-    };
-    const applyLatestLocalMatch = (nextResults) => {
-      if (!devResultPersistenceEnabled) return;
-      const latestMatch = nextResults
-        .filter((result) => extractDeviceUuidFromResult(result) === localDeviceId)
-        .sort((a, b) => extractResultTimestamp(b) - extractResultTimestamp(a))[0];
-      const latestScores = extractScoresFromResult(latestMatch);
-      if (latestMatch && latestScores) {
-        setUserResult((prev) => prev || latestMatch);
-        setScores((prev) => prev || latestScores);
-        setScreen((prev) => (prev === "home" ? "results" : prev));
-      }
+        (a, b) => extractResultTimestamp(b) - extractResultTimestamp(a),
+      ).slice(0, INTERACTIVE_DOT_LIMIT);
     };
 
-    getDocs(query(publicDotsCollection, orderBy("ts", "asc")))
+    if (hasEmptyFilter) {
+      queueMicrotask(() => {
+        if (cancelled) return;
+        setResults([]);
+        setHasInitialResultsSnapshot(true);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    getDocs(
+      query(
+        publicDotsCollection,
+        ...queryFilters,
+        orderBy("ts", "desc"),
+        limit(INTERACTIVE_DOT_LIMIT),
+      ),
+    )
       .then((snapshot) => {
         if (cancelled) return;
         const nextResults = normalizePublicDots(snapshot.docs);
         setHasInitialResultsSnapshot(true);
         setFirestoreError("");
-        setResults((prev) => mergePublicDots(prev, nextResults));
-        applyLatestLocalMatch(nextResults);
+        setResults(nextResults.slice(0, INTERACTIVE_DOT_LIMIT));
       })
       .catch((error) => {
         if (cancelled) return;
@@ -3490,8 +3651,10 @@ export default function AICompass() {
 
     const recentResultsQuery = query(
       publicDotsCollection,
+      ...queryFilters,
       where("ts", ">", pageLoadStartedAt),
-      orderBy("ts", "asc"),
+      orderBy("ts", "desc"),
+      limit(INTERACTIVE_DOT_LIMIT),
     );
 
     const unsubscribe = onSnapshot(
@@ -3512,7 +3675,6 @@ export default function AICompass() {
             : prev;
           return mergePublicDots(keptResults, nextResults);
         });
-        applyLatestLocalMatch(nextResults);
       },
       (error) => {
         console.error("Firestore onSnapshot error:", error);
@@ -3528,7 +3690,7 @@ export default function AICompass() {
       cancelled = true;
       unsubscribe();
     };
-  }, [devResultPersistenceEnabled, localDeviceId]);
+  }, [disabledAges, disabledCountries, disabledIndustries]);
 
   useEffect(() => {
     const questionAveragesRef = doc(
@@ -4714,6 +4876,7 @@ export default function AICompass() {
               <div style={{ marginTop: 0 }}>
                 <Compass
                   results={visibleResults}
+                  archivePoints={archivePoints}
                   userResult={userResult}
                   activeQuadrant={activeQuadrant}
                   disabledAges={disabledAges}

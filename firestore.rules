@@ -13,6 +13,11 @@ service cloud.firestore {
       allow delete: if resource.data.is_dev == true;
     }
 
+    match /compass-public-dot-archive-v1/{archiveId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     match /compass-submission-private-v1/{submissionId} {
       allow read, write: if false;
     }
