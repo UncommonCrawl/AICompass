@@ -5,7 +5,6 @@ import {
   addDoc,
   collection,
   deleteDoc,
-  getDoc,
   initializeFirestore,
 } from "firebase/firestore";
 
@@ -86,24 +85,26 @@ async function main() {
     is_dev: true,
   };
 
-  console.log(`[test] Writing dev test doc to ${COLLECTION_NAME}...`);
-  const docRef = await addDoc(collection(db, COLLECTION_NAME), testSubmission);
-  console.log(`[test] Created doc: ${docRef.id}`);
-
-  console.log("[test] Reading doc back...");
-  const snap = await getDoc(docRef);
-  if (!snap.exists()) {
-    throw new Error("Created document was not found on readback.");
+  console.log(`[test] Verifying direct client writes to ${COLLECTION_NAME} are blocked...`);
+  try {
+    const docRef = await addDoc(collection(db, COLLECTION_NAME), testSubmission);
+    console.log(`[test] Unexpectedly created doc: ${docRef.id}`);
+    try {
+      await deleteDoc(docRef);
+      console.log("[test] Cleanup complete.");
+    } catch (cleanupError) {
+      console.error(
+        "[test] Cleanup failed:",
+        cleanupError?.message || cleanupError,
+      );
+    }
+    throw new Error("Direct client create unexpectedly succeeded.");
+  } catch (error) {
+    if (error?.code !== "permission-denied") {
+      throw error;
+    }
+    console.log("[test] Direct client create blocked (permission-denied).");
   }
-  const data = snap.data();
-  if (data?.is_dev !== true) {
-    throw new Error("Readback failed validation: is_dev is not true.");
-  }
-  console.log("[test] Readback passed (is_dev=true).");
-
-  console.log("[test] Deleting test doc...");
-  await deleteDoc(docRef);
-  console.log("[test] Cleanup complete.");
 }
 
 main().catch((error) => {

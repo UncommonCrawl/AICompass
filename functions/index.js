@@ -307,7 +307,8 @@ export const submitCompassResult = onRequest(
       128,
     );
     const questionSchema = cleanQuestionSchema(payload.question_schema);
-    const isDevSubmission = payload.is_dev === true;
+    // Public callers cannot self-designate as dev; dev writes require admin paths.
+    const isDevSubmission = false;
 
     const deviceUuid = cleanString(payload.device_uuid, 256);
     const sessionUuid = cleanString(payload.session_uuid, 256);

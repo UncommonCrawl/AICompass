@@ -4,9 +4,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
     match /compass-results-v2/{submissionId} {
       allow read: if true;
-      allow create: if request.resource.data.is_dev == true;
-      allow delete: if resource.data.is_dev == true;
-      allow update: if false;
+      allow create, update, delete: if false;
     }
 
     match /compass-repeat-signals-v1/{signalId} {

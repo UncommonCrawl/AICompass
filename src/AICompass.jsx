@@ -7,7 +7,6 @@ import {
   useCallback,
 } from "react";
 import {
-  addDoc,
   collection,
   deleteDoc,
   doc,
@@ -191,6 +190,7 @@ const DEVICE_ID_STORAGE_KEY = "ai_compass_device_id_v1";
 const SESSION_ID_STORAGE_KEY = "ai_compass_session_id_v1";
 const LAST_RESULT_STORAGE_KEY = "ai_compass_last_result_v1";
 const LAST_SUBMISSION_STORAGE_KEY = "ai_compass_last_submission_v1";
+const QUIZ_DRAFT_STORAGE_KEY = "ai_compass_quiz_draft_v1";
 const DEV_RESULT_PERSISTENCE_ENABLED_STORAGE_KEY =
   "ai_compass_dev_result_persistence_enabled_v1";
 const HOUR_MS = 60 * 60 * 1000;
@@ -1403,37 +1403,139 @@ function readInitialLocalSubmission() {
   };
 }
 
-function buildInitialQuizFormState(localSubmission) {
+function readInitialQuizDraft(localSubmission = null) {
+  const draft = readJsonFromLocalStorage(QUIZ_DRAFT_STORAGE_KEY);
+  if (!draft || typeof draft !== "object") return null;
+  const storedQuizVersion = normalizeShortText(draft.quizVersion, 32);
+  if (storedQuizVersion !== QUIZ_VERSION) {
+    removeLocalStorageItem(QUIZ_DRAFT_STORAGE_KEY);
+    return null;
+  }
+  const questionSchemaVersion = normalizeShortText(
+    draft.questionSchemaVersion || draft.question_schema_version,
+    128,
+  );
+  const normalizedQuestionSchemaVersion =
+    questionSchemaVersion || QUESTION_SCHEMA_VERSION;
+  if (normalizedQuestionSchemaVersion !== QUESTION_SCHEMA_VERSION) {
+    removeLocalStorageItem(QUIZ_DRAFT_STORAGE_KEY);
+    return null;
+  }
+  const savedAt = Number(draft.savedAt);
+  const latestSubmissionCreatedAt = Number(localSubmission?.createdAt);
+  if (
+    Number.isFinite(savedAt) &&
+    Number.isFinite(latestSubmissionCreatedAt) &&
+    latestSubmissionCreatedAt > 0 &&
+    savedAt <= latestSubmissionCreatedAt
+  ) {
+    removeLocalStorageItem(QUIZ_DRAFT_STORAGE_KEY);
+    return null;
+  }
+  const answers =
+    draft.answers && typeof draft.answers === "object" ? draft.answers : {};
+  const demographics =
+    draft.demographics && typeof draft.demographics === "object"
+      ? draft.demographics
+      : {};
+  return {
+    quizVersion: storedQuizVersion,
+    questionSchemaVersion: normalizedQuestionSchemaVersion,
+    answers,
+    demographics: {
+      ageRange: normalizeShortText(demographics.ageRange || demographics.age, 64),
+      country: normalizeShortText(demographics.country, 64),
+      industry: normalizeShortText(demographics.industry, 128),
+      occupation: normalizeShortText(demographics.occupation, OCCUPATION_CHAR_LIMIT),
+      notes: normalizeShortText(demographics.notes, NOTES_CHAR_LIMIT),
+    },
+    savedAt: Number.isFinite(savedAt) ? savedAt : 0,
+  };
+}
+
+function buildInitialQuizFormState(localSubmission, quizDraft = null) {
   const answers = {};
-  const sourceByKey =
+  const submissionByKey =
     localSubmission?.answers && typeof localSubmission.answers === "object"
       ? localSubmission.answers
       : {};
-  const sourceById =
+  const submissionById =
     localSubmission?.answersByQuestionId &&
     typeof localSubmission.answersByQuestionId === "object"
       ? localSubmission.answersByQuestionId
       : {};
+  const draftById =
+    quizDraft?.answers && typeof quizDraft.answers === "object"
+      ? quizDraft.answers
+      : {};
   for (const question of QUESTIONS) {
     const rawValue =
-      sourceById[question.id] ?? sourceByKey[question.answerKey] ?? null;
+      draftById[question.id] ??
+      submissionById[question.id] ??
+      submissionByKey[question.answerKey] ??
+      null;
     const normalizedValue = normalizeAnswerValue(rawValue);
     if (normalizedValue === null) continue;
     answers[question.id] = normalizedValue;
   }
-  const demo =
+  const submissionDemo =
     localSubmission?.demographics &&
     typeof localSubmission.demographics === "object"
       ? localSubmission.demographics
       : {};
+  const draftDemo =
+    quizDraft?.demographics && typeof quizDraft.demographics === "object"
+      ? quizDraft.demographics
+      : {};
   return {
     answers,
-    ageRange: normalizeShortText(demo.ageRange || demo.age, 64),
-    countryCode: normalizeShortText(demo.country, 64),
-    industry: normalizeShortText(demo.industry, 128),
-    jobTitle: normalizeShortText(demo.occupation, OCCUPATION_CHAR_LIMIT),
-    notes: normalizeShortText(demo.notes, NOTES_CHAR_LIMIT),
+    ageRange: normalizeShortText(
+      draftDemo.ageRange || draftDemo.age || submissionDemo.ageRange || submissionDemo.age,
+      64,
+    ),
+    countryCode: normalizeShortText(draftDemo.country || submissionDemo.country, 64),
+    industry: normalizeShortText(draftDemo.industry || submissionDemo.industry, 128),
+    jobTitle: normalizeShortText(
+      draftDemo.occupation || submissionDemo.occupation,
+      OCCUPATION_CHAR_LIMIT,
+    ),
+    notes: normalizeShortText(draftDemo.notes || submissionDemo.notes, NOTES_CHAR_LIMIT),
   };
+}
+
+function buildQuizDraftSnapshot({
+  answers,
+  ageRange,
+  countryCode,
+  industry,
+  jobTitle,
+  notes,
+}) {
+  const normalizedAnswers = {};
+  for (const question of QUESTIONS) {
+    const normalizedValue = normalizeAnswerValue(answers?.[question.id]);
+    if (normalizedValue === null) continue;
+    normalizedAnswers[question.id] = normalizedValue;
+  }
+  const normalizedDraft = {
+    quizVersion: QUIZ_VERSION,
+    questionSchemaVersion: QUESTION_SCHEMA_VERSION,
+    answers: normalizedAnswers,
+    demographics: {
+      ageRange: normalizeShortText(ageRange, 64),
+      country: normalizeShortText(countryCode, 64),
+      industry: normalizeShortText(industry, 128),
+      occupation: normalizeShortText(jobTitle, OCCUPATION_CHAR_LIMIT),
+      notes: normalizeShortText(notes, NOTES_CHAR_LIMIT),
+    },
+    savedAt: Date.now(),
+  };
+  const hasAnswerValues = Object.keys(normalizedAnswers).length > 0;
+  const hasDemographicValues = Object.values(normalizedDraft.demographics).some(
+    (value) => value !== "",
+  );
+  if (!hasAnswerValues && !hasDemographicValues) return null;
+  return normalizedDraft;
 }
 
 function getClientCountryHint() {
@@ -1452,104 +1554,6 @@ function getClientCountryHint() {
 
 async function submitCompassResult(payload) {
   if (!COMPASS_SUBMIT_ENDPOINT) {
-    if (payload?.is_dev === true) {
-      const createdAt = Number(payload.client_created_at) || Date.now();
-      const xScore = Number(payload.x_score) || 0;
-      const yScore = Number(payload.y_score) || 0;
-      const demographics =
-        payload.demographics && typeof payload.demographics === "object"
-          ? payload.demographics
-          : {};
-      const submission = {
-        created_at: createdAt,
-        ts: createdAt,
-        quiz_version:
-          typeof payload.quiz_version === "string" ? payload.quiz_version : "",
-        quizVersion:
-          typeof payload.quiz_version === "string" ? payload.quiz_version : "",
-        question_schema_version:
-          typeof payload.question_schema_version === "string"
-            ? payload.question_schema_version
-            : QUESTION_SCHEMA_VERSION,
-        questionSchemaVersion:
-          typeof payload.question_schema_version === "string"
-            ? payload.question_schema_version
-            : QUESTION_SCHEMA_VERSION,
-        question_schema: Array.isArray(payload.question_schema)
-          ? payload.question_schema
-          : QUESTION_SCHEMA,
-        x_score: xScore,
-        y_score: yScore,
-        x: xScore,
-        y: yScore,
-        archetype:
-          typeof payload.archetype === "string" ? payload.archetype : "",
-        demographics,
-        age: typeof demographics.age === "string" ? demographics.age : "",
-        country:
-          typeof demographics.country === "string" ? demographics.country : "",
-        industry:
-          typeof demographics.industry === "string"
-            ? demographics.industry
-            : "",
-        occupation:
-          typeof demographics.occupation === "string"
-            ? demographics.occupation
-            : "",
-        notes: typeof demographics.notes === "string" ? demographics.notes : "",
-        question_order: Array.isArray(payload.question_order)
-          ? payload.question_order
-          : [],
-        question_keys: Array.isArray(payload.question_keys)
-          ? payload.question_keys
-          : [],
-        question_values:
-          payload.question_values && typeof payload.question_values === "object"
-            ? payload.question_values
-            : {},
-        answers:
-          payload.answers && typeof payload.answers === "object"
-            ? payload.answers
-            : payload.question_values &&
-                typeof payload.question_values === "object"
-              ? payload.question_values
-              : {},
-        question_responses: Array.isArray(payload.question_responses)
-          ? payload.question_responses
-          : [],
-        question_medians:
-          payload.question_medians &&
-          typeof payload.question_medians === "object"
-            ? payload.question_medians
-            : {},
-        result_schema_version: Number(payload.result_schema_version) || 3,
-        resultSchemaVersion: Number(payload.result_schema_version) || 3,
-        segments:
-          payload.segments && typeof payload.segments === "object"
-            ? payload.segments
-            : {},
-        is_repeat_ip_24h: false,
-        is_repeat_device_24h: false,
-        repeat_group_id: "",
-        include_in_default_aggregate: true,
-        include_in_device_priority_aggregate: true,
-        repeat_classification: "first_or_stale",
-        is_dev: true,
-      };
-      const docRef = await addDoc(
-        collection(db, COMPASS_RESULTS_COLLECTION),
-        submission,
-      );
-      const savedId = docRef.id;
-      return {
-        ok: true,
-        submission: {
-          ...submission,
-          submission_id: savedId,
-          id: savedId,
-        },
-      };
-    }
     throw new Error(
       "Submission endpoint missing. Set VITE_COMPASS_SUBMIT_ENDPOINT.",
     );
@@ -2623,12 +2627,18 @@ function QuizPage({
   onComplete,
   onProgressChange,
   initialSubmission = null,
+  initialDraft = null,
+  onDraftChange,
   editAnswersEnabled = false,
   editAnswersUnlocked = false,
   questionAveragesById = {},
 }) {
   const orderedQuestions = QUESTIONS;
   const initialFormState = useMemo(
+    () => buildInitialQuizFormState(initialSubmission, initialDraft),
+    [initialSubmission, initialDraft],
+  );
+  const initialSubmittedFormState = useMemo(
     () => buildInitialQuizFormState(initialSubmission),
     [initialSubmission],
   );
@@ -2643,7 +2653,8 @@ function QuizPage({
   const [notes, setNotes] = useState(() => initialFormState.notes);
   const [sliderVisualWidthPx, setSliderVisualWidthPx] = useState(0);
   const [lockCountdownNow, setLockCountdownNow] = useState(() => Date.now());
-  const hasSavedAnswers = Object.keys(initialFormState.answers).length > 0;
+  const hasSavedAnswers =
+    Object.keys(initialSubmittedFormState.answers).length > 0;
   const resubmitLockExpiresAt = getLockWindowExpiresAt(
     initialSubmission?.createdAt,
   );
@@ -2722,26 +2733,26 @@ function QuizPage({
     if (!hasSavedAnswers) return false;
     for (const question of orderedQuestions) {
       const initialValue = normalizeAnswerValue(
-        initialFormState.answers[question.id],
+        initialSubmittedFormState.answers[question.id],
       );
       const currentValue = normalizeAnswerValue(answers[question.id]);
       if (initialValue !== currentValue) return true;
     }
-    if (ageRange !== initialFormState.ageRange) return true;
-    if (countryCode !== initialFormState.countryCode) return true;
-    if (industry !== initialFormState.industry) return true;
-    if (trimmedJobTitle !== initialFormState.jobTitle) return true;
-    if (trimmedNotes !== initialFormState.notes) return true;
+    if (ageRange !== initialSubmittedFormState.ageRange) return true;
+    if (countryCode !== initialSubmittedFormState.countryCode) return true;
+    if (industry !== initialSubmittedFormState.industry) return true;
+    if (trimmedJobTitle !== initialSubmittedFormState.jobTitle) return true;
+    if (trimmedNotes !== initialSubmittedFormState.notes) return true;
     return false;
   }, [
     hasSavedAnswers,
     orderedQuestions,
-    initialFormState.answers,
-    initialFormState.ageRange,
-    initialFormState.countryCode,
-    initialFormState.industry,
-    initialFormState.jobTitle,
-    initialFormState.notes,
+    initialSubmittedFormState.answers,
+    initialSubmittedFormState.ageRange,
+    initialSubmittedFormState.countryCode,
+    initialSubmittedFormState.industry,
+    initialSubmittedFormState.jobTitle,
+    initialSubmittedFormState.notes,
     answers,
     ageRange,
     countryCode,
@@ -2794,6 +2805,27 @@ function QuizPage({
     editAnswersEnabled,
     editAnswersUnlocked,
     onProgressChange,
+  ]);
+
+  useEffect(() => {
+    onDraftChange?.(
+      buildQuizDraftSnapshot({
+        answers,
+        ageRange,
+        countryCode,
+        industry,
+        jobTitle: trimmedJobTitle,
+        notes: trimmedNotes,
+      }),
+    );
+  }, [
+    answers,
+    ageRange,
+    countryCode,
+    industry,
+    trimmedJobTitle,
+    trimmedNotes,
+    onDraftChange,
   ]);
 
   useEffect(() => {
@@ -3285,11 +3317,18 @@ function QuizPage({
 
 // --- Main App ---
 export default function AICompass() {
+  const initialLocalSubmission = useMemo(() => readInitialLocalSubmission(), []);
+  const initialQuizDraft = useMemo(
+    () => readInitialQuizDraft(initialLocalSubmission),
+    [initialLocalSubmission],
+  );
   const initialPersistedResultState = useMemo(
     () => readInitialPersistedResultState(),
     [],
   );
-  const [screen, setScreen] = useState(initialPersistedResultState.screen); // home, quiz, results
+  const [screen, setScreen] = useState(
+    initialQuizDraft ? "quiz" : initialPersistedResultState.screen,
+  ); // home, quiz, results
   const [scores, setScores] = useState(initialPersistedResultState.scores);
   const [quizProgress, setQuizProgress] = useState({
     answered: 0,
@@ -3306,9 +3345,9 @@ export default function AICompass() {
   const [userResult, setUserResult] = useState(
     initialPersistedResultState.userResult,
   );
-  const [latestLocalSubmission, setLatestLocalSubmission] = useState(() =>
-    readInitialLocalSubmission(),
-  );
+  const [latestLocalSubmission, setLatestLocalSubmission] =
+    useState(initialLocalSubmission);
+  const [quizDraft, setQuizDraft] = useState(initialQuizDraft);
   const [hoveredQuadrant, setHoveredQuadrant] = useState(null);
   const [pinnedQuadrant, setPinnedQuadrant] = useState(null);
   const [firestoreError, setFirestoreError] = useState("");
@@ -3372,6 +3411,14 @@ export default function AICompass() {
       JSON.stringify(latestLocalSubmission),
     );
   }, [latestLocalSubmission]);
+
+  useEffect(() => {
+    if (!quizDraft) {
+      removeLocalStorageItem(QUIZ_DRAFT_STORAGE_KEY);
+      return;
+    }
+    writeLocalStorageItem(QUIZ_DRAFT_STORAGE_KEY, JSON.stringify(quizDraft));
+  }, [quizDraft]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -3618,6 +3665,7 @@ export default function AICompass() {
         setUserResult((prev) =>
           prev?.id === localId ? normalizedSavedEntry : prev,
         );
+        setQuizDraft(null);
         setLatestLocalSubmission({
           ...localSubmissionSnapshot,
           submissionId: savedId,
@@ -3811,6 +3859,8 @@ export default function AICompass() {
     if (!nextEnabled) {
       removeLocalStorageItem(LAST_RESULT_STORAGE_KEY);
       removeLocalStorageItem(LAST_SUBMISSION_STORAGE_KEY);
+      removeLocalStorageItem(QUIZ_DRAFT_STORAGE_KEY);
+      setQuizDraft(null);
       setLatestLocalSubmission(null);
       setUserResult(null);
       setScores(null);
@@ -4640,6 +4690,8 @@ export default function AICompass() {
               onComplete={handleQuizComplete}
               onProgressChange={setQuizProgress}
               initialSubmission={latestLocalSubmission}
+              initialDraft={quizDraft}
+              onDraftChange={setQuizDraft}
               editAnswersEnabled={quizEditAnswersEnabled}
               editAnswersUnlocked={quizEditAnswersUnlocked}
               questionAveragesById={questionAveragesById}
