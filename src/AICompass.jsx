@@ -1069,6 +1069,26 @@ function publicDotMatchesClientFilters(dot, clientFilters) {
   return true;
 }
 
+function normalizePublicDot(docSnapshot) {
+  const data = docSnapshot.data();
+  const normalized = normalizeDevResultToCurrentQuestionSchema({
+    id: docSnapshot.id,
+    ...data,
+  });
+  const scores = extractScoresFromResult(normalized);
+  if (!scores) {
+    console.error("Skipping malformed public dot:", docSnapshot.id);
+    return null;
+  }
+  return {
+    ...normalized,
+    x: scores.x,
+    y: scores.y,
+    x_score: scores.x,
+    y_score: scores.y,
+  };
+}
+
 function normalizeArchivePoints(source) {
   if (!source || typeof source !== "object") return [];
   const rawPoints = Array.isArray(source.points) ? source.points : [];
@@ -3600,12 +3620,10 @@ export default function AICompass() {
     addFilter("country", selectedCountries, countryOptionValues.length);
     addFilter("industry", selectedIndustries, industryOptionValues.length);
     const normalizePublicDots = (docs) =>
-      docs.map((doc) =>
-        normalizeDevResultToCurrentQuestionSchema({
-          id: doc.id,
-          ...doc.data(),
-        }),
-      ).filter((dot) => publicDotMatchesClientFilters(dot, clientFilters));
+      docs
+        .map(normalizePublicDot)
+        .filter(Boolean)
+        .filter((dot) => publicDotMatchesClientFilters(dot, clientFilters));
     const mergePublicDots = (prev, nextDots) => {
       const byId = new Map();
       for (const dot of prev) {
@@ -3651,11 +3669,7 @@ export default function AICompass() {
         if (cancelled) return;
         console.error("Firestore initial load error:", error);
         setHasInitialResultsSnapshot(true);
-        setFirestoreError(
-          error?.code
-            ? `Live sync unavailable (${error.code}).`
-            : "Live sync unavailable right now.",
-        );
+        setFirestoreError("The live map is temporarily unavailable.");
       });
 
     const recentResultsQuery = query(
@@ -3687,11 +3701,6 @@ export default function AICompass() {
       },
       (error) => {
         console.error("Firestore onSnapshot error:", error);
-        setFirestoreError(
-          error?.code
-            ? `Live sync unavailable (${error.code}).`
-            : "Live sync unavailable right now.",
-        );
       },
     );
 
@@ -3825,7 +3834,7 @@ export default function AICompass() {
 
     const stallTimer = setTimeout(() => {
       setFirestoreError(
-        "Submit request is taking too long. Check network/firewall and Firestore rules.",
+        "Your result is visible here, but we could not save it yet. Please try again.",
       );
       setSubmitting(false);
     }, 8000);
@@ -3901,9 +3910,9 @@ export default function AICompass() {
         }
         setSubmissionLockRetryAt(0);
         setFirestoreError(
-          error?.message
-            ? `Unable to submit (${error.message}).`
-            : "Unable to submit right now.",
+          error?.code === "ip_rate_limited"
+            ? "Too many submissions from this network. Please try again later."
+            : "Your result is visible here, but we could not save it yet. Please try again.",
         );
       })
       .finally(() => {
@@ -3983,11 +3992,7 @@ export default function AICompass() {
       setFirestoreError("");
     } catch (error) {
       console.error("Clear dev dots error:", error);
-      setFirestoreError(
-        error?.code
-          ? `Unable to clear dev dots (${error.code}).`
-          : "Unable to clear dev dots right now.",
-      );
+      setFirestoreError("Unable to clear dev dots right now.");
     } finally {
       setClearingDevDots(false);
     }
