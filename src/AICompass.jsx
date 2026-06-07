@@ -2797,6 +2797,19 @@ function QuizPage({
   ).length;
   const hasDemographicSelections =
     ageRange !== "" && countryCode !== "" && industry !== "";
+  const missingDemographicLabels = [
+    ageRange === "" ? "Age Range" : "",
+    countryCode === "" ? "Country" : "",
+    industry === "" ? "Industry" : "",
+  ].filter(Boolean);
+  const missingDemographicText =
+    missingDemographicLabels.length === 1
+      ? missingDemographicLabels[0]
+      : missingDemographicLabels.length === 2
+        ? `${missingDemographicLabels[0]} and ${missingDemographicLabels[1]}`
+        : `${missingDemographicLabels
+            .slice(0, -1)
+            .join(", ")}, and ${missingDemographicLabels.at(-1)}`;
   const canSubmit =
     !answersLocked &&
     !needsEditToResubmit &&
@@ -3430,7 +3443,7 @@ function QuizPage({
               {`Answer all ${orderedQuestions.length} questions to continue`}
             </span>
           ) : (
-            "Select Age Range, Country, and Industry to continue"
+            `Select ${missingDemographicText} to continue`
           )}
         </button>
       </div>
