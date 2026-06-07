@@ -1477,6 +1477,10 @@ function readInitialLocalSubmission() {
 }
 
 function readInitialQuizDraft(localSubmission = null) {
+  if (localSubmission) {
+    removeLocalStorageItem(QUIZ_DRAFT_STORAGE_KEY);
+    return null;
+  }
   const draft = readJsonFromLocalStorage(QUIZ_DRAFT_STORAGE_KEY);
   if (!draft || typeof draft !== "object") return null;
   const storedQuizVersion = normalizeShortText(draft.quizVersion, 32);
@@ -2902,6 +2906,10 @@ function QuizPage({
   ]);
 
   useEffect(() => {
+    if (hasSavedAnswers) {
+      onDraftChange?.(null);
+      return;
+    }
     onDraftChange?.(
       buildQuizDraftSnapshot({
         answers,
@@ -2919,6 +2927,7 @@ function QuizPage({
     industry,
     trimmedJobTitle,
     trimmedNotes,
+    hasSavedAnswers,
     onDraftChange,
   ]);
 
@@ -3508,12 +3517,12 @@ export default function AICompass() {
   }, [latestLocalSubmission]);
 
   useEffect(() => {
-    if (!quizDraft) {
+    if (latestLocalSubmission || !quizDraft) {
       removeLocalStorageItem(QUIZ_DRAFT_STORAGE_KEY);
       return;
     }
     writeLocalStorageItem(QUIZ_DRAFT_STORAGE_KEY, JSON.stringify(quizDraft));
-  }, [quizDraft]);
+  }, [latestLocalSubmission, quizDraft]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -4898,8 +4907,8 @@ export default function AICompass() {
               onComplete={handleQuizComplete}
               onProgressChange={setQuizProgress}
               initialSubmission={latestLocalSubmission}
-              initialDraft={quizDraft}
-              onDraftChange={setQuizDraft}
+              initialDraft={latestLocalSubmission ? null : quizDraft}
+              onDraftChange={latestLocalSubmission ? null : setQuizDraft}
               editAnswersEnabled={quizEditAnswersEnabled}
               editAnswersUnlocked={quizEditAnswersUnlocked}
               questionAveragesById={questionAveragesById}
