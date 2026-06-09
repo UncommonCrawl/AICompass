@@ -260,6 +260,19 @@ function cleanDemographics(demo) {
   };
 }
 
+function cleanPublicSegments(source, demographics) {
+  const safe = source && typeof source === "object" ? source : {};
+  return {
+    age: cleanString(safe.age, 64) || demographics.age || "__UNSPECIFIED__",
+    country:
+      cleanString(safe.country, 64) || demographics.country || "__UNSPECIFIED__",
+    industry:
+      cleanString(safe.industry, 128) ||
+      demographics.industry ||
+      "__UNSPECIFIED__",
+  };
+}
+
 function readRecentSubmissionTimestamps(value) {
   if (!Array.isArray(value)) return [];
   return value
@@ -349,14 +362,7 @@ export const submitCompassResult = onRequest(
         occupation: demographics.occupation,
       })}`,
     );
-    const segments =
-      payload.segments && typeof payload.segments === "object"
-        ? payload.segments
-        : {
-            age: demographics.age || "__UNSPECIFIED__",
-            country: demographics.country || "__UNSPECIFIED__",
-            industry: demographics.industry || "__UNSPECIFIED__",
-          };
+    const segments = cleanPublicSegments(payload.segments, demographics);
 
     const fallbackSubmissionId = `sub_${randomUUID()}`;
     const ipSignalRef = ipHash

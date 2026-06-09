@@ -340,8 +340,10 @@ const INTERACTIVE_DOT_LIMIT = 1000;
 const FIRESTORE_IN_FILTER_LIMIT = 30;
 const COMPASS_DOT_COLOR = "#000000";
 const DEFAULT_USER_DOT_COLOR = "#17a34a";
+const COMPASS_DOT_BITMAP_DPR = 2;
 const COMPASS_DOT_GEOMETRY = {
   radius: 3,
+  size: 6,
   hoverRingRadius: 6.5,
   hoverRingPulseRadius: 9.5,
 };
@@ -2278,7 +2280,10 @@ function Compass({
   );
   const hasCanvasPoints = plotPoints.length + archivePoints.length > 0;
   const shouldRenderDotBitmap = !perfValves.noCanvas && hasCanvasPoints;
-  const dotBitmapDpr = Math.min(window.devicePixelRatio || 1, 2);
+  const dotBitmapDpr = Math.min(
+    window.devicePixelRatio || 1,
+    COMPASS_DOT_BITMAP_DPR,
+  );
   const activeHoveredPoint = hoveredDotId
     ? plotPointById.get(hoveredDotId) || null
     : null;
@@ -2351,18 +2356,24 @@ function Compass({
 
     const drawDot = (point, color) => {
       ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(point.sx, point.sy, point.dotRadius, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.fillRect(
+        point.sx - point.dotRadius,
+        point.sy - point.dotRadius,
+        COMPASS_DOT_GEOMETRY.size,
+        COMPASS_DOT_GEOMETRY.size,
+      );
     };
     const drawArchiveDot = (point) => {
       const sx = cx + point.x * xRange;
       const sy = cy - point.y * yRange;
       ctx.fillStyle = GRAY;
       ctx.globalAlpha = 0.28;
-      ctx.beginPath();
-      ctx.arc(sx, sy, COMPASS_DOT_GEOMETRY.radius, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.fillRect(
+        sx - COMPASS_DOT_GEOMETRY.radius,
+        sy - COMPASS_DOT_GEOMETRY.radius,
+        COMPASS_DOT_GEOMETRY.size,
+        COMPASS_DOT_GEOMETRY.size,
+      );
       ctx.globalAlpha = 1;
     };
 
@@ -2388,11 +2399,7 @@ function Compass({
     }
 
     canvas.toBlob((blob) => {
-      if (
-        cancelled ||
-        !blob ||
-        dotBitmapGenerationRef.current !== generation
-      ) {
+      if (cancelled || !blob || dotBitmapGenerationRef.current !== generation) {
         return;
       }
       const nextUrl = URL.createObjectURL(blob);
@@ -2642,10 +2649,11 @@ function Compass({
         >
           {showResultMarkers && userMarkerPoint && (
             <>
-              <circle
-                cx={userMarkerPoint.sx}
-                cy={userMarkerPoint.sy}
-                r={COMPASS_DOT_GEOMETRY.radius}
+              <rect
+                x={userMarkerPoint.sx - COMPASS_DOT_GEOMETRY.radius}
+                y={userMarkerPoint.sy - COMPASS_DOT_GEOMETRY.radius}
+                width={COMPASS_DOT_GEOMETRY.size}
+                height={COMPASS_DOT_GEOMETRY.size}
                 fill={userDotColor}
               />
               <text
@@ -2661,10 +2669,11 @@ function Compass({
           )}
           {showResultMarkers && globalAveragePoint && (
             <>
-              <circle
-                cx={globalAveragePoint.sx}
-                cy={globalAveragePoint.sy}
-                r={COMPASS_DOT_GEOMETRY.radius}
+              <rect
+                x={globalAveragePoint.sx - COMPASS_DOT_GEOMETRY.radius}
+                y={globalAveragePoint.sy - COMPASS_DOT_GEOMETRY.radius}
+                width={COMPASS_DOT_GEOMETRY.size}
+                height={COMPASS_DOT_GEOMETRY.size}
                 fill={GRAY}
               />
               <text
@@ -2680,10 +2689,11 @@ function Compass({
             </>
           )}
           {activeHoveredPoint && activeHoveredPoint.enabled && (
-            <circle
-              cx={activeHoveredPoint.sx}
-              cy={activeHoveredPoint.sy}
-              r={activeHoveredPoint.dotRadius + 2}
+            <rect
+              x={activeHoveredPoint.sx - activeHoveredPoint.dotRadius - 2}
+              y={activeHoveredPoint.sy - activeHoveredPoint.dotRadius - 2}
+              width={(activeHoveredPoint.dotRadius + 2) * 2}
+              height={(activeHoveredPoint.dotRadius + 2) * 2}
               fill="none"
               stroke={THEME.SiteBG}
               strokeWidth={1.5}
@@ -2692,19 +2702,38 @@ function Compass({
           {[activeHoveredPoint]
             .filter((point) => point && point.enabled)
             .map((point) => (
-              <circle
+              <rect
                 key={`pulse-${point.id}`}
-                cx={point.sx}
-                cy={point.sy}
-                r={COMPASS_DOT_GEOMETRY.hoverRingRadius}
+                x={point.sx - COMPASS_DOT_GEOMETRY.hoverRingRadius}
+                y={point.sy - COMPASS_DOT_GEOMETRY.hoverRingRadius}
+                width={COMPASS_DOT_GEOMETRY.hoverRingRadius * 2}
+                height={COMPASS_DOT_GEOMETRY.hoverRingRadius * 2}
                 fill="none"
                 stroke={point.color}
                 strokeWidth={1.5}
                 opacity={0.6}
               >
                 <animate
-                  attributeName="r"
-                  values={`${COMPASS_DOT_GEOMETRY.hoverRingRadius};${COMPASS_DOT_GEOMETRY.hoverRingPulseRadius};${COMPASS_DOT_GEOMETRY.hoverRingRadius}`}
+                  attributeName="x"
+                  values={`${point.sx - COMPASS_DOT_GEOMETRY.hoverRingRadius};${point.sx - COMPASS_DOT_GEOMETRY.hoverRingPulseRadius};${point.sx - COMPASS_DOT_GEOMETRY.hoverRingRadius}`}
+                  dur="2s"
+                  repeatCount="indefinite"
+                />
+                <animate
+                  attributeName="y"
+                  values={`${point.sy - COMPASS_DOT_GEOMETRY.hoverRingRadius};${point.sy - COMPASS_DOT_GEOMETRY.hoverRingPulseRadius};${point.sy - COMPASS_DOT_GEOMETRY.hoverRingRadius}`}
+                  dur="2s"
+                  repeatCount="indefinite"
+                />
+                <animate
+                  attributeName="width"
+                  values={`${COMPASS_DOT_GEOMETRY.hoverRingRadius * 2};${COMPASS_DOT_GEOMETRY.hoverRingPulseRadius * 2};${COMPASS_DOT_GEOMETRY.hoverRingRadius * 2}`}
+                  dur="2s"
+                  repeatCount="indefinite"
+                />
+                <animate
+                  attributeName="height"
+                  values={`${COMPASS_DOT_GEOMETRY.hoverRingRadius * 2};${COMPASS_DOT_GEOMETRY.hoverRingPulseRadius * 2};${COMPASS_DOT_GEOMETRY.hoverRingRadius * 2}`}
                   dur="2s"
                   repeatCount="indefinite"
                 />
@@ -2714,7 +2743,7 @@ function Compass({
                   dur="2s"
                   repeatCount="indefinite"
                 />
-              </circle>
+              </rect>
             ))}
         </svg>
       )}

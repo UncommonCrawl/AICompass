@@ -110,9 +110,9 @@
   --ease-standard: ease;
 
   /* Shadows */
-  --shadow-modal: 0 24px 80px color-mix(in oklab, var(--color-ink) 12%, transparent);
-  --shadow-surface: 0 16px 36px color-mix(in oklab, var(--color-ink) 10%, transparent);
-  --shadow-subtle: 0 8px 40px -24px color-mix(in oklab, var(--color-ink) 40%, transparent);
+  --shadow-modal: 0 24px 80px color-mix(in oklab, var(--color-ink) 0%, transparent);
+  --shadow-surface: 0 16px 36px color-mix(in oklab, var(--color-ink) 0%, transparent);
+  --shadow-subtle: 0 8px 40px -24px color-mix(in oklab, var(--color-ink) 0%, transparent);
 
   background-color: var(--color-paper);
 }

@@ -11,6 +11,9 @@
     "preview": "vite preview",
     "check:dots": "node scripts/check-live-dots.mjs",
     "check:dots:temp": "node scripts/check-live-dots.mjs --temp",
+    "reconcile:public-dots": "npm --prefix functions run reconcile:public-dots -- --project=ai-compass-b430a",
+    "reconcile:public-dots:write": "npm --prefix functions run reconcile:public-dots -- --project=ai-compass-b430a --write",
+    "deploy:functions": "firebase deploy --only functions:submitCompassResult --project ai-compass-b430a",
     "test:compass-results-v2": "node scripts/test-compass-results-v2.mjs",
     "prestart": "npm run build"
   },

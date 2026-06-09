@@ -7,6 +7,7 @@
   },
   "main": "index.js",
   "scripts": {
+    "reconcile:public-dots": "node scripts/backfillPublicDots.mjs",
     "backfill:public-dots": "node scripts/backfillPublicDots.mjs",
     "scrub:public-fingerprints": "node scripts/scrubPublicFingerprints.mjs"
   },

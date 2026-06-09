@@ -32,6 +32,16 @@ The survey submit path now expects a Firebase HTTPS function endpoint.
 3. Deploy `firestore.rules` so direct client writes to `compass-results-v2` are blocked.
 4. Production builds now fail fast if `VITE_COMPASS_SUBMIT_ENDPOINT` is missing.
 
+Public dot projection:
+
+- `compass-results-v2` is the canonical private submission store and must not be publicly readable.
+- `compass-public-dots-v1` is the sanitized public read model used by the site.
+- `compass-public-dot-archive-v1/latest` is regenerated from canonical submissions for the faded archive layer.
+- After Firebase CLI reauth, deploy function changes with `npm run deploy:functions`.
+- Detect public projection drift with `npm run reconcile:public-dots`.
+- Repair public projection drift with `npm run reconcile:public-dots:write`.
+- Verify public readability after deploy or repair with `npm run check:dots`.
+
 Submission behavior:
 
 - users can retake freely,
