@@ -4334,22 +4334,6 @@ export default function AICompass() {
     return () => clearTimeout(safety);
   }, [screen, submitting]);
 
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    const html = document.documentElement;
-    const body = document.body;
-    const prevHtmlOverflow = html.style.overflow;
-    const prevBodyOverflow = body.style.overflow;
-
-    html.style.overflow = "hidden";
-    body.style.overflow = "hidden";
-
-    return () => {
-      html.style.overflow = prevHtmlOverflow;
-      body.style.overflow = prevBodyOverflow;
-    };
-  }, []);
-
   const homepageBelowCompassContent = (
     <>
       {/* Keep homepage body content here so it appears in both home and results states. */}
@@ -4615,8 +4599,7 @@ export default function AICompass() {
     <div
       style={{
         position: "relative",
-        height: "100vh",
-        overflow: "hidden",
+        minHeight: "100vh",
         display: "flex",
         flexDirection: "column",
         WebkitOverflowScrolling: "touch",
@@ -4817,9 +4800,7 @@ export default function AICompass() {
         style={{
           flex: "1 1 auto",
           minHeight: 0,
-          overflowY: "auto",
           overflowX: "hidden",
-          overscrollBehaviorY: "contain",
           WebkitOverflowScrolling: "touch",
           background: showResultsStrip
             ? `linear-gradient(to bottom, ${LIGHT_GRAY} 0, ${LIGHT_GRAY} 192px, ${THEME.SiteBG} 192px, ${THEME.SiteBG} 100%)`
