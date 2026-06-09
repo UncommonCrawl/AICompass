@@ -2353,32 +2353,35 @@ function Compass({
     const pixelHeight = Math.max(1, Math.round(dims.h * dotBitmapDpr));
     canvas.width = pixelWidth;
     canvas.height = pixelHeight;
+    ctx.imageSmoothingEnabled = false;
+
+    const markerSize = Math.max(
+      1,
+      Math.round(COMPASS_DOT_GEOMETRY.size * dotBitmapDpr),
+    );
+    const markerOffset = markerSize / 2;
+    const getMarkerRect = (sx, sy) => ({
+      x: Math.round(sx * dotBitmapDpr - markerOffset),
+      y: Math.round(sy * dotBitmapDpr - markerOffset),
+      size: markerSize,
+    });
 
     const drawDot = (point, color) => {
+      const rect = getMarkerRect(point.sx, point.sy);
       ctx.fillStyle = color;
-      ctx.fillRect(
-        point.sx - point.dotRadius,
-        point.sy - point.dotRadius,
-        COMPASS_DOT_GEOMETRY.size,
-        COMPASS_DOT_GEOMETRY.size,
-      );
+      ctx.fillRect(rect.x, rect.y, rect.size, rect.size);
     };
     const drawArchiveDot = (point) => {
       const sx = cx + point.x * xRange;
       const sy = cy - point.y * yRange;
+      const rect = getMarkerRect(sx, sy);
       ctx.fillStyle = GRAY;
       ctx.globalAlpha = 0.28;
-      ctx.fillRect(
-        sx - COMPASS_DOT_GEOMETRY.radius,
-        sy - COMPASS_DOT_GEOMETRY.radius,
-        COMPASS_DOT_GEOMETRY.size,
-        COMPASS_DOT_GEOMETRY.size,
-      );
+      ctx.fillRect(rect.x, rect.y, rect.size, rect.size);
       ctx.globalAlpha = 1;
     };
 
-    ctx.setTransform(dotBitmapDpr, 0, 0, dotBitmapDpr, 0, 0);
-    ctx.clearRect(0, 0, dims.w, dims.h);
+    ctx.clearRect(0, 0, pixelWidth, pixelHeight);
 
     for (const point of archivePoints) {
       drawArchiveDot(point);
