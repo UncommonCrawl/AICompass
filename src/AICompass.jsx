@@ -337,9 +337,6 @@ const RESULTS_STRIP_BOTTOM_MARGIN = 16;
 const UNSPECIFIED_FILTER_VALUE = "__UNSPECIFIED__";
 const DROPDOWN_VIEWPORT_BUFFER = 10;
 const DROPDOWN_MENU_MAX_HEIGHT = 200;
-const COMPASS_CANVAS_DPR_CAP_BASE = 2;
-const COMPASS_CANVAS_DPR_CAP_HIGH = 3;
-const COMPASS_CANVAS_HIGH_DPR_POINT_LIMIT = 1200;
 const INTERACTIVE_DOT_LIMIT = 1000;
 const FIRESTORE_IN_FILTER_LIMIT = 30;
 const COMPASS_DOT_COLOR = "#000000";
@@ -2103,13 +2100,15 @@ function Compass({
 }) {
   const svgRef = useRef(null);
   const plotRef = useRef(null);
-  const canvasRef = useRef(null);
   const hoveredDotIdRef = useRef(null);
   const hoverFrameRef = useRef(0);
   const pendingPointerRef = useRef(null);
+  const dotBitmapUrlRef = useRef("");
+  const dotBitmapGenerationRef = useRef(0);
   const [dims, setDims] = useState({ w: 960, h: 520 });
   const [hoveredDotId, setHoveredDotId] = useState(null);
   const [devFps, setDevFps] = useState(0);
+  const [dotBitmapUrl, setDotBitmapUrl] = useState("");
   const userDotColor = useMemo(
     () => resolveCssColorVar("--user-button", DEFAULT_USER_DOT_COLOR),
     [],
@@ -2274,6 +2273,9 @@ function Compass({
     () => new Map(plotPoints.map((point) => [point.id, point])),
     [plotPoints],
   );
+  const hasCanvasPoints = plotPoints.length + archivePoints.length > 0;
+  const shouldRenderDotBitmap = !perfValves.noCanvas && hasCanvasPoints;
+  const dotBitmapDpr = Math.min(window.devicePixelRatio || 1, 2);
   const activeHoveredPoint = hoveredDotId
     ? plotPointById.get(hoveredDotId) || null
     : null;
@@ -2320,26 +2322,29 @@ function Compass({
   }, [globalAverageScores, cx, cy, xRange, yRange]);
 
   useEffect(() => {
-    if (perfValves.noCanvas) {
+    const generation = dotBitmapGenerationRef.current + 1;
+    dotBitmapGenerationRef.current = generation;
+
+    if (!shouldRenderDotBitmap) {
+      const previousUrl = dotBitmapUrlRef.current;
+      dotBitmapUrlRef.current = "";
+      queueMicrotask(() => {
+        if (dotBitmapGenerationRef.current !== generation) return;
+        setDotBitmapUrl("");
+      });
+      if (previousUrl) URL.revokeObjectURL(previousUrl);
       onCanvasDraw?.();
       return;
     }
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+
+    let cancelled = false;
+    const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const totalCanvasPoints = plotPoints.length + archivePoints.length;
-    const dprCap =
-      totalCanvasPoints <= COMPASS_CANVAS_HIGH_DPR_POINT_LIMIT
-        ? COMPASS_CANVAS_DPR_CAP_HIGH
-        : COMPASS_CANVAS_DPR_CAP_BASE;
-    const dpr = Math.min(window.devicePixelRatio || 1, dprCap);
-    const pixelWidth = Math.max(1, Math.round(dims.w * dpr));
-    const pixelHeight = Math.max(1, Math.round(dims.h * dpr));
-    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
-      canvas.width = pixelWidth;
-      canvas.height = pixelHeight;
-    }
+    const pixelWidth = Math.max(1, Math.round(dims.w * dotBitmapDpr));
+    const pixelHeight = Math.max(1, Math.round(dims.h * dotBitmapDpr));
+    canvas.width = pixelWidth;
+    canvas.height = pixelHeight;
 
     const drawDot = (point, color) => {
       ctx.fillStyle = color;
@@ -2358,7 +2363,7 @@ function Compass({
       ctx.globalAlpha = 1;
     };
 
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.setTransform(dotBitmapDpr, 0, 0, dotBitmapDpr, 0, 0);
     ctx.clearRect(0, 0, dims.w, dims.h);
 
     for (const point of archivePoints) {
@@ -2379,7 +2384,27 @@ function Compass({
       if (point.enabled && point.isUser) drawDot(point, userDotColor);
     }
 
-    onCanvasDraw?.();
+    canvas.toBlob((blob) => {
+      if (
+        cancelled ||
+        !blob ||
+        dotBitmapGenerationRef.current !== generation
+      ) {
+        return;
+      }
+      const nextUrl = URL.createObjectURL(blob);
+      const previousUrl = dotBitmapUrlRef.current;
+      dotBitmapUrlRef.current = nextUrl;
+      setDotBitmapUrl(nextUrl);
+      if (previousUrl) {
+        setTimeout(() => URL.revokeObjectURL(previousUrl), 0);
+      }
+      onCanvasDraw?.();
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [
     plotPoints,
     dims.w,
@@ -2392,13 +2417,19 @@ function Compass({
     cy,
     xRange,
     yRange,
-    perfValves.noCanvas,
+    dotBitmapDpr,
+    shouldRenderDotBitmap,
   ]);
 
   useEffect(
     () => () => {
       if (hoverFrameRef.current) {
         cancelAnimationFrame(hoverFrameRef.current);
+      }
+      const previousUrl = dotBitmapUrlRef.current;
+      if (previousUrl) {
+        URL.revokeObjectURL(previousUrl);
+        dotBitmapUrlRef.current = "";
       }
     },
     [],
@@ -2578,10 +2609,11 @@ function Compass({
         </svg>
       )}
 
-      {!perfValves.noCanvas && (
-        <canvas
-          ref={canvasRef}
+      {dotBitmapUrl && (
+        <img
+          src={dotBitmapUrl}
           aria-hidden="true"
+          alt=""
           style={{
             position: "absolute",
             inset: 0,
@@ -4359,11 +4391,9 @@ export default function AICompass() {
   const showResultsStrip = screen === "results" && hasCompletedQuiz;
   const activeQuadrant = pinnedQuadrant || hoveredQuadrant;
   const homeBodyReady = hasInitialResultsSnapshot && homeCanvasDrawn;
-  const effectiveHomeBodyReady = devPerfValves.noLoadingFade
-    ? true
-    : homeBodyReady;
+  const effectiveHomeBodyReady = true;
   const showEffectiveHomeLoading =
-    !devPerfValves.noLoadingFade && showHomeLoading;
+    !devPerfValves.noLoadingFade && showHomeLoading && !homeBodyReady;
   const toggleDevPerfValve = (key) => {
     setDevPerfValves((prev) => ({
       ...prev,
@@ -5017,8 +5047,8 @@ export default function AICompass() {
                     top: HEADER_BAR_HEIGHT + 200,
                     transform: "translateX(-50%)",
                     color: "var(--color-ink)",
-                    opacity: effectiveHomeBodyReady ? 0 : 1,
-                    transition: "opacity 1s ease",
+                    opacity: 1,
+                    transition: "none",
                     pointerEvents: "none",
                     zIndex: 2,
                   }}
@@ -5029,10 +5059,8 @@ export default function AICompass() {
               {devPerfValvePanel}
               <div
                 style={{
-                  opacity: effectiveHomeBodyReady ? 1 : 0,
-                  transition: devPerfValves.noLoadingFade
-                    ? "none"
-                    : "opacity 1s ease",
+                  opacity: 1,
+                  transition: "none",
                   pointerEvents: effectiveHomeBodyReady ? "auto" : "none",
                 }}
               >
