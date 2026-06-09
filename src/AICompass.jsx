@@ -4339,20 +4339,14 @@ export default function AICompass() {
     const html = document.documentElement;
     const body = document.body;
     const prevHtmlOverflow = html.style.overflow;
-    const prevHtmlOverscroll = html.style.overscrollBehaviorY;
     const prevBodyOverflow = body.style.overflow;
-    const prevBodyOverscroll = body.style.overscrollBehaviorY;
 
     html.style.overflow = "hidden";
-    html.style.overscrollBehaviorY = "none";
     body.style.overflow = "hidden";
-    body.style.overscrollBehaviorY = "none";
 
     return () => {
       html.style.overflow = prevHtmlOverflow;
-      html.style.overscrollBehaviorY = prevHtmlOverscroll;
       body.style.overflow = prevBodyOverflow;
-      body.style.overscrollBehaviorY = prevBodyOverscroll;
     };
   }, []);
 
@@ -4622,9 +4616,9 @@ export default function AICompass() {
       style={{
         position: "relative",
         height: "100vh",
-        overflowY: "auto",
-        overflowX: "hidden",
-        overscrollBehaviorY: "contain",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
         WebkitOverflowScrolling: "touch",
         background: THEME.SiteBG,
         color: THEME.SiteText,
@@ -4638,10 +4632,7 @@ export default function AICompass() {
       {/* Header */}
       <div
         style={{
-          position: "sticky",
-          top: 0,
-          left: 0,
-          right: 0,
+          flex: "0 0 auto",
           zIndex: 20,
           boxSizing: "border-box",
           padding: "14px 16px 10px",
@@ -4824,247 +4815,258 @@ export default function AICompass() {
 
       <div
         style={{
-          padding: `16px 48px ${showHomepageChrome ? 20 : 48}px`,
-          boxSizing: "border-box",
+          flex: "1 1 auto",
+          minHeight: 0,
+          overflowY: "auto",
+          overflowX: "hidden",
+          overscrollBehaviorY: "contain",
+          WebkitOverflowScrolling: "touch",
         }}
       >
-        {/* Home + Results Screen */}
-        {showCompassView && (
-          <div
-            style={{
-              position: "relative",
-              minHeight: `calc(100vh - ${HEADER_BAR_HEIGHT + (showHomepageChrome ? FOOTER_BAR_HEIGHT + 5 : 0) + 24 + (showHomepageChrome ? 40 : 48)}px)`,
-            }}
-          >
-            {showHomeLoading && (
-              <div
-                className="type-caption"
-                style={{
-                  position: "fixed",
-                  left: "50%",
-                  top: HEADER_BAR_HEIGHT + 200,
-                  transform: "translateX(-50%)",
-                  color: "var(--color-ink)",
-                  opacity: homeBodyReady ? 0 : 1,
-                  transition: "opacity 1s ease",
-                  pointerEvents: "none",
-                  zIndex: 2,
-                }}
-              >
-                LOADING
-              </div>
-            )}
-            <div
-              style={{
-                opacity: homeBodyReady ? 1 : 0,
-                transition: "opacity 1s ease",
-                pointerEvents: homeBodyReady ? "auto" : "none",
-              }}
-            >
-              {showResultsStrip && (
-                <div
-                  style={{
-                    marginTop: RESULTS_STRIP_TOP_MARGIN,
-                    marginInline: -48,
-                    marginBottom: RESULTS_STRIP_BOTTOM_MARGIN,
-                    padding: "14px 48px 18px",
-                    background: LIGHT_GRAY,
-                  }}
-                >
-                  <div
-                    style={{
-                      textAlign: "center",
-                      marginInline: "auto",
-                      maxWidth: 560,
-                    }}
-                  >
-                    <div
-                      className="type-label"
-                      style={{
-                        color: "var(--color-ink)",
-                        marginBottom: 8,
-                      }}
-                    >
-                      YOU ARE
-                    </div>
-                    <div
-                      className="type-heading"
-                      style={{
-                        color: "var(--color-ink)",
-                        marginBottom: 8,
-                      }}
-                    >
-                      {resultArchetypeName}
-                    </div>
-                    <div
-                      aria-hidden="true"
-                      style={{
-                        width: 216,
-                        height: 1,
-                        margin: "0 auto 12px",
-                        background:
-                          "linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.95) 35%, rgba(0,0,0,0.95) 65%, rgba(0,0,0,0) 100%)",
-                      }}
-                    />
-                    <p
-                      className="type-body"
-                      style={{
-                        color: "var(--color-ink)",
-                        maxWidth: 400,
-                        margin: "0 auto 16px",
-                      }}
-                    >
-                      {resultArchetypeDesc}
-                    </p>
-                    <div
-                      className="type-caption"
-                      style={{
-                        color: "var(--color-ink)",
-                      }}
-                    >
-                      {resultScores ? (
-                        <>
-                          Advancement: {resultScores.x > 0 ? "+" : ""}
-                          {(resultScores.x * 100).toFixed(0)}% &nbsp;|&nbsp; LLM
-                          Belief: {resultScores.y > 0 ? "+" : ""}
-                          {(resultScores.y * 100).toFixed(0)}%
-                        </>
-                      ) : (
-                        "Results available"
-                      )}
-                    </div>
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(2, max-content)",
-                        justifyContent: "center",
-                        gap: 10,
-                        marginTop: 18,
-                      }}
-                    >
-                      <button
-                        type="button"
-                        className="type-body-sm compass-action-button"
-                        onClick={handleShare}
-                        style={{
-                          "--compass-action-width": "120px",
-                          "--compass-action-border": GRAY,
-                          "--compass-action-bg": THEME.SiteBG,
-                          "--compass-action-color": THEME.SiteText,
-                        }}
-                      >
-                        SHARE
-                      </button>
-                      <button
-                        type="button"
-                        className="type-body-sm compass-action-button"
-                        onClick={() => {
-                          setScreen("quiz");
-                          setScores(null);
-                          setQuizEditAnswersEnabled(false);
-                          setQuizEditAnswersUnlocked(false);
-                          resetQuizProgress();
-                        }}
-                        style={{
-                          "--compass-action-width": "120px",
-                          "--compass-action-border": GRAY,
-                          "--compass-action-bg": THEME.SiteBG,
-                          "--compass-action-color": THEME.SiteText,
-                        }}
-                      >
-                        REVIEW
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {(lockCountdownText || firestoreError) && (
-                <div
-                  className="type-body-sm app-error-message"
-                  style={{
-                    "--app-error-margin": "0 auto 12px",
-                  }}
-                >
-                  {lockCountdownText
-                    ? `Resubmission opens in ${lockCountdownText}.`
-                    : firestoreError}
-                </div>
-              )}
-              <div style={{ marginTop: 0 }}>
-                <Compass
-                  results={visibleResults}
-                  archivePoints={archivePoints}
-                  userResult={userResult}
-                  activeQuadrant={activeQuadrant}
-                  disabledAges={disabledAges}
-                  disabledCountries={disabledCountries}
-                  disabledIndustries={disabledIndustries}
-                  onCanvasDraw={handleHomeCanvasDraw}
-                  showResultMarkers={screen === "results"}
-                />
-              </div>
-              {homepageBelowCompassContent}
-            </div>
-          </div>
-        )}
-
-        {/* Quiz Screen */}
-        {screen === "quiz" && (
-          <div>
-            <QuizPage
-              onComplete={handleQuizComplete}
-              onProgressChange={setQuizProgress}
-              initialSubmission={latestLocalSubmission}
-              initialDraft={quizDraft}
-              onDraftChange={handleQuizDraftChange}
-              editAnswersEnabled={quizEditAnswersEnabled}
-              editAnswersUnlocked={quizEditAnswersUnlocked}
-              resetAnswersRequest={quizResetAnswersRequest}
-              questionAveragesById={questionAveragesById}
-              submitError={submitError}
-            />
-          </div>
-        )}
-      </div>
-
-      {showHomepageChrome && (
-        <footer
+        <div
           style={{
-            height: FOOTER_BAR_HEIGHT,
-            marginBottom: 5,
-            background: THEME.SiteBG,
-            color: THEME.SiteText,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "0 12px",
+            padding: `16px 48px ${showHomepageChrome ? 20 : 48}px`,
             boxSizing: "border-box",
           }}
         >
-          <span className="type-body-sm">
-            Created by{" "}
-            <a
-              href="https://www.linkedin.com/in/keithherrmann/"
-              target="_blank"
-              rel="noopener noreferrer"
+          {/* Home + Results Screen */}
+          {showCompassView && (
+            <div
               style={{
-                color: THEME.SiteText,
+                position: "relative",
+                minHeight: `calc(100vh - ${HEADER_BAR_HEIGHT + (showHomepageChrome ? FOOTER_BAR_HEIGHT + 5 : 0) + 24 + (showHomepageChrome ? 40 : 48)}px)`,
               }}
             >
-              Keith Herrmann
-            </a>{" "}
-            •{" "}
-            <a
-              href="mailto:uncommoncrawl@gmail.com"
-              style={{
-                color: THEME.SiteText,
-              }}
-            >
-              Contact
-            </a>
-          </span>
-        </footer>
-      )}
+              {showHomeLoading && (
+                <div
+                  className="type-caption"
+                  style={{
+                    position: "fixed",
+                    left: "50%",
+                    top: HEADER_BAR_HEIGHT + 200,
+                    transform: "translateX(-50%)",
+                    color: "var(--color-ink)",
+                    opacity: homeBodyReady ? 0 : 1,
+                    transition: "opacity 1s ease",
+                    pointerEvents: "none",
+                    zIndex: 2,
+                  }}
+                >
+                  LOADING
+                </div>
+              )}
+              <div
+                style={{
+                  opacity: homeBodyReady ? 1 : 0,
+                  transition: "opacity 1s ease",
+                  pointerEvents: homeBodyReady ? "auto" : "none",
+                }}
+              >
+                {showResultsStrip && (
+                  <div
+                    style={{
+                      marginTop: RESULTS_STRIP_TOP_MARGIN,
+                      marginInline: -48,
+                      marginBottom: RESULTS_STRIP_BOTTOM_MARGIN,
+                      padding: "14px 48px 18px",
+                      background: LIGHT_GRAY,
+                    }}
+                  >
+                    <div
+                      style={{
+                        textAlign: "center",
+                        marginInline: "auto",
+                        maxWidth: 560,
+                      }}
+                    >
+                      <div
+                        className="type-label"
+                        style={{
+                          color: "var(--color-ink)",
+                          marginBottom: 8,
+                        }}
+                      >
+                        YOU ARE
+                      </div>
+                      <div
+                        className="type-heading"
+                        style={{
+                          color: "var(--color-ink)",
+                          marginBottom: 8,
+                        }}
+                      >
+                        {resultArchetypeName}
+                      </div>
+                      <div
+                        aria-hidden="true"
+                        style={{
+                          width: 216,
+                          height: 1,
+                          margin: "0 auto 12px",
+                          background:
+                            "linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.95) 35%, rgba(0,0,0,0.95) 65%, rgba(0,0,0,0) 100%)",
+                        }}
+                      />
+                      <p
+                        className="type-body"
+                        style={{
+                          color: "var(--color-ink)",
+                          maxWidth: 400,
+                          margin: "0 auto 16px",
+                        }}
+                      >
+                        {resultArchetypeDesc}
+                      </p>
+                      <div
+                        className="type-caption"
+                        style={{
+                          color: "var(--color-ink)",
+                        }}
+                      >
+                        {resultScores ? (
+                          <>
+                            Advancement: {resultScores.x > 0 ? "+" : ""}
+                            {(resultScores.x * 100).toFixed(0)}% &nbsp;|&nbsp;
+                            LLM Belief: {resultScores.y > 0 ? "+" : ""}
+                            {(resultScores.y * 100).toFixed(0)}%
+                          </>
+                        ) : (
+                          "Results available"
+                        )}
+                      </div>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(2, max-content)",
+                          justifyContent: "center",
+                          gap: 10,
+                          marginTop: 18,
+                        }}
+                      >
+                        <button
+                          type="button"
+                          className="type-body-sm compass-action-button"
+                          onClick={handleShare}
+                          style={{
+                            "--compass-action-width": "120px",
+                            "--compass-action-border": GRAY,
+                            "--compass-action-bg": THEME.SiteBG,
+                            "--compass-action-color": THEME.SiteText,
+                          }}
+                        >
+                          SHARE
+                        </button>
+                        <button
+                          type="button"
+                          className="type-body-sm compass-action-button"
+                          onClick={() => {
+                            setScreen("quiz");
+                            setScores(null);
+                            setQuizEditAnswersEnabled(false);
+                            setQuizEditAnswersUnlocked(false);
+                            resetQuizProgress();
+                          }}
+                          style={{
+                            "--compass-action-width": "120px",
+                            "--compass-action-border": GRAY,
+                            "--compass-action-bg": THEME.SiteBG,
+                            "--compass-action-color": THEME.SiteText,
+                          }}
+                        >
+                          REVIEW
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {(lockCountdownText || firestoreError) && (
+                  <div
+                    className="type-body-sm app-error-message"
+                    style={{
+                      "--app-error-margin": "0 auto 12px",
+                    }}
+                  >
+                    {lockCountdownText
+                      ? `Resubmission opens in ${lockCountdownText}.`
+                      : firestoreError}
+                  </div>
+                )}
+                <div style={{ marginTop: 0 }}>
+                  <Compass
+                    results={visibleResults}
+                    archivePoints={archivePoints}
+                    userResult={userResult}
+                    activeQuadrant={activeQuadrant}
+                    disabledAges={disabledAges}
+                    disabledCountries={disabledCountries}
+                    disabledIndustries={disabledIndustries}
+                    onCanvasDraw={handleHomeCanvasDraw}
+                    showResultMarkers={screen === "results"}
+                  />
+                </div>
+                {homepageBelowCompassContent}
+              </div>
+            </div>
+          )}
+
+          {/* Quiz Screen */}
+          {screen === "quiz" && (
+            <div>
+              <QuizPage
+                onComplete={handleQuizComplete}
+                onProgressChange={setQuizProgress}
+                initialSubmission={latestLocalSubmission}
+                initialDraft={quizDraft}
+                onDraftChange={handleQuizDraftChange}
+                editAnswersEnabled={quizEditAnswersEnabled}
+                editAnswersUnlocked={quizEditAnswersUnlocked}
+                resetAnswersRequest={quizResetAnswersRequest}
+                questionAveragesById={questionAveragesById}
+                submitError={submitError}
+              />
+            </div>
+          )}
+        </div>
+
+        {showHomepageChrome && (
+          <footer
+            style={{
+              height: FOOTER_BAR_HEIGHT,
+              marginBottom: 5,
+              background: THEME.SiteBG,
+              color: THEME.SiteText,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "0 12px",
+              boxSizing: "border-box",
+            }}
+          >
+            <span className="type-body-sm">
+              Created by{" "}
+              <a
+                href="https://www.linkedin.com/in/keithherrmann/"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: THEME.SiteText,
+                }}
+              >
+                Keith Herrmann
+              </a>{" "}
+              •{" "}
+              <a
+                href="mailto:uncommoncrawl@gmail.com"
+                style={{
+                  color: THEME.SiteText,
+                }}
+              >
+                Contact
+              </a>
+            </span>
+          </footer>
+        )}
+      </div>
 
       {submitting && (
         <div
