@@ -1729,15 +1729,23 @@ function MultiSelectFilter({
         : enabledCount === 1
           ? enabledOptions[0].label
           : "Custom...";
-  const selectionState =
-    enabledCount === options.length
-      ? "plus"
-      : enabledCount === 0
-        ? "minus"
-        : "mixed";
   const allEnabled = enabledCount === options.length;
-  const selectionGlyph =
-    selectionState === "plus" ? "+" : selectionState === "minus" ? "-" : "";
+  const selectedGlyph = "✓";
+  const allSelectionGlyph = allEnabled ? selectedGlyph : "";
+  const toggleOption = (value) =>
+    setDisabledValues((prev) => {
+      if (prev.length === 0) {
+        return options
+          .filter((option) => option.value !== value)
+          .map((option) => option.value);
+      }
+
+      const next = prev.includes(value)
+        ? prev.filter((disabledValue) => disabledValue !== value)
+        : [...prev, value];
+
+      return next.length === options.length ? [] : next;
+    });
   const checklistBoxStyle = {
     width: 16,
     height: 16,
@@ -1752,9 +1760,10 @@ function MultiSelectFilter({
   };
   const checklistSymbolStyle = {
     display: "inline-block",
+    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
     fontSize: 11,
     lineHeight: 1,
-    transform: "translate(0.3px, -0.5px)",
+    transform: "translate(0.3px, 0.2px)",
   };
 
   useEffect(() => {
@@ -1869,9 +1878,7 @@ function MultiSelectFilter({
             <button
               className="type-body-sm"
               type="button"
-              onClick={() =>
-                setDisabledValues(allEnabled ? options.map((o) => o.value) : [])
-              }
+              onClick={() => setDisabledValues([])}
               style={{
                 width: "100%",
                 textAlign: "left",
@@ -1886,24 +1893,19 @@ function MultiSelectFilter({
               }}
             >
               <span style={checklistBoxStyle}>
-                <span style={checklistSymbolStyle}>{selectionGlyph}</span>
+                <span style={checklistSymbolStyle}>{allSelectionGlyph}</span>
               </span>
-              <span>Select/Deselect All</span>
+              <span>All</span>
             </button>
             {options.map((option) => {
               const enabled = !disabledSet.has(option.value);
+              const explicitlySelected = !allEnabled && enabled;
               return (
                 <button
                   className="type-body-sm"
                   key={option.value}
                   type="button"
-                  onClick={() =>
-                    setDisabledValues((prev) =>
-                      prev.includes(option.value)
-                        ? prev.filter((v) => v !== option.value)
-                        : [...prev, option.value],
-                    )
-                  }
+                  onClick={() => toggleOption(option.value)}
                   style={{
                     width: "100%",
                     textAlign: "left",
@@ -1919,7 +1921,7 @@ function MultiSelectFilter({
                 >
                   <span style={checklistBoxStyle}>
                     <span style={checklistSymbolStyle}>
-                      {enabled ? "+" : ""}
+                      {explicitlySelected ? selectedGlyph : ""}
                     </span>
                   </span>
                   <span>{option.label}</span>
