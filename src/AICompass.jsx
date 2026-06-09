@@ -2099,6 +2099,7 @@ function Compass({
   disabledCountries,
   disabledIndustries,
   onCanvasDraw,
+  showAverageMarker = false,
   showResultMarkers = false,
   perfValves = DEV_PERF_VALVE_DEFAULTS,
 }) {
@@ -2303,12 +2304,11 @@ function Compass({
     };
   }, [showResultMarkers, userScores, cx, cy, xRange, yRange]);
   const globalAverageScores = useMemo(() => {
-    if (!showResultMarkers) return null;
+    if (!showAverageMarker) return null;
     let sumX = 0;
     let sumY = 0;
     let count = 0;
     for (const result of results) {
-      if (userResult && result?.id === userResult.id) continue;
       const pointScores = extractScoresFromResult(result);
       if (!pointScores) continue;
       sumX += pointScores.x;
@@ -2320,7 +2320,7 @@ function Compass({
       x: sumX / count,
       y: sumY / count,
     };
-  }, [showResultMarkers, results, userResult]);
+  }, [showAverageMarker, results]);
   const globalAveragePoint = useMemo(() => {
     if (!globalAverageScores) return null;
     return {
@@ -2667,7 +2667,7 @@ function Compass({
               </text>
             </>
           )}
-          {showResultMarkers && globalAveragePoint && (
+          {showAverageMarker && globalAveragePoint && (
             <>
               <rect
                 x={globalAveragePoint.sx - COMPASS_DOT_GEOMETRY.radius}
@@ -4409,6 +4409,7 @@ export default function AICompass() {
     if (devResultPersistenceEnabled) return withUser;
     return withUser.filter((result) => {
       const id = typeof result?.id === "string" ? result.id : "";
+      if (userResult && id === userResult.id) return true;
       if (id.startsWith(LOCAL_DEV_DUMMY_RESULT_ID_PREFIX)) return false;
       return extractDeviceUuidFromResult(result) !== localDeviceId;
     });
@@ -5229,6 +5230,7 @@ export default function AICompass() {
                     disabledCountries={disabledCountries}
                     disabledIndustries={disabledIndustries}
                     onCanvasDraw={handleHomeCanvasDraw}
+                    showAverageMarker={showCompassView}
                     showResultMarkers={screen === "results"}
                     perfValves={devPerfValves}
                   />
