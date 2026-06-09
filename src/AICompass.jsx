@@ -1740,7 +1740,8 @@ function MultiSelectFilter({
   const checklistBoxStyle = {
     width: 16,
     height: 16,
-    border: "1px solid rgba(0,0,0,0.45)",
+    border:
+      "1px solid color-mix(in oklab, var(--color-ink) 45%, var(--color-paper))",
     borderRadius: 4,
     background: THEME.SiteBG,
     color: THEME.SiteText,
@@ -1843,7 +1844,8 @@ function MultiSelectFilter({
             background: TAB_STYLE_VARS.menuBackground,
             border: tabBorder(),
             borderRadius: TAB_STYLE_VARS.borderRadius,
-            boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+            boxShadow:
+              "0 8px 20px color-mix(in oklab, var(--color-ink) 8%, transparent)",
             padding: 8,
             zIndex: 30,
           }}
@@ -2036,7 +2038,8 @@ function SingleSelectDropdown({
             background: TAB_STYLE_VARS.menuBackground,
             border: tabBorder(),
             borderRadius: TAB_STYLE_VARS.borderRadius,
-            boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+            boxShadow:
+              "0 8px 20px color-mix(in oklab, var(--color-ink) 8%, transparent)",
             padding: 8,
             zIndex: 30,
           }}
@@ -2170,7 +2173,8 @@ function Compass({
     sy: cy - yVal * yRange,
   });
 
-  const quadFill = "rgba(0,0,0,0.08)";
+  const quadFill =
+    "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))";
   const quadrantFillRects = [
     { key: "topRight", x: cx, y: pad },
     { key: "topLeft", x: pad, y: pad },
@@ -2541,7 +2545,6 @@ function Compass({
               height={yRange}
               fill={quadFill}
               opacity={activeQuadrant === key ? 1 : 0}
-              style={{ transition: "opacity 220ms ease" }}
             />
           ))}
 
@@ -2808,8 +2811,10 @@ function Compass({
             fontSize: 10,
             letterSpacing: "0.08em",
             color: "var(--color-ink)",
-            background: "rgba(255,255,255,0.88)",
-            border: "1px solid rgba(0,0,0,0.22)",
+            background:
+              "color-mix(in oklab, var(--color-paper) 88%, transparent)",
+            border:
+              "1px solid color-mix(in oklab, var(--color-ink) 22%, var(--color-paper))",
             borderRadius: "var(--radius-base)",
             pointerEvents: "none",
             zIndex: 12,
@@ -3211,7 +3216,6 @@ function QuizPage({
           pointer-events: none;
           z-index: 3;
           opacity: 0;
-          transition: opacity 1s ease;
         }
 
         .response-slider-user-label.is-visible {
@@ -3231,7 +3235,6 @@ function QuizPage({
           pointer-events: none;
           z-index: 2;
           opacity: 0;
-          transition: opacity 1s ease;
         }
 
         .response-slider-avg-thumb.is-visible {
@@ -3287,7 +3290,9 @@ function QuizPage({
               marginBottom: 20,
               padding: "80px 40px",
               background:
-                answerValue !== undefined ? "rgba(0,0,0,0.015)" : THEME.SiteBG,
+                answerValue !== undefined
+                  ? "color-mix(in oklab, var(--color-ink) 1.5%, var(--color-paper))"
+                  : THEME.SiteBG,
               border:
                 answerValue !== undefined
                   ? `1px solid ${THEME.SiteText}`
@@ -3535,9 +3540,11 @@ function QuizPage({
             fontWeight: "var(--font-weight-semibold)",
             background: canSubmit
               ? "linear-gradient(135deg, #000000, #2c2c2c)"
-              : "rgba(0,0,0,0.03)",
+              : "color-mix(in oklab, var(--color-ink) 3%, var(--color-paper))",
             border: "none",
-            color: canSubmit ? "var(--color-paper)" : "rgba(0,0,0,0.35)",
+            color: canSubmit
+              ? "var(--color-paper)"
+              : "color-mix(in oklab, var(--color-ink) 35%, var(--color-paper))",
             borderRadius: "var(--radius-base)",
             cursor: canSubmit ? "pointer" : "default",
             transition: "all 0.3s",
@@ -4413,8 +4420,10 @@ export default function AICompass() {
         justifyContent: "center",
         gap: 8,
         flexWrap: "wrap",
-        background: "rgba(0,0,0,0.05)",
-        border: "1px solid rgba(0,0,0,0.12)",
+        background:
+          "color-mix(in oklab, var(--color-ink) 5%, var(--color-paper))",
+        border:
+          "1px solid color-mix(in oklab, var(--color-ink) 12%, var(--color-paper))",
         borderRadius: "var(--radius-base)",
       }}
     >
@@ -4437,7 +4446,8 @@ export default function AICompass() {
             onClick={() => toggleDevPerfValve(key)}
             style={{
               padding: "6px 8px",
-              border: "1px solid rgba(0,0,0,0.18)",
+              border:
+                "1px solid color-mix(in oklab, var(--color-ink) 18%, var(--color-paper))",
               borderRadius: "var(--radius-base)",
               background: enabled ? "var(--color-ink)" : "var(--color-paper)",
               color: enabled ? "var(--color-paper)" : "var(--color-ink)",
@@ -4455,7 +4465,8 @@ export default function AICompass() {
         onClick={resetDevPerfValves}
         style={{
           padding: "6px 8px",
-          border: "1px solid rgba(0,0,0,0.18)",
+          border:
+            "1px solid color-mix(in oklab, var(--color-ink) 18%, var(--color-paper))",
           borderRadius: "var(--radius-base)",
           background: "transparent",
           color: "var(--color-ink)",
@@ -4654,8 +4665,10 @@ export default function AICompass() {
             onClick={handleDevShortcutSubmit}
             style={{
               padding: "8px 14px",
-              background: "rgba(0,0,0,0.08)",
-              border: "1px solid rgba(0,0,0,0.14)",
+              background:
+                "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
+              border:
+                "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
               color: "var(--color-ink)",
               borderRadius: "var(--radius-base)",
               cursor: "pointer",
@@ -4669,12 +4682,13 @@ export default function AICompass() {
             disabled={clearingDevDots}
             style={{
               padding: "8px 14px",
-              background: "rgba(0,0,0,0.08)",
-              border: "1px solid rgba(0,0,0,0.14)",
+              background:
+                "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
+              border:
+                "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
               color: "var(--color-ink)",
               borderRadius: "var(--radius-base)",
               cursor: clearingDevDots ? "wait" : "pointer",
-              opacity: clearingDevDots ? 0.7 : 1,
             }}
           >
             {clearingDevDots ? "Clearing dev dots..." : "Reset dev dots"}
@@ -4684,8 +4698,10 @@ export default function AICompass() {
             onClick={handleToggleDevResultPersistence}
             style={{
               padding: "8px 14px",
-              background: "rgba(0,0,0,0.08)",
-              border: "1px solid rgba(0,0,0,0.14)",
+              background:
+                "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
+              border:
+                "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
               color: "var(--color-ink)",
               borderRadius: "var(--radius-base)",
               cursor: "pointer",
@@ -4701,15 +4717,15 @@ export default function AICompass() {
             style={{
               padding: "8px 14px",
               background: !devResultPersistenceEnabled
-                ? "rgba(0,0,0,0.04)"
-                : "rgba(0,0,0,0.08)",
-              border: "1px solid rgba(0,0,0,0.14)",
+                ? "color-mix(in oklab, var(--color-ink) 4%, var(--color-paper))"
+                : "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
+              border:
+                "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
               color: !devResultPersistenceEnabled
-                ? "rgba(0,0,0,0.45)"
+                ? "color-mix(in oklab, var(--color-ink) 45%, var(--color-paper))"
                 : "var(--color-ink)",
               borderRadius: "var(--radius-base)",
               cursor: !devResultPersistenceEnabled ? "not-allowed" : "pointer",
-              opacity: !devResultPersistenceEnabled ? 0.7 : 1,
             }}
           >
             Dummy user + retakable quiz:{" "}
@@ -4720,8 +4736,10 @@ export default function AICompass() {
             onClick={handleShowDevErrors}
             style={{
               padding: "8px 14px",
-              background: "rgba(0,0,0,0.08)",
-              border: "1px solid rgba(0,0,0,0.14)",
+              background:
+                "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
+              border:
+                "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
               color: "var(--color-ink)",
               borderRadius: "var(--radius-base)",
               cursor: "pointer",
@@ -4918,7 +4936,8 @@ export default function AICompass() {
                   style={{
                     width: "100%",
                     height: HEADER_ACTION_HEIGHT * 0.25,
-                    background: "rgba(255,255,255,0.2)",
+                    background:
+                      "color-mix(in oklab, var(--color-paper) 20%, transparent)",
                     borderRadius: 999,
                     overflow: "hidden",
                   }}
@@ -5047,8 +5066,6 @@ export default function AICompass() {
                     top: HEADER_BAR_HEIGHT + 200,
                     transform: "translateX(-50%)",
                     color: "var(--color-ink)",
-                    opacity: 1,
-                    transition: "none",
                     pointerEvents: "none",
                     zIndex: 2,
                   }}
@@ -5059,8 +5076,6 @@ export default function AICompass() {
               {devPerfValvePanel}
               <div
                 style={{
-                  opacity: 1,
-                  transition: "none",
                   pointerEvents: effectiveHomeBodyReady ? "auto" : "none",
                 }}
               >
@@ -5106,7 +5121,7 @@ export default function AICompass() {
                           height: 1,
                           margin: "0 auto 12px",
                           background:
-                            "linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.95) 35%, rgba(0,0,0,0.95) 65%, rgba(0,0,0,0) 100%)",
+                            "linear-gradient(90deg, transparent 0%, color-mix(in oklab, var(--color-ink) 95%, transparent) 35%, color-mix(in oklab, var(--color-ink) 95%, transparent) 65%, transparent 100%)",
                         }}
                       />
                       <p
@@ -5276,7 +5291,8 @@ export default function AICompass() {
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(255,255,255,0.8)",
+            background:
+              "color-mix(in oklab, var(--color-paper) 80%, transparent)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
