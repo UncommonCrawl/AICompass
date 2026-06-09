@@ -4821,12 +4821,16 @@ export default function AICompass() {
           overflowX: "hidden",
           overscrollBehaviorY: "contain",
           WebkitOverflowScrolling: "touch",
+          background: showResultsStrip
+            ? `linear-gradient(to bottom, ${LIGHT_GRAY} 0, ${LIGHT_GRAY} 192px, ${THEME.SiteBG} 192px, ${THEME.SiteBG} 100%)`
+            : THEME.SiteBG,
         }}
       >
         <div
           style={{
             padding: `16px 48px ${showHomepageChrome ? 20 : 48}px`,
             boxSizing: "border-box",
+            background: THEME.SiteBG,
           }}
         >
           {/* Home + Results Screen */}
