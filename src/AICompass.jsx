@@ -1536,10 +1536,16 @@ function readInitialQuizDraft(localSubmission = null) {
     questionSchemaVersion: normalizedQuestionSchemaVersion,
     answers,
     demographics: {
-      ageRange: normalizeShortText(demographics.ageRange || demographics.age, 64),
+      ageRange: normalizeShortText(
+        demographics.ageRange || demographics.age,
+        64,
+      ),
       country: normalizeShortText(demographics.country, 64),
       industry: normalizeShortText(demographics.industry, 128),
-      occupation: normalizeShortText(demographics.occupation, OCCUPATION_CHAR_LIMIT),
+      occupation: normalizeShortText(
+        demographics.occupation,
+        OCCUPATION_CHAR_LIMIT,
+      ),
       notes: normalizeShortText(demographics.notes, NOTES_CHAR_LIMIT),
     },
     savedAt: Number.isFinite(savedAt) ? savedAt : 0,
@@ -1583,16 +1589,28 @@ function buildInitialQuizFormState(localSubmission, quizDraft = null) {
   return {
     answers,
     ageRange: normalizeShortText(
-      draftDemo.ageRange || draftDemo.age || submissionDemo.ageRange || submissionDemo.age,
+      draftDemo.ageRange ||
+        draftDemo.age ||
+        submissionDemo.ageRange ||
+        submissionDemo.age,
       64,
     ),
-    countryCode: normalizeShortText(draftDemo.country || submissionDemo.country, 64),
-    industry: normalizeShortText(draftDemo.industry || submissionDemo.industry, 128),
+    countryCode: normalizeShortText(
+      draftDemo.country || submissionDemo.country,
+      64,
+    ),
+    industry: normalizeShortText(
+      draftDemo.industry || submissionDemo.industry,
+      128,
+    ),
     jobTitle: normalizeShortText(
       draftDemo.occupation || submissionDemo.occupation,
       OCCUPATION_CHAR_LIMIT,
     ),
-    notes: normalizeShortText(draftDemo.notes || submissionDemo.notes, NOTES_CHAR_LIMIT),
+    notes: normalizeShortText(
+      draftDemo.notes || submissionDemo.notes,
+      NOTES_CHAR_LIMIT,
+    ),
   };
 }
 
@@ -2215,9 +2233,9 @@ function Compass({
           hitRadius: dotRadius * 2,
           enabled:
             isUser ||
-            !disabledAgeSet.has(normalizeFilterValue(dot.age)) &&
-            !disabledCountrySet.has(normalizeFilterValue(dot.country)) &&
-            !disabledIndustrySet.has(normalizeFilterValue(dot.industry)),
+            (!disabledAgeSet.has(normalizeFilterValue(dot.age)) &&
+              !disabledCountrySet.has(normalizeFilterValue(dot.country)) &&
+              !disabledIndustrySet.has(normalizeFilterValue(dot.industry))),
         };
       }),
     [
@@ -3494,7 +3512,10 @@ function QuizPage({
 
 // --- Main App ---
 export default function AICompass() {
-  const initialLocalSubmission = useMemo(() => readInitialLocalSubmission(), []);
+  const initialLocalSubmission = useMemo(
+    () => readInitialLocalSubmission(),
+    [],
+  );
   const initialQuizDraft = useMemo(
     () => readInitialQuizDraft(initialLocalSubmission),
     [initialLocalSubmission],
@@ -3525,8 +3546,9 @@ export default function AICompass() {
   const [userResult, setUserResult] = useState(
     initialPersistedResultState.userResult,
   );
-  const [latestLocalSubmission, setLatestLocalSubmission] =
-    useState(initialLocalSubmission);
+  const [latestLocalSubmission, setLatestLocalSubmission] = useState(
+    initialLocalSubmission,
+  );
   const [quizDraft, setQuizDraft] = useState(initialQuizDraft);
   const [hoveredQuadrant, setHoveredQuadrant] = useState(null);
   const [pinnedQuadrant, setPinnedQuadrant] = useState(null);
@@ -3645,7 +3667,10 @@ export default function AICompass() {
       ...COUNTRY_OPTIONS.map((country) => country.code),
       UNSPECIFIED_FILTER_VALUE,
     ];
-    const industryOptionValues = [...INDUSTRY_OPTIONS, UNSPECIFIED_FILTER_VALUE];
+    const industryOptionValues = [
+      ...INDUSTRY_OPTIONS,
+      UNSPECIFIED_FILTER_VALUE,
+    ];
     const selectedAges = ageOptionValues.filter(
       (value) => !disabledAges.includes(value),
     );
@@ -3660,7 +3685,11 @@ export default function AICompass() {
     let hasInFilter = false;
     let hasEmptyFilter = false;
     const addFilter = (field, selectedValues, optionCount) => {
-      const filter = buildPublicDotQueryFilter(field, selectedValues, optionCount);
+      const filter = buildPublicDotQueryFilter(
+        field,
+        selectedValues,
+        optionCount,
+      );
       if (filter.empty) {
         hasEmptyFilter = true;
         return;
@@ -3696,9 +3725,9 @@ export default function AICompass() {
         const id = typeof dot?.id === "string" ? dot.id : "";
         if (id) byId.set(id, dot);
       }
-      return [...byId.values()].sort(
-        (a, b) => extractResultTimestamp(b) - extractResultTimestamp(a),
-      ).slice(0, INTERACTIVE_DOT_LIMIT);
+      return [...byId.values()]
+        .sort((a, b) => extractResultTimestamp(b) - extractResultTimestamp(a))
+        .slice(0, INTERACTIVE_DOT_LIMIT);
     };
 
     if (hasEmptyFilter) {
@@ -4618,11 +4647,11 @@ export default function AICompass() {
           flex: "0 0 auto",
           zIndex: 20,
           boxSizing: "border-box",
-          padding: "14px 16px 10px",
+          padding: "16px 16px 8px",
           background: THEME.SiteText,
           display: "flex",
           flexDirection: "column",
-          gap: 10,
+          gap: showHeaderActionRow ? 10 : 0,
         }}
       >
         <button
@@ -4648,6 +4677,9 @@ export default function AICompass() {
             }}
           />
         </button>
+        {!showHeaderActionRow && (
+          <div aria-hidden="true" style={{ height: 8 }} />
+        )}
         {showHeaderActionRow && (
           <div
             style={{
