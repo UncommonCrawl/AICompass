@@ -4886,9 +4886,8 @@ export default function AICompass() {
             alt="AI Compass"
             style={{
               display: "block",
-              height: 20,
-              width: "auto",
-              maxWidth: "100%",
+              width: "min(100%, 493px)",
+              height: "auto",
             }}
           />
         </button>
