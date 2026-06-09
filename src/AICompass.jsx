@@ -2684,7 +2684,7 @@ function Compass({
                 textAnchor="middle"
                 dominantBaseline="hanging"
               >
-                AVG.
+                AVG
               </text>
             </>
           )}
@@ -3378,7 +3378,7 @@ function QuizPage({
                       }`}
                       style={{ left: avgThumbCenterLeft }}
                     >
-                      AVG.
+                      AVG
                     </span>
                   </>
                 )}
