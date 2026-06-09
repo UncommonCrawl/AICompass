@@ -314,7 +314,6 @@ const FOOTER_BAR_HEIGHT = 20;
 const HOME_SECTION_GAP = 20;
 const GRAY = "#b8b8b8";
 const LIGHT_GRAY = `color-mix(in oklab, ${GRAY} 20%, var(--color-paper) 80%)`;
-const RESULTS_STRIP_TOP_MARGIN = -24;
 const RESULTS_STRIP_BOTTOM_MARGIN = 16;
 const UNSPECIFIED_FILTER_VALUE = "__UNSPECIFIED__";
 const DROPDOWN_VIEWPORT_BUFFER = 10;
@@ -4841,7 +4840,7 @@ export default function AICompass() {
       >
         <div
           style={{
-            padding: `16px 48px ${showHomepageChrome ? 20 : 48}px`,
+            padding: `${showResultsStrip ? 0 : 16}px 48px ${showHomepageChrome ? 20 : 48}px`,
             boxSizing: "border-box",
             background: THEME.SiteBG,
           }}
@@ -4882,7 +4881,6 @@ export default function AICompass() {
                 {showResultsStrip && (
                   <div
                     style={{
-                      marginTop: RESULTS_STRIP_TOP_MARGIN,
                       marginInline: -48,
                       marginBottom: RESULTS_STRIP_BOTTOM_MARGIN,
                       padding: "14px 48px 18px",
