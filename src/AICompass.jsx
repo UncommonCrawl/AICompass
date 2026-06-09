@@ -2691,17 +2691,6 @@ function Compass({
               </text>
             </>
           )}
-          {activeHoveredPoint && activeHoveredPoint.enabled && (
-            <rect
-              x={activeHoveredPoint.sx - activeHoveredPoint.dotRadius - 2}
-              y={activeHoveredPoint.sy - activeHoveredPoint.dotRadius - 2}
-              width={(activeHoveredPoint.dotRadius + 2) * 2}
-              height={(activeHoveredPoint.dotRadius + 2) * 2}
-              fill="none"
-              stroke={THEME.SiteBG}
-              strokeWidth={1.5}
-            />
-          )}
           {[activeHoveredPoint]
             .filter((point) => point && point.enabled)
             .map((point) => (
@@ -4878,7 +4867,7 @@ export default function AICompass() {
             padding: 0,
             cursor: "pointer",
             alignSelf: "center",
-            maxWidth: "100%",
+            width: "min(100%, 493px)",
           }}
         >
           <img
@@ -4886,7 +4875,7 @@ export default function AICompass() {
             alt="AI Compass"
             style={{
               display: "block",
-              width: "min(100%, 493px)",
+              width: "100%",
               height: "auto",
             }}
           />
