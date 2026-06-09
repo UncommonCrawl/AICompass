@@ -253,6 +253,18 @@ h6 {
   cursor: pointer;
 }
 
+.app-error-message {
+  --app-error-max-width: 1000px;
+  --app-error-margin: 0 auto 16px;
+  max-width: var(--app-error-max-width);
+  margin: var(--app-error-margin);
+  padding: 10px 12px;
+  border-radius: var(--radius-base);
+  border: 1px solid rgba(255,179,0,0.4);
+  background: rgba(0,0,0,0.08);
+  color: var(--color-ink);
+}
+
 p {
   margin: 0;
 }

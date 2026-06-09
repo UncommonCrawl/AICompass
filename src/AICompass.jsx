@@ -1497,10 +1497,6 @@ function readInitialLocalSubmission() {
 }
 
 function readInitialQuizDraft(localSubmission = null) {
-  if (localSubmission) {
-    removeLocalStorageItem(QUIZ_DRAFT_STORAGE_KEY);
-    return null;
-  }
   const draft = readJsonFromLocalStorage(QUIZ_DRAFT_STORAGE_KEY);
   if (!draft || typeof draft !== "object") return null;
   const storedQuizVersion = normalizeShortText(draft.quizVersion, 32);
@@ -2218,6 +2214,7 @@ function Compass({
           dotRadius,
           hitRadius: dotRadius * 2,
           enabled:
+            isUser ||
             !disabledAgeSet.has(normalizeFilterValue(dot.age)) &&
             !disabledCountrySet.has(normalizeFilterValue(dot.country)) &&
             !disabledIndustrySet.has(normalizeFilterValue(dot.industry)),
@@ -2749,7 +2746,9 @@ function QuizPage({
   onDraftChange,
   editAnswersEnabled = false,
   editAnswersUnlocked = false,
+  resetAnswersRequest = 0,
   questionAveragesById = {},
+  submitError = "",
 }) {
   const orderedQuestions = QUESTIONS;
   const initialFormState = useMemo(
@@ -2769,6 +2768,7 @@ function QuizPage({
   const [industry, setIndustry] = useState(() => initialFormState.industry);
   const [jobTitle, setJobTitle] = useState(() => initialFormState.jobTitle);
   const [notes, setNotes] = useState(() => initialFormState.notes);
+  const lastResetAnswersRequestRef = useRef(resetAnswersRequest);
   const [sliderVisualWidthPx, setSliderVisualWidthPx] = useState(0);
   const [lockCountdownNow, setLockCountdownNow] = useState(() => Date.now());
   const hasSavedAnswers =
@@ -2927,6 +2927,7 @@ function QuizPage({
       canEditAnswers: isRetakeReady,
       editAnswersEnabled,
       editAnswersUnlocked,
+      hasEditedFromLastSubmitted,
     });
   }, [
     answeredCount,
@@ -2935,23 +2936,49 @@ function QuizPage({
     isRetakeReady,
     editAnswersEnabled,
     editAnswersUnlocked,
+    hasEditedFromLastSubmitted,
     onProgressChange,
   ]);
 
   useEffect(() => {
-    if (hasSavedAnswers) {
-      onDraftChange?.(null);
-      return;
-    }
+    if (lastResetAnswersRequestRef.current === resetAnswersRequest) return;
+    lastResetAnswersRequestRef.current = resetAnswersRequest;
+    if (!hasSavedAnswers) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setAnswers(initialSubmittedFormState.answers);
+      setAgeRange(initialSubmittedFormState.ageRange);
+      setCountryCode(initialSubmittedFormState.countryCode);
+      setIndustry(initialSubmittedFormState.industry);
+      setJobTitle(initialSubmittedFormState.jobTitle);
+      setNotes(initialSubmittedFormState.notes);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    resetAnswersRequest,
+    hasSavedAnswers,
+    initialSubmittedFormState.answers,
+    initialSubmittedFormState.ageRange,
+    initialSubmittedFormState.countryCode,
+    initialSubmittedFormState.industry,
+    initialSubmittedFormState.jobTitle,
+    initialSubmittedFormState.notes,
+  ]);
+
+  useEffect(() => {
+    const nextDraft = buildQuizDraftSnapshot({
+      answers,
+      ageRange,
+      countryCode,
+      industry,
+      jobTitle: trimmedJobTitle,
+      notes: trimmedNotes,
+    });
     onDraftChange?.(
-      buildQuizDraftSnapshot({
-        answers,
-        ageRange,
-        countryCode,
-        industry,
-        jobTitle: trimmedJobTitle,
-        notes: trimmedNotes,
-      }),
+      hasSavedAnswers && !hasEditedFromLastSubmitted ? null : nextDraft,
     );
   }, [
     answers,
@@ -2961,11 +2988,14 @@ function QuizPage({
     trimmedJobTitle,
     trimmedNotes,
     hasSavedAnswers,
+    hasEditedFromLastSubmitted,
     onDraftChange,
   ]);
 
   useEffect(() => {
-    if (!hasSavedAnswers) return undefined;
+    if (!hasSavedAnswers) {
+      return;
+    }
     const timer = setInterval(() => {
       setLockCountdownNow(Date.now());
     }, 60 * 1000);
@@ -3446,6 +3476,17 @@ function QuizPage({
             `Select ${missingDemographicText} to continue`
           )}
         </button>
+        {submitError && (
+          <div
+            className="type-body-sm app-error-message"
+            style={{
+              "--app-error-max-width": "520px",
+              "--app-error-margin": "10px auto 0",
+            }}
+          >
+            {submitError}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -3473,9 +3514,11 @@ export default function AICompass() {
     canEditAnswers: false,
     editAnswersEnabled: false,
     editAnswersUnlocked: false,
+    hasEditedFromLastSubmitted: false,
   });
   const [quizEditAnswersEnabled, setQuizEditAnswersEnabled] = useState(false);
   const [quizEditAnswersUnlocked, setQuizEditAnswersUnlocked] = useState(false);
+  const [quizResetAnswersRequest, setQuizResetAnswersRequest] = useState(0);
   const [results, setResults] = useState([]);
   const [archivePoints, setArchivePoints] = useState([]);
   const [questionAveragesById, setQuestionAveragesById] = useState({});
@@ -3488,6 +3531,7 @@ export default function AICompass() {
   const [hoveredQuadrant, setHoveredQuadrant] = useState(null);
   const [pinnedQuadrant, setPinnedQuadrant] = useState(null);
   const [firestoreError, setFirestoreError] = useState("");
+  const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [clearingDevDots, setClearingDevDots] = useState(false);
   const [devResultPersistenceEnabled, setDevResultPersistenceEnabled] =
@@ -3524,7 +3568,12 @@ export default function AICompass() {
       canEditAnswers: false,
       editAnswersEnabled: false,
       editAnswersUnlocked: false,
+      hasEditedFromLastSubmitted: false,
     });
+  const handleQuizDraftChange = useCallback((nextDraft) => {
+    setSubmitError("");
+    setQuizDraft(nextDraft);
+  }, []);
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;
@@ -3550,12 +3599,12 @@ export default function AICompass() {
   }, [latestLocalSubmission]);
 
   useEffect(() => {
-    if (latestLocalSubmission || !quizDraft) {
+    if (!quizDraft) {
       removeLocalStorageItem(QUIZ_DRAFT_STORAGE_KEY);
       return;
     }
     writeLocalStorageItem(QUIZ_DRAFT_STORAGE_KEY, JSON.stringify(quizDraft));
-  }, [latestLocalSubmission, quizDraft]);
+  }, [quizDraft]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -3776,6 +3825,7 @@ export default function AICompass() {
     const activeScores = overrideScores || scores;
     if (!activeScores) return;
     setSubmitting(true);
+    setSubmitError("");
     const questionAnalytics = buildQuestionAnalyticsPayload(
       questionData.answers || {},
       questionData.questionOrder || [],
@@ -3842,12 +3892,9 @@ export default function AICompass() {
       createdAt: clientCreatedAt,
     };
 
-    setUserResult({ ...entry, id: localId });
-    setScreen("results");
-
     const stallTimer = setTimeout(() => {
-      setFirestoreError(
-        "Your result is visible here, but we could not save it yet. Please try again.",
+      setSubmitError(
+        "We could not save your result yet. Your answers are still saved on this device.",
       );
       setSubmitting(false);
     }, 8000);
@@ -3891,6 +3938,7 @@ export default function AICompass() {
           ? normalizeDevResultToCurrentQuestionSchema(mergedSavedEntry)
           : mergedSavedEntry;
         setFirestoreError("");
+        setSubmitError("");
         setSubmissionLockRetryAt(0);
         if (isDevSubmit && !COMPASS_SUBMIT_ENDPOINT) {
           setResults((prev) => {
@@ -3900,9 +3948,8 @@ export default function AICompass() {
             ];
           });
         }
-        setUserResult((prev) =>
-          prev?.id === localId ? normalizedSavedEntry : prev,
-        );
+        setUserResult(normalizedSavedEntry);
+        setScreen("results");
         setQuizDraft(null);
         setLatestLocalSubmission({
           ...localSubmissionSnapshot,
@@ -3919,13 +3966,14 @@ export default function AICompass() {
           const retryAt = readRetryAtFromError(error) || fallbackRetryAt;
           setSubmissionLockRetryAt(retryAt);
           setFirestoreError("");
+          setSubmitError("");
           return;
         }
         setSubmissionLockRetryAt(0);
-        setFirestoreError(
+        setSubmitError(
           error?.code === "ip_rate_limited"
             ? "Too many submissions from this network. Please try again later."
-            : "Your result is visible here, but we could not save it yet. Please try again.",
+            : "We could not save your result yet. Your answers are still saved on this device.",
         );
       })
       .finally(() => {
@@ -4142,6 +4190,12 @@ export default function AICompass() {
     resetQuizProgress();
     setScreen("results");
   };
+  const handleShowDevErrors = () => {
+    setFirestoreError("The live map is temporarily unavailable.");
+    setSubmitError(
+      "We could not save your result yet. Your answers are still saved on this device.",
+    );
+  };
 
   const fallbackSubmissionScores = useMemo(() => {
     const x = Number(latestLocalSubmission?.xScore);
@@ -4197,6 +4251,7 @@ export default function AICompass() {
     (userResult && typeof userResult === "object"),
   );
   const visibleResults = useMemo(() => {
+    // Keep the current user's dot independent of the capped public feed.
     const withUser =
       userResult && !results.some((result) => result.id === userResult.id)
         ? [...results, userResult]
@@ -4469,6 +4524,20 @@ export default function AICompass() {
             Dummy user + retakable quiz:{" "}
             {devRetakableDummyEnabled ? "On" : "Off"}
           </button>
+          <button
+            className="type-body-sm"
+            onClick={handleShowDevErrors}
+            style={{
+              padding: "8px 14px",
+              background: "rgba(0,0,0,0.08)",
+              border: "1px solid rgba(0,0,0,0.14)",
+              color: "var(--color-ink)",
+              borderRadius: "var(--radius-base)",
+              cursor: "pointer",
+            }}
+          >
+            SHOW ERRORS
+          </button>
         </div>
       )}
       <section
@@ -4716,6 +4785,34 @@ export default function AICompass() {
                           ? "EDITING ANSWERS"
                           : "EDIT ANSWERS"}
                       </button>
+                      {quizProgress.editAnswersEnabled &&
+                        quizProgress.hasEditedFromLastSubmitted && (
+                          <>
+                            <span aria-hidden="true">•</span>
+                            <button
+                              type="button"
+                              className="type-caption"
+                              onClick={() => {
+                                setQuizResetAnswersRequest(
+                                  (request) => request + 1,
+                                );
+                                setQuizEditAnswersEnabled(false);
+                                setQuizEditAnswersUnlocked(false);
+                              }}
+                              style={{
+                                border: "none",
+                                background: "none",
+                                padding: 0,
+                                margin: 0,
+                                color: THEME.SiteBG,
+                                textDecoration: "underline",
+                                cursor: "pointer",
+                              }}
+                            >
+                              RESET
+                            </button>
+                          </>
+                        )}
                     </>
                   )}
                 </div>
@@ -4731,25 +4828,6 @@ export default function AICompass() {
           boxSizing: "border-box",
         }}
       >
-        {(lockCountdownText || firestoreError) && (
-          <div
-            className="type-body-sm"
-            style={{
-              maxWidth: 1000,
-              margin: "0 auto 16px",
-              padding: "10px 12px",
-              borderRadius: "var(--radius-base)",
-              border: "1px solid rgba(255,179,0,0.4)",
-              background: "rgba(0,0,0,0.08)",
-              color: "var(--color-ink)",
-            }}
-          >
-            {lockCountdownText
-              ? `Resubmission opens in ${lockCountdownText}.`
-              : firestoreError}
-          </div>
-        )}
-
         {/* Home + Results Screen */}
         {showCompassView && (
           <div
@@ -4900,6 +4978,18 @@ export default function AICompass() {
                   </div>
                 </div>
               )}
+              {(lockCountdownText || firestoreError) && (
+                <div
+                  className="type-body-sm app-error-message"
+                  style={{
+                    "--app-error-margin": "0 auto 12px",
+                  }}
+                >
+                  {lockCountdownText
+                    ? `Resubmission opens in ${lockCountdownText}.`
+                    : firestoreError}
+                </div>
+              )}
               <div style={{ marginTop: 0 }}>
                 <Compass
                   results={visibleResults}
@@ -4925,11 +5015,13 @@ export default function AICompass() {
               onComplete={handleQuizComplete}
               onProgressChange={setQuizProgress}
               initialSubmission={latestLocalSubmission}
-              initialDraft={latestLocalSubmission ? null : quizDraft}
-              onDraftChange={latestLocalSubmission ? null : setQuizDraft}
+              initialDraft={quizDraft}
+              onDraftChange={handleQuizDraftChange}
               editAnswersEnabled={quizEditAnswersEnabled}
               editAnswersUnlocked={quizEditAnswersUnlocked}
+              resetAnswersRequest={quizResetAnswersRequest}
               questionAveragesById={questionAveragesById}
+              submitError={submitError}
             />
           </div>
         )}
