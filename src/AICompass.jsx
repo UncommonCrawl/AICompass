@@ -2757,14 +2757,11 @@ function Compass({
           const { sx, sy } = toSvg(activeHoveredDot.x, activeHoveredDot.y);
           const isRight = sx > cx;
           const isBottom = sy > cy;
-          const isUserDot = Boolean(activeHoveredPoint?.isUser);
           const clampedHoverNotes = clampLabelText(
             activeHoveredDot.notes,
             NOTES_CHAR_LIMIT,
           );
-          const noteText = isUserDot
-            ? "Lorem ipsum dolor sit amet."
-            : clampedHoverNotes;
+          const noteText = clampedHoverNotes;
           const hasNotes = noteText.length > 0;
           const tooltipTextNudgeYPx = -2;
           const tooltipStyle = {
