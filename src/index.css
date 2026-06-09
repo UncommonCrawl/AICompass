@@ -260,8 +260,8 @@ h6 {
   margin: var(--app-error-margin);
   padding: 10px 12px;
   border-radius: var(--radius-base);
-  border: 1px solid rgba(255,179,0,0.4);
-  background: rgba(0,0,0,0.08);
+  border: 1px solid color-mix(in oklab, #ffb300 40%, var(--color-paper));
+  background: color-mix(in oklab, var(--color-ink) 8%, var(--color-paper));
   color: var(--color-ink);
 }
 

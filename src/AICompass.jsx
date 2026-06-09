@@ -198,6 +198,24 @@ const LAST_SUBMISSION_STORAGE_KEY = "ai_compass_last_submission_v1";
 const QUIZ_DRAFT_STORAGE_KEY = "ai_compass_quiz_draft_v1";
 const DEV_RESULT_PERSISTENCE_ENABLED_STORAGE_KEY =
   "ai_compass_dev_result_persistence_enabled_v1";
+const DEV_PERF_VALVE_DEFAULTS = {
+  noFirestore: false,
+  noCanvas: false,
+  noSvg: false,
+  noHomeBody: false,
+  noLoadingFade: false,
+  noDevControls: false,
+  noFpsMeter: false,
+};
+const DEV_PERF_VALVE_OPTIONS = [
+  { key: "noFirestore", label: "Firestore" },
+  { key: "noCanvas", label: "Canvas" },
+  { key: "noSvg", label: "SVG" },
+  { key: "noHomeBody", label: "Home body" },
+  { key: "noLoadingFade", label: "Fade" },
+  { key: "noDevControls", label: "Dev controls" },
+  { key: "noFpsMeter", label: "FPS meter" },
+];
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 const RESUBMIT_LOCK_WINDOW_MS = DAY_MS;
@@ -318,9 +336,6 @@ const RESULTS_STRIP_BOTTOM_MARGIN = 16;
 const UNSPECIFIED_FILTER_VALUE = "__UNSPECIFIED__";
 const DROPDOWN_VIEWPORT_BUFFER = 10;
 const DROPDOWN_MENU_MAX_HEIGHT = 200;
-const COMPASS_CANVAS_DPR_CAP_BASE = 2;
-const COMPASS_CANVAS_DPR_CAP_HIGH = 3;
-const COMPASS_CANVAS_HIGH_DPR_POINT_LIMIT = 1200;
 const INTERACTIVE_DOT_LIMIT = 1000;
 const FIRESTORE_IN_FILTER_LIMIT = 30;
 const COMPASS_DOT_COLOR = "#000000";
@@ -1724,7 +1739,8 @@ function MultiSelectFilter({
   const checklistBoxStyle = {
     width: 16,
     height: 16,
-    border: "1px solid rgba(0,0,0,0.45)",
+    border:
+      "1px solid color-mix(in oklab, var(--color-ink) 45%, var(--color-paper))",
     borderRadius: 4,
     background: THEME.SiteBG,
     color: THEME.SiteText,
@@ -1827,7 +1843,8 @@ function MultiSelectFilter({
             background: TAB_STYLE_VARS.menuBackground,
             border: tabBorder(),
             borderRadius: TAB_STYLE_VARS.borderRadius,
-            boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+            boxShadow:
+              "0 8px 20px color-mix(in oklab, var(--color-ink) 8%, transparent)",
             padding: 8,
             zIndex: 30,
           }}
@@ -2020,7 +2037,8 @@ function SingleSelectDropdown({
             background: TAB_STYLE_VARS.menuBackground,
             border: tabBorder(),
             borderRadius: TAB_STYLE_VARS.borderRadius,
-            boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+            boxShadow:
+              "0 8px 20px color-mix(in oklab, var(--color-ink) 8%, transparent)",
             padding: 8,
             zIndex: 30,
           }}
@@ -2080,16 +2098,19 @@ function Compass({
   disabledIndustries,
   onCanvasDraw,
   showResultMarkers = false,
+  perfValves = DEV_PERF_VALVE_DEFAULTS,
 }) {
   const svgRef = useRef(null);
   const plotRef = useRef(null);
-  const canvasRef = useRef(null);
   const hoveredDotIdRef = useRef(null);
   const hoverFrameRef = useRef(0);
   const pendingPointerRef = useRef(null);
+  const dotBitmapUrlRef = useRef("");
+  const dotBitmapGenerationRef = useRef(0);
   const [dims, setDims] = useState({ w: 960, h: 520 });
   const [hoveredDotId, setHoveredDotId] = useState(null);
   const [devFps, setDevFps] = useState(0);
+  const [dotBitmapUrl, setDotBitmapUrl] = useState("");
   const userDotColor = useMemo(
     () => resolveCssColorVar("--user-button", DEFAULT_USER_DOT_COLOR),
     [],
@@ -2151,7 +2172,8 @@ function Compass({
     sy: cy - yVal * yRange,
   });
 
-  const quadFill = "rgba(0,0,0,0.08)";
+  const quadFill =
+    "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))";
   const quadrantFillRects = [
     { key: "topRight", x: cx, y: pad },
     { key: "topLeft", x: pad, y: pad },
@@ -2254,6 +2276,9 @@ function Compass({
     () => new Map(plotPoints.map((point) => [point.id, point])),
     [plotPoints],
   );
+  const hasCanvasPoints = plotPoints.length + archivePoints.length > 0;
+  const shouldRenderDotBitmap = !perfValves.noCanvas && hasCanvasPoints;
+  const dotBitmapDpr = Math.min(window.devicePixelRatio || 1, 2);
   const activeHoveredPoint = hoveredDotId
     ? plotPointById.get(hoveredDotId) || null
     : null;
@@ -2300,22 +2325,29 @@ function Compass({
   }, [globalAverageScores, cx, cy, xRange, yRange]);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    const generation = dotBitmapGenerationRef.current + 1;
+    dotBitmapGenerationRef.current = generation;
+
+    if (!shouldRenderDotBitmap) {
+      const previousUrl = dotBitmapUrlRef.current;
+      dotBitmapUrlRef.current = "";
+      queueMicrotask(() => {
+        if (dotBitmapGenerationRef.current !== generation) return;
+        setDotBitmapUrl("");
+      });
+      if (previousUrl) URL.revokeObjectURL(previousUrl);
+      onCanvasDraw?.();
+      return;
+    }
+
+    let cancelled = false;
+    const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const totalCanvasPoints = plotPoints.length + archivePoints.length;
-    const dprCap =
-      totalCanvasPoints <= COMPASS_CANVAS_HIGH_DPR_POINT_LIMIT
-        ? COMPASS_CANVAS_DPR_CAP_HIGH
-        : COMPASS_CANVAS_DPR_CAP_BASE;
-    const dpr = Math.min(window.devicePixelRatio || 1, dprCap);
-    const pixelWidth = Math.max(1, Math.round(dims.w * dpr));
-    const pixelHeight = Math.max(1, Math.round(dims.h * dpr));
-    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
-      canvas.width = pixelWidth;
-      canvas.height = pixelHeight;
-    }
+    const pixelWidth = Math.max(1, Math.round(dims.w * dotBitmapDpr));
+    const pixelHeight = Math.max(1, Math.round(dims.h * dotBitmapDpr));
+    canvas.width = pixelWidth;
+    canvas.height = pixelHeight;
 
     const drawDot = (point, color) => {
       ctx.fillStyle = color;
@@ -2334,7 +2366,7 @@ function Compass({
       ctx.globalAlpha = 1;
     };
 
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.setTransform(dotBitmapDpr, 0, 0, dotBitmapDpr, 0, 0);
     ctx.clearRect(0, 0, dims.w, dims.h);
 
     for (const point of archivePoints) {
@@ -2355,7 +2387,27 @@ function Compass({
       if (point.enabled && point.isUser) drawDot(point, userDotColor);
     }
 
-    onCanvasDraw?.();
+    canvas.toBlob((blob) => {
+      if (
+        cancelled ||
+        !blob ||
+        dotBitmapGenerationRef.current !== generation
+      ) {
+        return;
+      }
+      const nextUrl = URL.createObjectURL(blob);
+      const previousUrl = dotBitmapUrlRef.current;
+      dotBitmapUrlRef.current = nextUrl;
+      setDotBitmapUrl(nextUrl);
+      if (previousUrl) {
+        setTimeout(() => URL.revokeObjectURL(previousUrl), 0);
+      }
+      onCanvasDraw?.();
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [
     plotPoints,
     dims.w,
@@ -2368,6 +2420,8 @@ function Compass({
     cy,
     xRange,
     yRange,
+    dotBitmapDpr,
+    shouldRenderDotBitmap,
   ]);
 
   useEffect(
@@ -2375,12 +2429,17 @@ function Compass({
       if (hoverFrameRef.current) {
         cancelAnimationFrame(hoverFrameRef.current);
       }
+      const previousUrl = dotBitmapUrlRef.current;
+      if (previousUrl) {
+        URL.revokeObjectURL(previousUrl);
+        dotBitmapUrlRef.current = "";
+      }
     },
     [],
   );
 
   useEffect(() => {
-    if (!import.meta.env.DEV) return;
+    if (!import.meta.env.DEV || perfValves.noFpsMeter) return;
     let rafId = 0;
     let frameCount = 0;
     let sampleStart = performance.now();
@@ -2399,7 +2458,7 @@ function Compass({
 
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, []);
+  }, [perfValves.noFpsMeter]);
 
   const updateHoveredPointFromPointer = (clientX, clientY) => {
     const plotElement = plotRef.current;
@@ -2462,192 +2521,203 @@ function Compass({
       ref={plotRef}
       onMouseMove={handlePlotMouseMove}
       onMouseLeave={handlePlotMouseLeave}
-      style={{ position: "relative", width: "100%", margin: "0 auto" }}
+      style={{
+        position: "relative",
+        width: "100%",
+        height: perfValves.noSvg ? dims.h : undefined,
+        margin: "0 auto",
+      }}
     >
-      <svg
-        ref={svgRef}
-        viewBox={`0 0 ${dims.w} ${dims.h}`}
-        style={{ width: "100%", height: "auto", display: "block", zIndex: 1 }}
-      >
-        {/* Quadrant fills */}
-        {quadrantFillRects.map(({ key, x, y }) => (
-          <rect
-            key={key}
-            x={x}
-            y={y}
-            width={xRange}
-            height={yRange}
-            fill={quadFill}
-            opacity={activeQuadrant === key ? 1 : 0}
-            style={{ transition: "opacity 220ms ease" }}
-          />
-        ))}
-
-        {/* Axes */}
-        <line
-          x1={cx}
-          y1={pad}
-          x2={cx}
-          y2={dims.h - pad}
-          stroke={GRAY}
-          strokeWidth={1}
-        />
-        <line
-          x1={pad}
-          y1={cy}
-          x2={dims.w - pad}
-          y2={cy}
-          stroke={GRAY}
-          strokeWidth={1}
-        />
-
-        {/* Border */}
-        <rect
-          x={pad}
-          y={pad}
-          width={xRange * 2}
-          height={yRange * 2}
-          fill="none"
-          stroke={GRAY}
-          strokeWidth={1}
-        />
-
-        {/* Axis labels */}
-        {axisLabels.map(({ key, axis, x, y, text, transform }) => (
-          <text
-            className="type-caption"
-            key={key}
-            x={x}
-            y={y}
-            transform={transform}
-            style={{
-              letterSpacing: `${
-                axis === "y" ? yAxisLetterSpacingEm : xAxisLetterSpacingEm
-              }em`,
-            }}
-            {...axisLabelTextStyle}
-          >
-            {text}
-          </text>
-        ))}
-
-        {/* Quadrant labels */}
-        {compassLabelPositions.map(({ key, x, y }) => (
-          <text
-            className="type-caption"
-            key={key}
-            x={x}
-            y={y}
-            fill={GRAY}
-            {...compassLabelTextStyle}
-          >
-            {QUADRANT_INFO[key].compassLabel.toUpperCase()}
-          </text>
-        ))}
-      </svg>
-
-      <canvas
-        ref={canvasRef}
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          pointerEvents: "none",
-          zIndex: 2,
-        }}
-      />
-
-      <svg
-        viewBox={`0 0 ${dims.w} ${dims.h}`}
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          pointerEvents: "none",
-          zIndex: 3,
-        }}
-      >
-        {showResultMarkers && userMarkerPoint && (
-          <>
-            <circle
-              cx={userMarkerPoint.sx}
-              cy={userMarkerPoint.sy}
-              r={COMPASS_DOT_GEOMETRY.radius}
-              fill={userDotColor}
+      {!perfValves.noSvg && (
+        <svg
+          ref={svgRef}
+          viewBox={`0 0 ${dims.w} ${dims.h}`}
+          style={{ width: "100%", height: "auto", display: "block", zIndex: 1 }}
+        >
+          {/* Quadrant fills */}
+          {quadrantFillRects.map(({ key, x, y }) => (
+            <rect
+              key={key}
+              x={x}
+              y={y}
+              width={xRange}
+              height={yRange}
+              fill={quadFill}
+              opacity={activeQuadrant === key ? 1 : 0}
             />
-            <text
-              className="type-caption color-ink"
-              x={userMarkerPoint.sx}
-              y={userMarkerPoint.sy - COMPASS_DOT_GEOMETRY.radius - 8}
-              fill="currentColor"
-              textAnchor="middle"
-            >
-              YOU
-            </text>
-          </>
-        )}
-        {showResultMarkers && globalAveragePoint && (
-          <>
-            <circle
-              cx={globalAveragePoint.sx}
-              cy={globalAveragePoint.sy}
-              r={COMPASS_DOT_GEOMETRY.radius}
-              fill={GRAY}
-            />
-            <text
-              className="type-caption color-muted"
-              x={globalAveragePoint.sx}
-              y={globalAveragePoint.sy + COMPASS_DOT_GEOMETRY.radius + 6}
-              fill="currentColor"
-              textAnchor="middle"
-              dominantBaseline="hanging"
-            >
-              AVG.
-            </text>
-          </>
-        )}
-        {activeHoveredPoint && activeHoveredPoint.enabled && (
-          <circle
-            cx={activeHoveredPoint.sx}
-            cy={activeHoveredPoint.sy}
-            r={activeHoveredPoint.dotRadius + 2}
-            fill="none"
-            stroke={THEME.SiteBG}
-            strokeWidth={1.5}
-          />
-        )}
-        {[activeHoveredPoint]
-          .filter((point) => point && point.enabled)
-          .map((point) => (
-            <circle
-              key={`pulse-${point.id}`}
-              cx={point.sx}
-              cy={point.sy}
-              r={COMPASS_DOT_GEOMETRY.hoverRingRadius}
-              fill="none"
-              stroke={point.color}
-              strokeWidth={1.5}
-              opacity={0.6}
-            >
-              <animate
-                attributeName="r"
-                values={`${COMPASS_DOT_GEOMETRY.hoverRingRadius};${COMPASS_DOT_GEOMETRY.hoverRingPulseRadius};${COMPASS_DOT_GEOMETRY.hoverRingRadius}`}
-                dur="2s"
-                repeatCount="indefinite"
-              />
-              <animate
-                attributeName="opacity"
-                values="0.6;0.2;0.6"
-                dur="2s"
-                repeatCount="indefinite"
-              />
-            </circle>
           ))}
-      </svg>
+
+          {/* Axes */}
+          <line
+            x1={cx}
+            y1={pad}
+            x2={cx}
+            y2={dims.h - pad}
+            stroke={GRAY}
+            strokeWidth={1}
+          />
+          <line
+            x1={pad}
+            y1={cy}
+            x2={dims.w - pad}
+            y2={cy}
+            stroke={GRAY}
+            strokeWidth={1}
+          />
+
+          {/* Border */}
+          <rect
+            x={pad}
+            y={pad}
+            width={xRange * 2}
+            height={yRange * 2}
+            fill="none"
+            stroke={GRAY}
+            strokeWidth={1}
+          />
+
+          {/* Axis labels */}
+          {axisLabels.map(({ key, axis, x, y, text, transform }) => (
+            <text
+              className="type-caption"
+              key={key}
+              x={x}
+              y={y}
+              transform={transform}
+              style={{
+                letterSpacing: `${
+                  axis === "y" ? yAxisLetterSpacingEm : xAxisLetterSpacingEm
+                }em`,
+              }}
+              {...axisLabelTextStyle}
+            >
+              {text}
+            </text>
+          ))}
+
+          {/* Quadrant labels */}
+          {compassLabelPositions.map(({ key, x, y }) => (
+            <text
+              className="type-caption"
+              key={key}
+              x={x}
+              y={y}
+              fill={GRAY}
+              {...compassLabelTextStyle}
+            >
+              {QUADRANT_INFO[key].compassLabel.toUpperCase()}
+            </text>
+          ))}
+        </svg>
+      )}
+
+      {dotBitmapUrl && (
+        <img
+          src={dotBitmapUrl}
+          aria-hidden="true"
+          alt=""
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            pointerEvents: "none",
+            zIndex: 2,
+          }}
+        />
+      )}
+
+      {!perfValves.noSvg && (
+        <svg
+          viewBox={`0 0 ${dims.w} ${dims.h}`}
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            pointerEvents: "none",
+            zIndex: 3,
+          }}
+        >
+          {showResultMarkers && userMarkerPoint && (
+            <>
+              <circle
+                cx={userMarkerPoint.sx}
+                cy={userMarkerPoint.sy}
+                r={COMPASS_DOT_GEOMETRY.radius}
+                fill={userDotColor}
+              />
+              <text
+                className="type-caption color-ink"
+                x={userMarkerPoint.sx}
+                y={userMarkerPoint.sy - COMPASS_DOT_GEOMETRY.radius - 8}
+                fill="currentColor"
+                textAnchor="middle"
+              >
+                YOU
+              </text>
+            </>
+          )}
+          {showResultMarkers && globalAveragePoint && (
+            <>
+              <circle
+                cx={globalAveragePoint.sx}
+                cy={globalAveragePoint.sy}
+                r={COMPASS_DOT_GEOMETRY.radius}
+                fill={GRAY}
+              />
+              <text
+                className="type-caption color-muted"
+                x={globalAveragePoint.sx}
+                y={globalAveragePoint.sy + COMPASS_DOT_GEOMETRY.radius + 6}
+                fill="currentColor"
+                textAnchor="middle"
+                dominantBaseline="hanging"
+              >
+                AVG.
+              </text>
+            </>
+          )}
+          {activeHoveredPoint && activeHoveredPoint.enabled && (
+            <circle
+              cx={activeHoveredPoint.sx}
+              cy={activeHoveredPoint.sy}
+              r={activeHoveredPoint.dotRadius + 2}
+              fill="none"
+              stroke={THEME.SiteBG}
+              strokeWidth={1.5}
+            />
+          )}
+          {[activeHoveredPoint]
+            .filter((point) => point && point.enabled)
+            .map((point) => (
+              <circle
+                key={`pulse-${point.id}`}
+                cx={point.sx}
+                cy={point.sy}
+                r={COMPASS_DOT_GEOMETRY.hoverRingRadius}
+                fill="none"
+                stroke={point.color}
+                strokeWidth={1.5}
+                opacity={0.6}
+              >
+                <animate
+                  attributeName="r"
+                  values={`${COMPASS_DOT_GEOMETRY.hoverRingRadius};${COMPASS_DOT_GEOMETRY.hoverRingPulseRadius};${COMPASS_DOT_GEOMETRY.hoverRingRadius}`}
+                  dur="2s"
+                  repeatCount="indefinite"
+                />
+                <animate
+                  attributeName="opacity"
+                  values="0.6;0.2;0.6"
+                  dur="2s"
+                  repeatCount="indefinite"
+                />
+              </circle>
+            ))}
+        </svg>
+      )}
 
       {/* Tooltip for hovered dot */}
       {activeHoveredDot &&
@@ -2729,7 +2799,7 @@ function Compass({
             </div>
           );
         })()}
-      {import.meta.env.DEV && (
+      {import.meta.env.DEV && !perfValves.noFpsMeter && (
         <div
           className="type-caption"
           style={{
@@ -2740,8 +2810,10 @@ function Compass({
             fontSize: 10,
             letterSpacing: "0.08em",
             color: "var(--color-ink)",
-            background: "rgba(255,255,255,0.88)",
-            border: "1px solid rgba(0,0,0,0.22)",
+            background:
+              "color-mix(in oklab, var(--color-paper) 88%, transparent)",
+            border:
+              "1px solid color-mix(in oklab, var(--color-ink) 22%, var(--color-paper))",
             borderRadius: "var(--radius-base)",
             pointerEvents: "none",
             zIndex: 12,
@@ -3143,7 +3215,6 @@ function QuizPage({
           pointer-events: none;
           z-index: 3;
           opacity: 0;
-          transition: opacity 1s ease;
         }
 
         .response-slider-user-label.is-visible {
@@ -3163,7 +3234,6 @@ function QuizPage({
           pointer-events: none;
           z-index: 2;
           opacity: 0;
-          transition: opacity 1s ease;
         }
 
         .response-slider-avg-thumb.is-visible {
@@ -3219,7 +3289,9 @@ function QuizPage({
               marginBottom: 20,
               padding: "80px 40px",
               background:
-                answerValue !== undefined ? "rgba(0,0,0,0.015)" : THEME.SiteBG,
+                answerValue !== undefined
+                  ? "color-mix(in oklab, var(--color-ink) 1.5%, var(--color-paper))"
+                  : THEME.SiteBG,
               border:
                 answerValue !== undefined
                   ? `1px solid ${THEME.SiteText}`
@@ -3467,9 +3539,11 @@ function QuizPage({
             fontWeight: "var(--font-weight-semibold)",
             background: canSubmit
               ? "linear-gradient(135deg, #000000, #2c2c2c)"
-              : "rgba(0,0,0,0.03)",
+              : "color-mix(in oklab, var(--color-ink) 3%, var(--color-paper))",
             border: "none",
-            color: canSubmit ? "var(--color-paper)" : "rgba(0,0,0,0.35)",
+            color: canSubmit
+              ? "var(--color-paper)"
+              : "color-mix(in oklab, var(--color-ink) 35%, var(--color-paper))",
             borderRadius: "var(--radius-base)",
             cursor: canSubmit ? "pointer" : "default",
             transition: "all 0.3s",
@@ -3559,6 +3633,7 @@ export default function AICompass() {
     useState(() => readDevResultPersistenceEnabled());
   const [devRetakableDummyEnabled, setDevRetakableDummyEnabled] =
     useState(false);
+  const [devPerfValves, setDevPerfValves] = useState(DEV_PERF_VALVE_DEFAULTS);
   const [disabledAges, setDisabledAges] = useState([]);
   const [disabledCountries, setDisabledCountries] = useState([]);
   const [disabledIndustries, setDisabledIndustries] = useState([]);
@@ -3635,6 +3710,9 @@ export default function AICompass() {
   }, []);
 
   useEffect(() => {
+    if (devPerfValves.noFirestore) {
+      return;
+    }
     let cancelled = false;
     getDoc(
       doc(
@@ -3653,11 +3731,18 @@ export default function AICompass() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [devPerfValves.noFirestore]);
 
   // Load the public map once, then listen only for dots created after this page
   // session started. The submitter's own dot remains optimistic via userResult.
   useEffect(() => {
+    if (devPerfValves.noFirestore) {
+      queueMicrotask(() => {
+        setHasInitialResultsSnapshot(true);
+        setFirestoreError("");
+      });
+      return;
+    }
     let cancelled = false;
     const pageLoadStartedAt = Date.now();
     const publicDotsCollection = collection(db, COMPASS_PUBLIC_DOTS_COLLECTION);
@@ -3798,9 +3883,17 @@ export default function AICompass() {
       cancelled = true;
       unsubscribe();
     };
-  }, [disabledAges, disabledCountries, disabledIndustries]);
+  }, [
+    disabledAges,
+    disabledCountries,
+    disabledIndustries,
+    devPerfValves.noFirestore,
+  ]);
 
   useEffect(() => {
+    if (devPerfValves.noFirestore) {
+      return;
+    }
     const questionAveragesRef = doc(
       db,
       COMPASS_METRICS_COLLECTION,
@@ -3820,7 +3913,7 @@ export default function AICompass() {
       },
     );
     return unsubscribe;
-  }, []);
+  }, [devPerfValves.noFirestore]);
   const handleHomeCanvasDraw = useCallback(() => {
     setHomeCanvasDrawn((prev) => (prev ? prev : true));
   }, []);
@@ -4291,12 +4384,98 @@ export default function AICompass() {
       return extractDeviceUuidFromResult(result) !== localDeviceId;
     });
   }, [results, userResult, devResultPersistenceEnabled, localDeviceId]);
+  const effectiveVisibleResults = devPerfValves.noFirestore
+    ? []
+    : visibleResults;
+  const effectiveArchivePoints = devPerfValves.noFirestore ? [] : archivePoints;
+  const effectiveQuestionAveragesById = devPerfValves.noFirestore
+    ? {}
+    : questionAveragesById;
   const showCompassView = screen === "home" || screen === "results";
   const showHomepageChrome = showCompassView;
   const showHeaderActionRow = screen === "home" || screen === "quiz";
   const showResultsStrip = screen === "results" && hasCompletedQuiz;
   const activeQuadrant = pinnedQuadrant || hoveredQuadrant;
   const homeBodyReady = hasInitialResultsSnapshot && homeCanvasDrawn;
+  const effectiveHomeBodyReady = true;
+  const showEffectiveHomeLoading =
+    !devPerfValves.noLoadingFade && showHomeLoading && !homeBodyReady;
+  const toggleDevPerfValve = (key) => {
+    setDevPerfValves((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+  const resetDevPerfValves = () => {
+    setDevPerfValves(DEV_PERF_VALVE_DEFAULTS);
+  };
+  const devPerfValvePanel = import.meta.env.DEV ? (
+    <div
+      style={{
+        margin: "0 auto 12px",
+        padding: "8px 10px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        flexWrap: "wrap",
+        background:
+          "color-mix(in oklab, var(--color-ink) 5%, var(--color-paper))",
+        border:
+          "1px solid color-mix(in oklab, var(--color-ink) 12%, var(--color-paper))",
+        borderRadius: "var(--radius-base)",
+      }}
+    >
+      <span
+        className="type-caption"
+        style={{
+          color: "var(--color-ink)",
+          marginRight: 2,
+        }}
+      >
+        PERF
+      </span>
+      {DEV_PERF_VALVE_OPTIONS.map(({ key, label }) => {
+        const enabled = devPerfValves[key];
+        return (
+          <button
+            key={key}
+            className="type-caption"
+            type="button"
+            onClick={() => toggleDevPerfValve(key)}
+            style={{
+              padding: "6px 8px",
+              border:
+                "1px solid color-mix(in oklab, var(--color-ink) 18%, var(--color-paper))",
+              borderRadius: "var(--radius-base)",
+              background: enabled ? "var(--color-ink)" : "var(--color-paper)",
+              color: enabled ? "var(--color-paper)" : "var(--color-ink)",
+              cursor: "pointer",
+            }}
+          >
+            {enabled ? "NO " : ""}
+            {label}
+          </button>
+        );
+      })}
+      <button
+        className="type-caption"
+        type="button"
+        onClick={resetDevPerfValves}
+        style={{
+          padding: "6px 8px",
+          border:
+            "1px solid color-mix(in oklab, var(--color-ink) 18%, var(--color-paper))",
+          borderRadius: "var(--radius-base)",
+          background: "transparent",
+          color: "var(--color-ink)",
+          cursor: "pointer",
+        }}
+      >
+        RESET
+      </button>
+    </div>
+  ) : null;
   useEffect(() => {
     if (!homeBodyReady || !showHomeLoading) return;
     const timeoutId = setTimeout(() => {
@@ -4453,7 +4632,7 @@ export default function AICompass() {
           );
         })}
       </div>
-      {import.meta.env.DEV && (
+      {import.meta.env.DEV && !devPerfValves.noDevControls && (
         <div
           style={{
             marginTop: 18,
@@ -4469,8 +4648,10 @@ export default function AICompass() {
             onClick={handleDevShortcutSubmit}
             style={{
               padding: "8px 14px",
-              background: "rgba(0,0,0,0.08)",
-              border: "1px solid rgba(0,0,0,0.14)",
+              background:
+                "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
+              border:
+                "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
               color: "var(--color-ink)",
               borderRadius: "var(--radius-base)",
               cursor: "pointer",
@@ -4484,12 +4665,13 @@ export default function AICompass() {
             disabled={clearingDevDots}
             style={{
               padding: "8px 14px",
-              background: "rgba(0,0,0,0.08)",
-              border: "1px solid rgba(0,0,0,0.14)",
+              background:
+                "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
+              border:
+                "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
               color: "var(--color-ink)",
               borderRadius: "var(--radius-base)",
               cursor: clearingDevDots ? "wait" : "pointer",
-              opacity: clearingDevDots ? 0.7 : 1,
             }}
           >
             {clearingDevDots ? "Clearing dev dots..." : "Reset dev dots"}
@@ -4499,8 +4681,10 @@ export default function AICompass() {
             onClick={handleToggleDevResultPersistence}
             style={{
               padding: "8px 14px",
-              background: "rgba(0,0,0,0.08)",
-              border: "1px solid rgba(0,0,0,0.14)",
+              background:
+                "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
+              border:
+                "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
               color: "var(--color-ink)",
               borderRadius: "var(--radius-base)",
               cursor: "pointer",
@@ -4516,15 +4700,15 @@ export default function AICompass() {
             style={{
               padding: "8px 14px",
               background: !devResultPersistenceEnabled
-                ? "rgba(0,0,0,0.04)"
-                : "rgba(0,0,0,0.08)",
-              border: "1px solid rgba(0,0,0,0.14)",
+                ? "color-mix(in oklab, var(--color-ink) 4%, var(--color-paper))"
+                : "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
+              border:
+                "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
               color: !devResultPersistenceEnabled
-                ? "rgba(0,0,0,0.45)"
+                ? "color-mix(in oklab, var(--color-ink) 45%, var(--color-paper))"
                 : "var(--color-ink)",
               borderRadius: "var(--radius-base)",
               cursor: !devResultPersistenceEnabled ? "not-allowed" : "pointer",
-              opacity: !devResultPersistenceEnabled ? 0.7 : 1,
             }}
           >
             Dummy user + retakable quiz:{" "}
@@ -4535,8 +4719,10 @@ export default function AICompass() {
             onClick={handleShowDevErrors}
             style={{
               padding: "8px 14px",
-              background: "rgba(0,0,0,0.08)",
-              border: "1px solid rgba(0,0,0,0.14)",
+              background:
+                "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
+              border:
+                "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
               color: "var(--color-ink)",
               borderRadius: "var(--radius-base)",
               cursor: "pointer",
@@ -4735,7 +4921,8 @@ export default function AICompass() {
                   style={{
                     width: "100%",
                     height: HEADER_ACTION_HEIGHT * 0.25,
-                    background: "rgba(255,255,255,0.2)",
+                    background:
+                      "color-mix(in oklab, var(--color-paper) 20%, transparent)",
                     borderRadius: 999,
                     overflow: "hidden",
                   }}
@@ -4853,7 +5040,7 @@ export default function AICompass() {
                 minHeight: `calc(100vh - ${HEADER_BAR_HEIGHT + (showHomepageChrome ? FOOTER_BAR_HEIGHT + 5 : 0) + 24 + (showHomepageChrome ? 40 : 48)}px)`,
               }}
             >
-              {showHomeLoading && (
+              {showEffectiveHomeLoading && (
                 <div
                   className="type-caption"
                   style={{
@@ -4862,8 +5049,6 @@ export default function AICompass() {
                     top: HEADER_BAR_HEIGHT + 200,
                     transform: "translateX(-50%)",
                     color: "var(--color-ink)",
-                    opacity: homeBodyReady ? 0 : 1,
-                    transition: "opacity 1s ease",
                     pointerEvents: "none",
                     zIndex: 2,
                   }}
@@ -4871,11 +5056,10 @@ export default function AICompass() {
                   LOADING
                 </div>
               )}
+              {devPerfValvePanel}
               <div
                 style={{
-                  opacity: homeBodyReady ? 1 : 0,
-                  transition: "opacity 1s ease",
-                  pointerEvents: homeBodyReady ? "auto" : "none",
+                  pointerEvents: effectiveHomeBodyReady ? "auto" : "none",
                 }}
               >
                 {showResultsStrip && (
@@ -4919,7 +5103,7 @@ export default function AICompass() {
                           height: 1,
                           margin: "0 auto 12px",
                           background:
-                            "linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.95) 35%, rgba(0,0,0,0.95) 65%, rgba(0,0,0,0) 100%)",
+                            "linear-gradient(90deg, transparent 0%, color-mix(in oklab, var(--color-ink) 95%, transparent) 35%, color-mix(in oklab, var(--color-ink) 95%, transparent) 65%, transparent 100%)",
                         }}
                       />
                       <p
@@ -5008,8 +5192,8 @@ export default function AICompass() {
                 )}
                 <div style={{ marginTop: 0 }}>
                   <Compass
-                    results={visibleResults}
-                    archivePoints={archivePoints}
+                    results={effectiveVisibleResults}
+                    archivePoints={effectiveArchivePoints}
                     userResult={userResult}
                     activeQuadrant={activeQuadrant}
                     disabledAges={disabledAges}
@@ -5017,9 +5201,10 @@ export default function AICompass() {
                     disabledIndustries={disabledIndustries}
                     onCanvasDraw={handleHomeCanvasDraw}
                     showResultMarkers={screen === "results"}
+                    perfValves={devPerfValves}
                   />
                 </div>
-                {homepageBelowCompassContent}
+                {!devPerfValves.noHomeBody && homepageBelowCompassContent}
               </div>
             </div>
           )}
@@ -5036,7 +5221,7 @@ export default function AICompass() {
                 editAnswersEnabled={quizEditAnswersEnabled}
                 editAnswersUnlocked={quizEditAnswersUnlocked}
                 resetAnswersRequest={quizResetAnswersRequest}
-                questionAveragesById={questionAveragesById}
+                questionAveragesById={effectiveQuestionAveragesById}
                 submitError={submitError}
               />
             </div>
@@ -5088,7 +5273,8 @@ export default function AICompass() {
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(255,255,255,0.8)",
+            background:
+              "color-mix(in oklab, var(--color-paper) 80%, transparent)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
