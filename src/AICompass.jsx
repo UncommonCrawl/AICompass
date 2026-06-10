@@ -3540,7 +3540,7 @@ function QuizPage({
               textAlign: "right",
             }}
           >
-            Please select Age Range, Country, and Industry.
+            Please select Age Range, Industry, and Location.
           </div>
         )}
         <div>
@@ -3556,10 +3556,10 @@ function QuizPage({
         </div>
         <div>
           <SingleSelectDropdown
-            label="Country"
-            value={countryCode}
-            onChange={setCountryCode}
-            options={quizCountryOptions}
+            label="Industry"
+            value={industry}
+            onChange={setIndustry}
+            options={quizIndustryOptions}
             placeholder="Select..."
             disabled={inputsLocked}
             textColor={lockedFieldTextColor}
@@ -3567,10 +3567,10 @@ function QuizPage({
         </div>
         <div>
           <SingleSelectDropdown
-            label="Industry"
-            value={industry}
-            onChange={setIndustry}
-            options={quizIndustryOptions}
+            label="Location"
+            value={countryCode}
+            onChange={setCountryCode}
+            options={quizCountryOptions}
             placeholder="Select..."
             disabled={inputsLocked}
             textColor={lockedFieldTextColor}
@@ -4700,6 +4700,31 @@ export default function AICompass() {
       { value: UNSPECIFIED_FILTER_VALUE, label: "Unspecified" },
     ];
   }, [filterIpCountryCode]);
+  const selectedCountryFilterValue = useMemo(() => {
+    const selectableValues = countryFilterOptions.map((option) => option.value);
+    const selectedValues = selectableValues.filter(
+      (value) => !disabledCountries.includes(value),
+    );
+    return selectedValues.length === 1 ? selectedValues[0] : "";
+  }, [countryFilterOptions, disabledCountries]);
+  const countrySingleSelectOptions = useMemo(
+    () => [{ value: "", label: "All" }, ...countryFilterOptions],
+    [countryFilterOptions],
+  );
+  const setCountryFilterValue = useCallback(
+    (value) => {
+      if (!value) {
+        setDisabledCountries([]);
+        return;
+      }
+      setDisabledCountries(
+        countryFilterOptions
+          .map((option) => option.value)
+          .filter((optionValue) => optionValue !== value),
+      );
+    },
+    [countryFilterOptions],
+  );
 
   useEffect(() => {
     if (screen !== "results") return;
@@ -4730,16 +4755,17 @@ export default function AICompass() {
           setDisabledValues={setDisabledAges}
         />
         <MultiSelectFilter
-          label="LOCATION"
-          options={countryFilterOptions}
-          disabledValues={disabledCountries}
-          setDisabledValues={setDisabledCountries}
-        />
-        <MultiSelectFilter
           label="INDUSTRY"
           options={industryFilterOptions}
           disabledValues={disabledIndustries}
           setDisabledValues={setDisabledIndustries}
+        />
+        <SingleSelectDropdown
+          label="LOCATION"
+          value={selectedCountryFilterValue}
+          onChange={setCountryFilterValue}
+          options={countrySingleSelectOptions}
+          placeholder="All"
         />
       </div>
 
