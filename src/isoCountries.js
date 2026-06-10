@@ -4,10 +4,6 @@ export const ISO_COUNTRIES = [
     "name": "Afghanistan"
   },
   {
-    "code": "AX",
-    "name": "Åland Islands"
-  },
-  {
     "code": "AL",
     "name": "Albania"
   },

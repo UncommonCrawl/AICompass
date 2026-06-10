@@ -341,6 +341,7 @@ const DROPDOWN_MENU_MAX_HEIGHT = 200;
 const INTERACTIVE_DOT_LIMIT = 1000;
 const FIRESTORE_IN_FILTER_LIMIT = 30;
 const COMPASS_DOT_COLOR = "#000000";
+const COMPASS_DOT_FADED_COLOR = "#EBEBEB";
 const COMPASS_SELECTED_RING_COLOR = "var(--color-ink)";
 const DEFAULT_USER_DOT_COLOR = "#17a34a";
 const COMPASS_DOT_BITMAP_DPR = 2;
@@ -1744,7 +1745,6 @@ function MultiSelectFilter({
           : "Custom...";
   const allEnabled = enabledCount === options.length;
   const selectedGlyph = "✓";
-  const allSelectionGlyph = allEnabled ? selectedGlyph : "";
   const toggleOption = (value) =>
     setDisabledValues((prev) => {
       if (prev.length === 0) {
@@ -1770,13 +1770,41 @@ function MultiSelectFilter({
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
+    flex: "0 0 16px",
+    position: "relative",
   };
   const checklistSymbolStyle = {
-    display: "inline-block",
+    position: "absolute",
+    inset: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
     fontSize: 11,
     lineHeight: 1,
     transform: "translate(0.3px, 0.2px)",
+  };
+  const getChecklistSymbolStyle = (visible) => ({
+    ...checklistSymbolStyle,
+    opacity: visible ? 1 : 0,
+  });
+  const checklistRowStyle = {
+    width: "100%",
+    textAlign: "left",
+    padding: "8px 8px",
+    border: "none",
+    background: "transparent",
+    color: "var(--color-ink)",
+    cursor: "pointer",
+    display: "grid",
+    gridTemplateColumns: "16px minmax(0, 1fr)",
+    alignItems: "center",
+    columnGap: 8,
+  };
+  const checklistLabelStyle = {
+    display: "block",
+    minWidth: 0,
+    lineHeight: "inherit",
   };
 
   useEffect(() => {
@@ -1892,23 +1920,14 @@ function MultiSelectFilter({
               className="type-body-sm"
               type="button"
               onClick={() => setDisabledValues([])}
-              style={{
-                width: "100%",
-                textAlign: "left",
-                padding: "8px 8px",
-                border: "none",
-                background: "transparent",
-                color: "var(--color-ink)",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-              }}
+              style={checklistRowStyle}
             >
               <span style={checklistBoxStyle}>
-                <span style={checklistSymbolStyle}>{allSelectionGlyph}</span>
+                <span style={getChecklistSymbolStyle(allEnabled)}>
+                  {selectedGlyph}
+                </span>
               </span>
-              <span>All</span>
+              <span style={checklistLabelStyle}>All</span>
             </button>
             {options.map((option) => {
               const enabled = !disabledSet.has(option.value);
@@ -1919,25 +1938,14 @@ function MultiSelectFilter({
                   key={option.value}
                   type="button"
                   onClick={() => toggleOption(option.value)}
-                  style={{
-                    width: "100%",
-                    textAlign: "left",
-                    padding: "8px 8px",
-                    border: "none",
-                    background: "transparent",
-                    color: "var(--color-ink)",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                  }}
+                  style={checklistRowStyle}
                 >
                   <span style={checklistBoxStyle}>
-                    <span style={checklistSymbolStyle}>
-                      {explicitlySelected ? selectedGlyph : ""}
+                    <span style={getChecklistSymbolStyle(explicitlySelected)}>
+                      {selectedGlyph}
                     </span>
                   </span>
-                  <span>{option.label}</span>
+                  <span style={checklistLabelStyle}>{option.label}</span>
                 </button>
               );
             })}
@@ -2136,9 +2144,9 @@ function Compass({
     () => resolveCssColorVar("--user-button", DEFAULT_USER_DOT_COLOR),
     [],
   );
-  const userDotGrayColor = useMemo(
-    () => createFadedUserDotColor(userDotColor),
-    [userDotColor],
+  const compassDotFadedColor = useMemo(
+    () => resolveCssColorVar("--compass-dot-faded", COMPASS_DOT_FADED_COLOR),
+    [],
   );
   const axisLabelGap = 10;
   const axisLabelFontSize = 10;
@@ -2396,10 +2404,8 @@ function Compass({
       const sx = cx + point.x * xRange;
       const sy = cy - point.y * yRange;
       const rect = getMarkerRect(sx, sy);
-      ctx.fillStyle = GRAY;
-      ctx.globalAlpha = 0.28;
+      ctx.fillStyle = compassDotFadedColor;
       ctx.fillRect(rect.x, rect.y, rect.size, rect.size);
-      ctx.globalAlpha = 1;
     };
 
     ctx.clearRect(0, 0, pixelWidth, pixelHeight);
@@ -2410,10 +2416,10 @@ function Compass({
 
     // Draw gray dots first so enabled dots always sit above them.
     for (const point of plotPoints) {
-      if (!point.enabled && !point.isUser) drawDot(point, GRAY);
+      if (!point.enabled && !point.isUser) drawDot(point, compassDotFadedColor);
     }
     for (const point of plotPoints) {
-      if (!point.enabled && point.isUser) drawDot(point, userDotGrayColor);
+      if (!point.enabled && point.isUser) drawDot(point, compassDotFadedColor);
     }
     for (const point of plotPoints) {
       if (point.enabled && !point.isUser) drawDot(point, COMPASS_DOT_COLOR);
@@ -2445,7 +2451,7 @@ function Compass({
     dims.h,
     onCanvasDraw,
     userDotColor,
-    userDotGrayColor,
+    compassDotFadedColor,
     archivePoints,
     cx,
     cy,
@@ -3257,7 +3263,7 @@ function QuizPage({
           outline: none;
           overflow: visible;
           position: relative;
-          z-index: 2;
+          z-index: 3;
         }
 
         .response-slider::-webkit-slider-runnable-track {

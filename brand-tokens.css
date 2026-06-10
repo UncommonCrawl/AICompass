@@ -135,4 +135,5 @@
   --tab-border-color-subtle: var(--brand-border-default);
   --tab-radius: var(--brand-radius-lg);
   --faded-button: var(--brand-text-muted);
+  --compass-dot-faded: #EBEBEB;
 }
