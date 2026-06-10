@@ -324,8 +324,9 @@ export const submitCompassResult = onRequest(
       128,
     );
     const questionSchema = cleanQuestionSchema(payload.question_schema);
-    // Public callers cannot self-designate as dev; dev writes require admin paths.
-    const isDevSubmission = false;
+    // Dev controls intentionally self-designate test entries so local/dev UI can
+    // create removable samples without tripping repeat or aggregate guardrails.
+    const isDevSubmission = payload.is_dev === true;
 
     const deviceUuid = cleanString(payload.device_uuid, 256);
     const sessionUuid = cleanString(payload.session_uuid, 256);
@@ -637,6 +638,7 @@ export const submitCompassResult = onRequest(
           x: xScore,
           y: yScore,
           ts: now,
+          is_dev: isDevSubmission,
         };
 
         txn.set(submissionRef, submissionDoc);

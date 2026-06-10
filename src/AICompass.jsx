@@ -196,6 +196,8 @@ const SESSION_ID_STORAGE_KEY = "ai_compass_session_id_v1";
 const LAST_RESULT_STORAGE_KEY = "ai_compass_last_result_v1";
 const LAST_SUBMISSION_STORAGE_KEY = "ai_compass_last_submission_v1";
 const QUIZ_DRAFT_STORAGE_KEY = "ai_compass_quiz_draft_v1";
+const DEV_DOT_DISPLAY_ENABLED_STORAGE_KEY =
+  "ai_compass_dev_dot_display_enabled_v1";
 const DEV_RESULT_PERSISTENCE_ENABLED_STORAGE_KEY =
   "ai_compass_dev_result_persistence_enabled_v1";
 const DEV_PERF_VALVE_DEFAULTS = {
@@ -1120,6 +1122,7 @@ function normalizeArchivePoints(source) {
             : `archive-${index}`,
         x,
         y,
+        is_dev: point?.is_dev === true || point?.isDev === true,
       };
     })
     .filter(Boolean);
@@ -1237,6 +1240,14 @@ function readJsonFromLocalStorage(key) {
 function readDevResultPersistenceEnabled() {
   if (!import.meta.env.DEV) return true;
   const raw = readLocalStorageItem(DEV_RESULT_PERSISTENCE_ENABLED_STORAGE_KEY);
+  if (raw === "0") return false;
+  if (raw === "1") return true;
+  return true;
+}
+
+function readDevDotDisplayEnabled() {
+  if (!import.meta.env.DEV) return false;
+  const raw = readLocalStorageItem(DEV_DOT_DISPLAY_ENABLED_STORAGE_KEY);
   if (raw === "0") return false;
   if (raw === "1") return true;
   return true;
@@ -3649,6 +3660,9 @@ export default function AICompass() {
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [clearingDevDots, setClearingDevDots] = useState(false);
+  const [devDotDisplayEnabled, setDevDotDisplayEnabled] = useState(() =>
+    readDevDotDisplayEnabled(),
+  );
   const [devResultPersistenceEnabled, setDevResultPersistenceEnabled] =
     useState(() => readDevResultPersistenceEnabled());
   const [devRetakableDummyEnabled, setDevRetakableDummyEnabled] =
@@ -3689,6 +3703,38 @@ export default function AICompass() {
   const handleQuizDraftChange = useCallback((nextDraft) => {
     setSubmitError("");
     setQuizDraft(nextDraft);
+  }, []);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    writeLocalStorageItem(
+      DEV_DOT_DISPLAY_ENABLED_STORAGE_KEY,
+      devDotDisplayEnabled ? "1" : "0",
+    );
+  }, [devDotDisplayEnabled]);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV || typeof window === "undefined") return undefined;
+    window.aiCompassDevDots = (nextValue = "toggle") => {
+      let resolved = null;
+      if (nextValue === true || nextValue === "on" || nextValue === "show") {
+        resolved = true;
+      } else if (
+        nextValue === false ||
+        nextValue === "off" ||
+        nextValue === "hide"
+      ) {
+        resolved = false;
+      }
+      setDevDotDisplayEnabled((prev) => {
+        const next = resolved === null ? !prev : resolved;
+        console.log(`AI Compass dev dots ${next ? "shown" : "hidden"}.`);
+        return next;
+      });
+    };
+    return () => {
+      delete window.aiCompassDevDots;
+    };
   }, []);
 
   useEffect(() => {
@@ -4397,18 +4443,32 @@ export default function AICompass() {
       userResult && !results.some((result) => result.id === userResult.id)
         ? [...results, userResult]
         : results;
-    if (devResultPersistenceEnabled) return withUser;
-    return withUser.filter((result) => {
+    const displayEligibleResults = devDotDisplayEnabled
+      ? withUser
+      : withUser.filter((result) => !isDevRecord(result));
+    if (devResultPersistenceEnabled) return displayEligibleResults;
+    return displayEligibleResults.filter((result) => {
       const id = typeof result?.id === "string" ? result.id : "";
       if (userResult && id === userResult.id) return true;
       if (id.startsWith(LOCAL_DEV_DUMMY_RESULT_ID_PREFIX)) return false;
       return extractDeviceUuidFromResult(result) !== localDeviceId;
     });
-  }, [results, userResult, devResultPersistenceEnabled, localDeviceId]);
+  }, [
+    results,
+    userResult,
+    devDotDisplayEnabled,
+    devResultPersistenceEnabled,
+    localDeviceId,
+  ]);
   const effectiveVisibleResults = devPerfValves.noFirestore
     ? []
     : visibleResults;
-  const effectiveArchivePoints = devPerfValves.noFirestore ? [] : archivePoints;
+  const visibleArchivePoints = devDotDisplayEnabled
+    ? archivePoints
+    : archivePoints.filter((point) => !isDevRecord(point));
+  const effectiveArchivePoints = devPerfValves.noFirestore
+    ? []
+    : visibleArchivePoints;
   const effectiveQuestionAveragesById = devPerfValves.noFirestore
     ? {}
     : questionAveragesById;
@@ -4696,6 +4756,22 @@ export default function AICompass() {
             }}
           >
             {clearingDevDots ? "Clearing dev dots..." : "Reset dev dots"}
+          </button>
+          <button
+            className="type-body-sm"
+            onClick={() => setDevDotDisplayEnabled((prev) => !prev)}
+            style={{
+              padding: "8px 14px",
+              background:
+                "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
+              border:
+                "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
+              color: "var(--color-ink)",
+              borderRadius: "var(--radius-base)",
+              cursor: "pointer",
+            }}
+          >
+            Dev dots: {devDotDisplayEnabled ? "Shown" : "Hidden"}
           </button>
           <button
             className="type-body-sm"

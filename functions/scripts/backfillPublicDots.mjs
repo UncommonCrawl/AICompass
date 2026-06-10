@@ -106,6 +106,7 @@ function pickArchivePoint(publicDot, submissionId) {
     x: publicDot.x,
     y: publicDot.y,
     ts: publicDot.ts,
+    is_dev: publicDot.is_dev === true,
   };
 }
 
