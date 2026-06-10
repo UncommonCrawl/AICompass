@@ -10,6 +10,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getCountFromServer,
   getDoc,
   getDocs,
   limit,
@@ -198,6 +199,8 @@ const LAST_SUBMISSION_STORAGE_KEY = "ai_compass_last_submission_v1";
 const QUIZ_DRAFT_STORAGE_KEY = "ai_compass_quiz_draft_v1";
 const DEV_DOT_DISPLAY_ENABLED_STORAGE_KEY =
   "ai_compass_dev_dot_display_enabled_v1";
+const DEV_DOT_COUNT_ENABLED_STORAGE_KEY =
+  "ai_compass_dev_dot_count_enabled_v1";
 const DEV_RESULT_PERSISTENCE_ENABLED_STORAGE_KEY =
   "ai_compass_dev_result_persistence_enabled_v1";
 const DEV_PERF_VALVE_DEFAULTS = {
@@ -340,6 +343,7 @@ const DROPDOWN_VIEWPORT_BUFFER = 10;
 const DROPDOWN_MENU_MAX_HEIGHT = 200;
 const INTERACTIVE_DOT_LIMIT = 1000;
 const FIRESTORE_IN_FILTER_LIMIT = 30;
+const DOT_COUNT_LABEL_MIN_GAP_PX = 20;
 const COMPASS_DOT_COLOR = "#000000";
 const COMPASS_DOT_FADED_COLOR = "#EBEBEB";
 const COMPASS_SELECTED_RING_COLOR = "var(--color-ink)";
@@ -1073,6 +1077,126 @@ function buildPublicDotQueryFilter(field, selectedValues, optionCount) {
   return { empty: false, constraints: [], clientValues: selectedValues };
 }
 
+function getPublicDotFilterSelections(
+  disabledAges,
+  disabledCountries,
+  disabledIndustries,
+) {
+  const ageOptionValues = [...AGE_RANGES, UNSPECIFIED_FILTER_VALUE];
+  const countryOptionValues = [
+    ...COUNTRY_OPTIONS.map((country) => country.code),
+    UNSPECIFIED_FILTER_VALUE,
+  ];
+  const industryOptionValues = [
+    ...INDUSTRY_OPTIONS,
+    UNSPECIFIED_FILTER_VALUE,
+  ];
+  return {
+    age: {
+      field: "age",
+      optionCount: ageOptionValues.length,
+      selectedValues: ageOptionValues.filter(
+        (value) => !disabledAges.includes(value),
+      ),
+    },
+    country: {
+      field: "country",
+      optionCount: countryOptionValues.length,
+      selectedValues: countryOptionValues.filter(
+        (value) => !disabledCountries.includes(value),
+      ),
+    },
+    industry: {
+      field: "industry",
+      optionCount: industryOptionValues.length,
+      selectedValues: industryOptionValues.filter(
+        (value) => !disabledIndustries.includes(value),
+      ),
+    },
+  };
+}
+
+function chunkValues(values, chunkSize) {
+  const chunks = [];
+  for (let index = 0; index < values.length; index += chunkSize) {
+    chunks.push(values.slice(index, index + chunkSize));
+  }
+  return chunks;
+}
+
+function buildPublicDotCountConstraintSets(
+  filterSelections,
+  { includeDevDots = false } = {},
+) {
+  const dimensions = Object.values(filterSelections);
+  if (dimensions.some(({ selectedValues }) => selectedValues.length === 0)) {
+    return [];
+  }
+
+  const baseConstraints = includeDevDots ? [] : [where("is_dev", "==", false)];
+  const constrainedDimensions = dimensions
+    .filter(
+      ({ selectedValues, optionCount }) =>
+        selectedValues.length < optionCount,
+    )
+    .map(({ field, selectedValues }) => ({
+      field,
+      values: [...new Set(selectedValues.map(toFirestoreFilterValue))],
+    }))
+    .filter(({ values }) => values.length > 0);
+
+  const equalityDimensions = constrainedDimensions.filter(
+    ({ values }) => values.length === 1,
+  );
+  for (const { field, values } of equalityDimensions) {
+    baseConstraints.push(where(field, "==", values[0]));
+  }
+
+  const multiValueDimensions = constrainedDimensions.filter(
+    ({ values }) => values.length > 1,
+  );
+  if (multiValueDimensions.length === 0) return [baseConstraints];
+
+  const inDimension = multiValueDimensions.reduce((largest, dimension) =>
+    dimension.values.length > largest.values.length ? dimension : largest,
+  );
+  const expandedDimensions = multiValueDimensions.filter(
+    (dimension) => dimension.field !== inDimension.field,
+  );
+  let expandedConstraintSets = [[]];
+  for (const dimension of expandedDimensions) {
+    expandedConstraintSets = expandedConstraintSets.flatMap((constraints) =>
+      dimension.values.map((value) => [
+        ...constraints,
+        where(dimension.field, "==", value),
+      ]),
+    );
+  }
+
+  const countConstraintSets = [];
+  for (const expandedConstraints of expandedConstraintSets) {
+    for (const chunk of chunkValues(
+      inDimension.values,
+      FIRESTORE_IN_FILTER_LIMIT,
+    )) {
+      countConstraintSets.push([
+        ...baseConstraints,
+        ...expandedConstraints,
+        chunk.length === 1
+          ? where(inDimension.field, "==", chunk[0])
+          : where(inDimension.field, "in", chunk),
+      ]);
+    }
+  }
+  return countConstraintSets;
+}
+
+function formatDotCountPercentage(validCount, totalCount) {
+  if (!Number.isFinite(totalCount) || totalCount <= 0) return "0";
+  const percentage = (validCount / totalCount) * 100;
+  return Number(percentage.toFixed(2)).toString();
+}
+
 function publicDotMatchesClientFilters(dot, clientFilters) {
   if (clientFilters.age) {
     if (!clientFilters.age.has(normalizeFilterValue(dot.age))) return false;
@@ -1254,6 +1378,14 @@ function readDevDotDisplayEnabled() {
   if (raw === "0") return false;
   if (raw === "1") return true;
   return true;
+}
+
+function readDevDotCountEnabled() {
+  if (!import.meta.env.DEV) return false;
+  const raw = readLocalStorageItem(DEV_DOT_COUNT_ENABLED_STORAGE_KEY);
+  if (raw === "0") return false;
+  if (raw === "1") return true;
+  return false;
 }
 
 function extractScoresFromResult(result) {
@@ -2122,6 +2254,7 @@ function Compass({
   disabledCountries,
   disabledIndustries,
   onCanvasDraw,
+  dotCountSummary = null,
   showAverageMarker = false,
   showResultMarkers = false,
   perfValves = DEV_PERF_VALVE_DEFAULTS,
@@ -2129,6 +2262,8 @@ function Compass({
   const svgRef = useRef(null);
   const plotRef = useRef(null);
   const tooltipRef = useRef(null);
+  const bottomAxisLabelRef = useRef(null);
+  const dotCountLabelRef = useRef(null);
   const hoveredDotIdRef = useRef(null);
   const pinnedDotIdRef = useRef(null);
   const hoverFrameRef = useRef(0);
@@ -2140,6 +2275,7 @@ function Compass({
   const [pinnedDotId, setPinnedDotId] = useState(null);
   const [devFps, setDevFps] = useState(0);
   const [dotBitmapUrl, setDotBitmapUrl] = useState("");
+  const [dotCountLabelFits, setDotCountLabelFits] = useState(false);
   const userDotColor = useMemo(
     () => resolveCssColorVar("--user-button", DEFAULT_USER_DOT_COLOR),
     [],
@@ -2249,6 +2385,16 @@ function Compass({
     textAnchor: "middle",
     dominantBaseline: "middle",
   };
+  const dotCountText = useMemo(() => {
+    const validCount = Number(dotCountSummary?.valid);
+    const totalCount = Number(dotCountSummary?.total);
+    if (!Number.isFinite(validCount) || !Number.isFinite(totalCount)) {
+      return "";
+    }
+    const latestText =
+      validCount > INTERACTIVE_DOT_LIMIT ? " • LATEST 1000 SHOWN" : "";
+    return `${validCount}/${totalCount} (${formatDotCountPercentage(validCount, totalCount)}%)${latestText}`;
+  }, [dotCountSummary]);
   const compassLabelPositions = [
     { key: "topLeft", x: pad + xRange / 2, y: pad + yRange / 2 },
     { key: "topRight", x: cx + xRange / 2, y: pad + yRange / 2 },
@@ -2357,6 +2503,22 @@ function Compass({
       sy: cy - globalAverageScores.y * yRange,
     };
   }, [globalAverageScores, cx, cy, xRange, yRange]);
+
+  useLayoutEffect(() => {
+    if (!dotCountText) {
+      queueMicrotask(() => setDotCountLabelFits(false));
+      return;
+    }
+    const bottomLabel = bottomAxisLabelRef.current;
+    const dotCountLabel = dotCountLabelRef.current;
+    if (!bottomLabel || !dotCountLabel) return;
+    const bottomBox = bottomLabel.getBBox();
+    const dotCountBox = dotCountLabel.getBBox();
+    const gap = dotCountBox.x - (bottomBox.x + bottomBox.width);
+    queueMicrotask(() =>
+      setDotCountLabelFits(gap > DOT_COUNT_LABEL_MIN_GAP_PX),
+    );
+  }, [dims.w, dims.h, dotCountText]);
 
   useEffect(() => {
     const generation = dotBitmapGenerationRef.current + 1;
@@ -2667,6 +2829,7 @@ function Compass({
             <text
               className="type-caption"
               key={key}
+              ref={key === "bottom" ? bottomAxisLabelRef : null}
               x={x}
               y={y}
               transform={transform}
@@ -2680,6 +2843,20 @@ function Compass({
               {text}
             </text>
           ))}
+
+          {dotCountText && (
+            <text
+              ref={dotCountLabelRef}
+              className="type-caption"
+              x={dims.w - pad}
+              y={dims.h - pad + axisLabelGap + axisLabelFontSize}
+              textAnchor="end"
+              fill="var(--color-ink)"
+              visibility={dotCountLabelFits ? "visible" : "hidden"}
+            >
+              {dotCountText}
+            </text>
+          )}
 
           {/* Quadrant labels */}
           {compassLabelPositions.map(({ key, x, y }) => (
@@ -3736,6 +3913,10 @@ export default function AICompass() {
   const [quizResetAnswersRequest, setQuizResetAnswersRequest] = useState(0);
   const [results, setResults] = useState([]);
   const [archivePoints, setArchivePoints] = useState([]);
+  const [dotCountSummary, setDotCountSummary] = useState({
+    valid: null,
+    total: null,
+  });
   const [questionAveragesById, setQuestionAveragesById] = useState({});
   const [userResult, setUserResult] = useState(
     initialPersistedResultState.userResult,
@@ -3752,6 +3933,9 @@ export default function AICompass() {
   const [clearingDevDots, setClearingDevDots] = useState(false);
   const [devDotDisplayEnabled, setDevDotDisplayEnabled] = useState(() =>
     readDevDotDisplayEnabled(),
+  );
+  const [devDotCountEnabled, setDevDotCountEnabled] = useState(() =>
+    readDevDotCountEnabled(),
   );
   const [devResultPersistenceEnabled, setDevResultPersistenceEnabled] =
     useState(() => readDevResultPersistenceEnabled());
@@ -3802,6 +3986,14 @@ export default function AICompass() {
       devDotDisplayEnabled ? "1" : "0",
     );
   }, [devDotDisplayEnabled]);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    writeLocalStorageItem(
+      DEV_DOT_COUNT_ENABLED_STORAGE_KEY,
+      devDotCountEnabled ? "1" : "0",
+    );
+  }, [devDotCountEnabled]);
 
   useEffect(() => {
     if (!import.meta.env.DEV || typeof window === "undefined") return undefined;
@@ -3889,6 +4081,60 @@ export default function AICompass() {
     };
   }, [devPerfValves.noFirestore]);
 
+  useEffect(() => {
+    if (devPerfValves.noFirestore) {
+      queueMicrotask(() => {
+        setDotCountSummary({ valid: null, total: null });
+      });
+      return;
+    }
+    let cancelled = false;
+    const publicDotsCollection = collection(db, COMPASS_PUBLIC_DOTS_COLLECTION);
+    const filterSelections = getPublicDotFilterSelections(
+      disabledAges,
+      disabledCountries,
+      disabledIndustries,
+    );
+    const includeDevDots = import.meta.env.DEV && devDotCountEnabled;
+    const validConstraintSets = buildPublicDotCountConstraintSets(
+      filterSelections,
+      { includeDevDots },
+    );
+    const totalConstraintSets = includeDevDots
+      ? [[]]
+      : [[where("is_dev", "==", false)]];
+    const readCount = async (constraintSets) => {
+      if (constraintSets.length === 0) return 0;
+      const snapshots = await Promise.all(
+        constraintSets.map((constraints) =>
+          getCountFromServer(query(publicDotsCollection, ...constraints)),
+        ),
+      );
+      return snapshots.reduce((sum, snapshot) => sum + snapshot.data().count, 0);
+    };
+
+    Promise.all([readCount(validConstraintSets), readCount(totalConstraintSets)])
+      .then(([valid, total]) => {
+        if (cancelled) return;
+        setDotCountSummary({ valid, total });
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.error("Firestore dot count error:", error);
+        setDotCountSummary({ valid: null, total: null });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    disabledAges,
+    disabledCountries,
+    disabledIndustries,
+    devDotCountEnabled,
+    devPerfValves.noFirestore,
+  ]);
+
   // Load the public map once, then listen only for dots created after this page
   // session started. The submitter's own dot remains optimistic via userResult.
   useEffect(() => {
@@ -3902,23 +4148,10 @@ export default function AICompass() {
     let cancelled = false;
     const pageLoadStartedAt = Date.now();
     const publicDotsCollection = collection(db, COMPASS_PUBLIC_DOTS_COLLECTION);
-    const ageOptionValues = [...AGE_RANGES, UNSPECIFIED_FILTER_VALUE];
-    const countryOptionValues = [
-      ...COUNTRY_OPTIONS.map((country) => country.code),
-      UNSPECIFIED_FILTER_VALUE,
-    ];
-    const industryOptionValues = [
-      ...INDUSTRY_OPTIONS,
-      UNSPECIFIED_FILTER_VALUE,
-    ];
-    const selectedAges = ageOptionValues.filter(
-      (value) => !disabledAges.includes(value),
-    );
-    const selectedCountries = countryOptionValues.filter(
-      (value) => !disabledCountries.includes(value),
-    );
-    const selectedIndustries = industryOptionValues.filter(
-      (value) => !disabledIndustries.includes(value),
+    const filterSelections = getPublicDotFilterSelections(
+      disabledAges,
+      disabledCountries,
+      disabledIndustries,
     );
     const queryFilters = [];
     const clientFilters = {};
@@ -3947,9 +4180,21 @@ export default function AICompass() {
         clientFilters[field] = new Set(filter.clientValues);
       }
     };
-    addFilter("age", selectedAges, ageOptionValues.length);
-    addFilter("country", selectedCountries, countryOptionValues.length);
-    addFilter("industry", selectedIndustries, industryOptionValues.length);
+    addFilter(
+      "age",
+      filterSelections.age.selectedValues,
+      filterSelections.age.optionCount,
+    );
+    addFilter(
+      "country",
+      filterSelections.country.selectedValues,
+      filterSelections.country.optionCount,
+    );
+    addFilter(
+      "industry",
+      filterSelections.industry.selectedValues,
+      filterSelections.industry.optionCount,
+    );
     const normalizePublicDots = (docs) =>
       docs
         .map(normalizePublicDot)
@@ -4891,6 +5136,22 @@ export default function AICompass() {
           </button>
           <button
             className="type-body-sm"
+            onClick={() => setDevDotCountEnabled((prev) => !prev)}
+            style={{
+              padding: "8px 14px",
+              background:
+                "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
+              border:
+                "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
+              color: "var(--color-ink)",
+              borderRadius: "var(--radius-base)",
+              cursor: "pointer",
+            }}
+          >
+            Dev dot count: {devDotCountEnabled ? "Included" : "Excluded"}
+          </button>
+          <button
+            className="type-body-sm"
             onClick={handleToggleDevResultPersistence}
             style={{
               padding: "8px 14px",
@@ -5412,6 +5673,7 @@ export default function AICompass() {
                     disabledCountries={disabledCountries}
                     disabledIndustries={disabledIndustries}
                     onCanvasDraw={handleHomeCanvasDraw}
+                    dotCountSummary={dotCountSummary}
                     showAverageMarker={showCompassView}
                     showResultMarkers={screen === "results"}
                     perfValves={devPerfValves}

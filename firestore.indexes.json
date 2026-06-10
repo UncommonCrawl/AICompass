@@ -94,6 +94,100 @@
         { "fieldPath": "industry", "order": "ASCENDING" },
         { "fieldPath": "ts", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "compass-public-dots-v1",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "is_dev", "order": "ASCENDING" },
+        { "fieldPath": "age", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "compass-public-dots-v1",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "is_dev", "order": "ASCENDING" },
+        { "fieldPath": "country", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "compass-public-dots-v1",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "is_dev", "order": "ASCENDING" },
+        { "fieldPath": "industry", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "compass-public-dots-v1",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "is_dev", "order": "ASCENDING" },
+        { "fieldPath": "age", "order": "ASCENDING" },
+        { "fieldPath": "country", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "compass-public-dots-v1",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "is_dev", "order": "ASCENDING" },
+        { "fieldPath": "age", "order": "ASCENDING" },
+        { "fieldPath": "industry", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "compass-public-dots-v1",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "is_dev", "order": "ASCENDING" },
+        { "fieldPath": "country", "order": "ASCENDING" },
+        { "fieldPath": "industry", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "compass-public-dots-v1",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "is_dev", "order": "ASCENDING" },
+        { "fieldPath": "age", "order": "ASCENDING" },
+        { "fieldPath": "country", "order": "ASCENDING" },
+        { "fieldPath": "industry", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "compass-public-dots-v1",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "age", "order": "ASCENDING" },
+        { "fieldPath": "country", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "compass-public-dots-v1",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "age", "order": "ASCENDING" },
+        { "fieldPath": "industry", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "compass-public-dots-v1",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "country", "order": "ASCENDING" },
+        { "fieldPath": "industry", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "compass-public-dots-v1",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "age", "order": "ASCENDING" },
+        { "fieldPath": "country", "order": "ASCENDING" },
+        { "fieldPath": "industry", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
