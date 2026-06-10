@@ -341,6 +341,7 @@ const DROPDOWN_MENU_MAX_HEIGHT = 200;
 const INTERACTIVE_DOT_LIMIT = 1000;
 const FIRESTORE_IN_FILTER_LIMIT = 30;
 const COMPASS_DOT_COLOR = "#000000";
+const COMPASS_SELECTED_RING_COLOR = "var(--color-ink)";
 const DEFAULT_USER_DOT_COLOR = "#17a34a";
 const COMPASS_DOT_BITMAP_DPR = 2;
 const COMPASS_DOT_GEOMETRY = {
@@ -2119,13 +2120,16 @@ function Compass({
 }) {
   const svgRef = useRef(null);
   const plotRef = useRef(null);
+  const tooltipRef = useRef(null);
   const hoveredDotIdRef = useRef(null);
+  const pinnedDotIdRef = useRef(null);
   const hoverFrameRef = useRef(0);
   const pendingPointerRef = useRef(null);
   const dotBitmapUrlRef = useRef("");
   const dotBitmapGenerationRef = useRef(0);
   const [dims, setDims] = useState({ w: 960, h: 520 });
   const [hoveredDotId, setHoveredDotId] = useState(null);
+  const [pinnedDotId, setPinnedDotId] = useState(null);
   const [devFps, setDevFps] = useState(0);
   const [dotBitmapUrl, setDotBitmapUrl] = useState("");
   const userDotColor = useMemo(
@@ -2299,13 +2303,16 @@ function Compass({
     window.devicePixelRatio || 1,
     COMPASS_DOT_BITMAP_DPR,
   );
-  const activeHoveredPoint = hoveredDotId
+  const hoveredPoint = hoveredDotId
     ? plotPointById.get(hoveredDotId) || null
     : null;
-  const activeHoveredDot =
-    activeHoveredPoint && activeHoveredPoint.enabled
-      ? activeHoveredPoint.dot
+  const pinnedPoint = pinnedDotId ? plotPointById.get(pinnedDotId) : null;
+  const tooltipPoint = pinnedPoint?.enabled
+    ? pinnedPoint
+    : hoveredPoint?.enabled
+      ? hoveredPoint
       : null;
+  const tooltipDot = tooltipPoint?.dot || null;
   const userScores = useMemo(
     () => extractScoresFromResult(userResult),
     [userResult],
@@ -2484,35 +2491,86 @@ function Compass({
     return () => cancelAnimationFrame(rafId);
   }, [perfValves.noFpsMeter]);
 
-  const updateHoveredPointFromPointer = (clientX, clientY) => {
-    const plotElement = plotRef.current;
-    if (!plotElement) return;
-    const rect = plotElement.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return;
-
-    const pointerX = ((clientX - rect.left) / rect.width) * dims.w;
-    const pointerY = ((clientY - rect.top) / rect.height) * dims.h;
-
-    let bestMatch = null;
-    let bestDistanceSq = Infinity;
-    for (const point of plotPoints) {
-      if (!point.enabled) continue;
-      const dx = pointerX - point.sx;
-      const dy = pointerY - point.sy;
-      const radius = point.hitRadius + 2;
-      const distanceSq = dx * dx + dy * dy;
-      if (distanceSq <= radius * radius && distanceSq < bestDistanceSq) {
-        bestDistanceSq = distanceSq;
-        bestMatch = point;
+  const findEnabledPointFromPointer = useCallback(
+    (clientX, clientY) => {
+      const plotElement = plotRef.current;
+      if (!plotElement) return null;
+      const rect = plotElement.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return null;
+      if (
+        clientX < rect.left ||
+        clientX > rect.right ||
+        clientY < rect.top ||
+        clientY > rect.bottom
+      ) {
+        return null;
       }
-    }
 
+      const pointerX = ((clientX - rect.left) / rect.width) * dims.w;
+      const pointerY = ((clientY - rect.top) / rect.height) * dims.h;
+
+      let bestMatch = null;
+      let bestDistanceSq = Infinity;
+      for (const point of plotPoints) {
+        if (!point.enabled) continue;
+        const dx = pointerX - point.sx;
+        const dy = pointerY - point.sy;
+        const radius = point.hitRadius + 2;
+        const distanceSq = dx * dx + dy * dy;
+        if (distanceSq <= radius * radius && distanceSq < bestDistanceSq) {
+          bestDistanceSq = distanceSq;
+          bestMatch = point;
+        }
+      }
+
+      return bestMatch;
+    },
+    [dims.w, dims.h, plotPoints],
+  );
+
+  const updateHoveredPointFromPointer = (clientX, clientY) => {
+    const bestMatch = findEnabledPointFromPointer(clientX, clientY);
     const nextHoveredDotId = bestMatch ? bestMatch.id : null;
     if (hoveredDotIdRef.current !== nextHoveredDotId) {
       hoveredDotIdRef.current = nextHoveredDotId;
       setHoveredDotId(nextHoveredDotId);
     }
   };
+
+  const clearHoveredPoint = () => {
+    if (hoveredDotIdRef.current !== null) {
+      hoveredDotIdRef.current = null;
+      setHoveredDotId(null);
+    }
+  };
+
+  useEffect(() => {
+    const handleDocumentPointerDown = (event) => {
+      if (tooltipRef.current?.contains(event.target)) return;
+
+      const hitPoint = findEnabledPointFromPointer(
+        event.clientX,
+        event.clientY,
+      );
+      const nextPinnedDotId =
+        hitPoint && pinnedDotIdRef.current !== hitPoint.id ? hitPoint.id : null;
+
+      if (pinnedDotIdRef.current !== nextPinnedDotId) {
+        pinnedDotIdRef.current = nextPinnedDotId;
+        setPinnedDotId(nextPinnedDotId);
+      }
+
+      if (!nextPinnedDotId && hoveredDotIdRef.current !== null) {
+        hoveredDotIdRef.current = null;
+        setHoveredDotId(null);
+      }
+    };
+
+    document.addEventListener("pointerdown", handleDocumentPointerDown);
+    return () => {
+      document.removeEventListener("pointerdown", handleDocumentPointerDown);
+    };
+  }, [findEnabledPointFromPointer]);
 
   const handlePlotMouseMove = (event) => {
     pendingPointerRef.current = {
@@ -2534,10 +2592,7 @@ function Compass({
       cancelAnimationFrame(hoverFrameRef.current);
       hoverFrameRef.current = 0;
     }
-    if (hoveredDotIdRef.current !== null) {
-      hoveredDotIdRef.current = null;
-      setHoveredDotId(null);
-    }
+    clearHoveredPoint();
   };
 
   return (
@@ -2550,6 +2605,7 @@ function Compass({
         width: "100%",
         height: perfValves.noSvg ? dims.h : undefined,
         margin: "0 auto",
+        cursor: hoveredPoint?.enabled ? "pointer" : "default",
       }}
     >
       {!perfValves.noSvg && (
@@ -2705,8 +2761,24 @@ function Compass({
               </text>
             </>
           )}
-          {[activeHoveredPoint]
+          {[pinnedPoint]
             .filter((point) => point && point.enabled)
+            .map((point) => (
+              <rect
+                key={`selected-${point.id}`}
+                x={point.sx - COMPASS_DOT_GEOMETRY.hoverRingPulseRadius}
+                y={point.sy - COMPASS_DOT_GEOMETRY.hoverRingPulseRadius}
+                width={COMPASS_DOT_GEOMETRY.hoverRingPulseRadius * 2}
+                height={COMPASS_DOT_GEOMETRY.hoverRingPulseRadius * 2}
+                fill="none"
+                stroke={COMPASS_SELECTED_RING_COLOR}
+                strokeWidth={1.5}
+                opacity={0.5}
+              />
+            ))}
+          {[hoveredPoint]
+            .filter((point) => point && point.enabled)
+            .filter((point) => point.id !== pinnedPoint?.id)
             .map((point) => (
               <rect
                 key={`pulse-${point.id}`}
@@ -2754,14 +2826,14 @@ function Compass({
         </svg>
       )}
 
-      {/* Tooltip for hovered dot */}
-      {activeHoveredDot &&
+      {/* Tooltip for hovered or selected dot */}
+      {tooltipDot &&
         (() => {
-          const { sx, sy } = toSvg(activeHoveredDot.x, activeHoveredDot.y);
+          const { sx, sy } = toSvg(tooltipDot.x, tooltipDot.y);
           const isRight = sx > cx;
           const isBottom = sy > cy;
           const clampedHoverNotes = clampLabelText(
-            activeHoveredDot.notes,
+            tooltipDot.notes,
             NOTES_CHAR_LIMIT,
           );
           const noteText = clampedHoverNotes;
@@ -2777,28 +2849,39 @@ function Compass({
             borderRadius: "var(--radius-base)",
             padding: hasNotes ? "12px 16px" : "14px 16px 11px",
             minWidth: 180,
-            zIndex: 10,
+            cursor: "auto",
+            zIndex: 20,
+          };
+          const handleTooltipMouseMove = (event) => {
+            if (!pinnedDotId) return;
+            event.stopPropagation();
+            clearHoveredPoint();
           };
           return (
-            <div style={tooltipStyle}>
+            <div
+              ref={tooltipRef}
+              onMouseEnter={handleTooltipMouseMove}
+              onMouseMove={handleTooltipMouseMove}
+              style={tooltipStyle}
+            >
               <div
                 style={{ transform: `translateY(${tooltipTextNudgeYPx}px)` }}
               >
                 {(() => {
                   const clampedTitle = clampLabelText(
-                    activeHoveredDot.occupation,
+                    tooltipDot.occupation,
                     OCCUPATION_CHAR_LIMIT,
                   );
                   const titleBase = clampedTitle || "Anonymous";
-                  const title = activeHoveredPoint?.isUser
+                  const title = tooltipPoint?.isUser
                     ? `${titleBase} (You)`
                     : titleBase;
                   const country =
-                    activeHoveredDot.country &&
-                    COUNTRY_NAME_BY_CODE[activeHoveredDot.country]
-                      ? COUNTRY_NAME_BY_CODE[activeHoveredDot.country]
+                    tooltipDot.country &&
+                    COUNTRY_NAME_BY_CODE[tooltipDot.country]
+                      ? COUNTRY_NAME_BY_CODE[tooltipDot.country]
                       : "";
-                  const ageRaw = activeHoveredDot.age?.trim() || "";
+                  const ageRaw = tooltipDot.age?.trim() || "";
                   const age = ageRaw ? getAgeRangeLabel(ageRaw) : "";
                   const details = [country, age].filter(Boolean).join(", ");
                   return (
