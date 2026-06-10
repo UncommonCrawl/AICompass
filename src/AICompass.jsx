@@ -344,10 +344,11 @@ const COMPASS_DOT_COLOR = "#000000";
 const DEFAULT_USER_DOT_COLOR = "#17a34a";
 const COMPASS_DOT_BITMAP_DPR = 2;
 const COMPASS_DOT_GEOMETRY = {
-  radius: 3,
-  size: 6,
-  hoverRingRadius: 6.5,
-  hoverRingPulseRadius: 9.5,
+  radius: 2,
+  size: 4,
+  hitRadius: 10,
+  hoverRingRadius: 8,
+  hoverRingPulseRadius: 8,
 };
 
 const DEV_WEIGHT_TARGET_TOTAL = 100;
@@ -2267,7 +2268,7 @@ function Compass({
           color: isUser ? userDotColor : QUADRANT_INFO[quadrant].color,
           isUser,
           dotRadius,
-          hitRadius: dotRadius * 2,
+          hitRadius: COMPASS_DOT_GEOMETRY.hitRadius,
           enabled:
             isUser ||
             (!disabledAgeSet.has(normalizeFilterValue(dot.age)) &&
