@@ -928,6 +928,19 @@ function getQuadrant(x, y) {
   return "bottomLeft";
 }
 
+function getShareStance(scores) {
+  if (!scores) return null;
+  const x = Number(scores.x);
+  const y = Number(scores.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return {
+    progress:
+      y >= 0 ? "Convinced of Progress" : "Unconvinced of Progress",
+    acceleration:
+      x >= 0 ? "Supportive of Acceleration" : "Critical of Acceleration",
+  };
+}
+
 function buildWeightedChoices(entries) {
   const choices = entries.map(({ value, weight }) => ({
     value,
@@ -4850,14 +4863,18 @@ export default function AICompass() {
     });
 
     const archetype = resultArchetypeName || "Unknown";
-    const message = `I'm a ${archetype}. Where do you stand on AI?`;
+    const shareStance = getShareStance(resultScores);
+    const shareTitle = "State Your Stance on AI";
+    const message = shareStance
+      ? `I'm ${shareStance.progress}, ${shareStance.acceleration}. Where do you stand?`
+      : "Where do you stand on AI?";
     const shareUrl = window.location.href;
-    const shareText = `${message} ${shareUrl}`;
+    const shareText = `${shareTitle}\n\n${message} ${shareUrl}`;
 
     if (navigator.share) {
       try {
         await navigator.share({
-          title: "The AI Compass",
+          title: shareTitle,
           text: message,
           url: shareUrl,
         });
@@ -4883,7 +4900,7 @@ export default function AICompass() {
 
     const tweetIntent = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
     window.open(tweetIntent, "_blank", "noopener,noreferrer");
-  }, [resultArchetypeName]);
+  }, [resultArchetypeName, resultScores]);
   const hasCompletedQuiz = Boolean(
     (latestLocalSubmission?.answersByQuestionId &&
       typeof latestLocalSubmission.answersByQuestionId === "object" &&
