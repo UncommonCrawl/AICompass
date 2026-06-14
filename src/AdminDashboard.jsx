@@ -255,6 +255,27 @@ function AdminDashboard() {
     return <main className="admin-page">Loading...</main>;
   }
 
+  if (!isConfigured) {
+    return (
+      <main className="admin-page admin-auth-card">
+        <h1>AI Compass Admin</h1>
+        <p>Admin access is not configured for this build.</p>
+        <p className="admin-muted">
+          Set VITE_ADMIN_EMAILS to a comma-separated list of allowed Google
+          account emails.
+        </p>
+        {authUser && (
+          <>
+            <p className="admin-muted">Signed in as {authUser.email}</p>
+            <button type="button" onClick={() => signOut(auth)}>
+              Sign out
+            </button>
+          </>
+        )}
+      </main>
+    );
+  }
+
   if (!authUser) {
     return (
       <main className="admin-page admin-auth-card">

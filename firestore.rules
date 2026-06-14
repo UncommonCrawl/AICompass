@@ -4,7 +4,8 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function adminEmails() {
       return [
-        "your-admin-email@example.com"
+        "uncommoncrawl@gmail.com",
+        "keithmherrmann@gmail.com"
       ];
     }
 

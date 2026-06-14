@@ -70,6 +70,7 @@ Required GitHub Actions secrets:
 - `VITE_FIREBASE_APP_ID`
 - `VITE_FIREBASE_MEASUREMENT_ID`
 - `VITE_COMPASS_SUBMIT_ENDPOINT`
+- `VITE_ADMIN_EMAILS` (comma-separated Google account emails allowed to use `/admin`)
 
 Custom domain:
 
