@@ -224,6 +224,16 @@ h6 {
   text-transform: uppercase;
 }
 
+@keyframes compassLayerFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
 .homepage-filter-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }

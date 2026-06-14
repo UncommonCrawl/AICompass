@@ -2248,6 +2248,7 @@ function Compass({
   dotCountSummary = null,
   showAverageMarker = false,
   showResultMarkers = false,
+  isLoading = false,
   perfValves = DEV_PERF_VALVE_DEFAULTS,
 }) {
   const svgRef = useRef(null);
@@ -2280,27 +2281,20 @@ function Compass({
   const xAxisLetterSpacingEm = 0.1;
   const yAxisLetterSpacingEm = 0.02;
   const pad = axisLabelGap + axisLabelFontSize + 2;
+  const compassHeight = "clamp(300px, calc((100vw - 96px) * 0.58), 560px)";
+  const compassFadeStyle = {
+    opacity: isLoading ? 0 : 1,
+    animation: isLoading ? "none" : "compassLayerFadeIn 500ms ease 500ms both",
+  };
 
   useEffect(() => {
     const el = plotRef.current;
     if (!el) return;
-    const minHeight = 300;
-    const maxHeight = 560;
-    const aspectRatio = 0.58;
-    const viewportPadding = 24;
 
     const updateDims = () => {
-      const { width } = el.getBoundingClientRect();
+      const { width, height } = el.getBoundingClientRect();
       const nextW = Math.max(320, width);
-      const availableViewportHeight = Math.max(
-        minHeight,
-        window.innerHeight - el.getBoundingClientRect().top - viewportPadding,
-      );
-      const naturalHeight = nextW * aspectRatio;
-      const nextH = Math.max(
-        minHeight,
-        Math.min(maxHeight, naturalHeight, availableViewportHeight),
-      );
+      const nextH = Math.max(300, height);
       setDims({ w: nextW, h: nextH });
     };
 
@@ -2705,6 +2699,7 @@ function Compass({
 
   useEffect(() => {
     const handleDocumentPointerDown = (event) => {
+      if (isLoading) return;
       if (tooltipRef.current?.contains(event.target)) return;
 
       const hitPoint = findEnabledPointFromPointer(
@@ -2729,9 +2724,10 @@ function Compass({
     return () => {
       document.removeEventListener("pointerdown", handleDocumentPointerDown);
     };
-  }, [findEnabledPointFromPointer]);
+  }, [isLoading, findEnabledPointFromPointer]);
 
   const handlePlotMouseMove = (event) => {
+    if (isLoading) return;
     pendingPointerRef.current = {
       clientX: event.clientX,
       clientY: event.clientY,
@@ -2762,107 +2758,136 @@ function Compass({
       style={{
         position: "relative",
         width: "100%",
-        height: perfValves.noSvg ? dims.h : undefined,
+        height: compassHeight,
         margin: "0 auto",
-        cursor: hoveredPoint?.enabled ? "pointer" : "default",
+        cursor: !isLoading && hoveredPoint?.enabled ? "pointer" : "default",
       }}
     >
       {!perfValves.noSvg && (
         <svg
           ref={svgRef}
           viewBox={`0 0 ${dims.w} ${dims.h}`}
-          style={{ width: "100%", height: "auto", display: "block", zIndex: 1 }}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            display: "block",
+            zIndex: 1,
+          }}
         >
-          {/* Quadrant fills */}
-          {quadrantFillRects.map(({ key, x, y }) => (
-            <rect
-              key={key}
-              x={x}
-              y={y}
-              width={xRange}
-              height={yRange}
-              fill={quadFill}
-              opacity={activeQuadrant === key ? 1 : 0}
+          <g style={compassFadeStyle}>
+            {/* Quadrant fills */}
+            {quadrantFillRects.map(({ key, x, y }) => (
+              <rect
+                key={key}
+                x={x}
+                y={y}
+                width={xRange}
+                height={yRange}
+                fill={quadFill}
+                opacity={activeQuadrant === key ? 1 : 0}
+              />
+            ))}
+
+            {/* Axes */}
+            <line
+              x1={cx}
+              y1={pad}
+              x2={cx}
+              y2={dims.h - pad}
+              stroke={GRAY}
+              strokeWidth={1}
             />
-          ))}
+            <line
+              x1={pad}
+              y1={cy}
+              x2={dims.w - pad}
+              y2={cy}
+              stroke={GRAY}
+              strokeWidth={1}
+            />
 
-          {/* Axes */}
-          <line
-            x1={cx}
-            y1={pad}
-            x2={cx}
-            y2={dims.h - pad}
-            stroke={GRAY}
-            strokeWidth={1}
-          />
-          <line
-            x1={pad}
-            y1={cy}
-            x2={dims.w - pad}
-            y2={cy}
-            stroke={GRAY}
-            strokeWidth={1}
-          />
+            {/* Border */}
+            <rect
+              x={pad}
+              y={pad}
+              width={xRange * 2}
+              height={yRange * 2}
+              fill="none"
+              stroke={GRAY}
+              strokeWidth={1}
+            />
 
-          {/* Border */}
-          <rect
-            x={pad}
-            y={pad}
-            width={xRange * 2}
-            height={yRange * 2}
-            fill="none"
-            stroke={GRAY}
-            strokeWidth={1}
-          />
+            {/* Axis labels */}
+            {axisLabels.map(({ key, axis, x, y, text, transform }) => (
+              <text
+                className="type-caption"
+                key={key}
+                ref={key === "bottom" ? bottomAxisLabelRef : null}
+                x={x}
+                y={y}
+                transform={transform}
+                style={{
+                  letterSpacing: `${
+                    axis === "y" ? yAxisLetterSpacingEm : xAxisLetterSpacingEm
+                  }em`,
+                }}
+                {...axisLabelTextStyle}
+              >
+                {text}
+              </text>
+            ))}
 
-          {/* Axis labels */}
-          {axisLabels.map(({ key, axis, x, y, text, transform }) => (
-            <text
-              className="type-caption"
-              key={key}
-              ref={key === "bottom" ? bottomAxisLabelRef : null}
-              x={x}
-              y={y}
-              transform={transform}
-              style={{
-                letterSpacing: `${
-                  axis === "y" ? yAxisLetterSpacingEm : xAxisLetterSpacingEm
-                }em`,
-              }}
-              {...axisLabelTextStyle}
-            >
-              {text}
-            </text>
-          ))}
+            {dotCountText && (
+              <text
+                ref={dotCountLabelRef}
+                className="type-caption"
+                x={dims.w - pad}
+                y={dims.h - pad + axisLabelGap + axisLabelFontSize}
+                textAnchor="end"
+                fill="var(--color-ink)"
+                visibility={dotCountLabelFits ? "visible" : "hidden"}
+              >
+                {dotCountText}
+              </text>
+            )}
 
-          {dotCountText && (
-            <text
-              ref={dotCountLabelRef}
-              className="type-caption"
-              x={dims.w - pad}
-              y={dims.h - pad + axisLabelGap + axisLabelFontSize}
-              textAnchor="end"
-              fill="var(--color-ink)"
-              visibility={dotCountLabelFits ? "visible" : "hidden"}
-            >
-              {dotCountText}
-            </text>
-          )}
-
-          {/* Quadrant labels */}
-          {compassLabelPositions.map(({ key, x, y }) => (
-            <text
-              className="type-caption"
-              key={key}
-              x={x}
-              y={y}
-              fill={GRAY}
-              {...compassLabelTextStyle}
-            >
-              {QUADRANT_INFO[key].compassLabel.toUpperCase()}
-            </text>
-          ))}
+            {/* Quadrant labels */}
+            {compassLabelPositions.map(({ key, x, y }) => (
+              <text
+                className="type-caption"
+                key={key}
+                x={x}
+                y={y}
+                fill={GRAY}
+                {...compassLabelTextStyle}
+              >
+                {QUADRANT_INFO[key].compassLabel.toUpperCase()}
+              </text>
+            ))}
+          </g>
         </svg>
+      )}
+
+      {!perfValves.noSvg && (
+        <div
+          className="type-caption"
+          aria-hidden={!isLoading}
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "grid",
+            placeItems: "center",
+            color: "var(--color-ink)",
+            opacity: isLoading ? 1 : 0,
+            transition: "opacity 500ms ease",
+            pointerEvents: "none",
+            zIndex: 4,
+          }}
+        >
+          LOADING...
+        </div>
       )}
 
       {dotBitmapUrl && (
@@ -2877,6 +2902,7 @@ function Compass({
             height: "100%",
             pointerEvents: "none",
             zIndex: 2,
+            ...compassFadeStyle,
           }}
         />
       )}
@@ -2892,6 +2918,7 @@ function Compass({
             height: "100%",
             pointerEvents: "none",
             zIndex: 3,
+            ...compassFadeStyle,
           }}
         >
           {showResultMarkers && userMarkerPoint && (
@@ -3935,7 +3962,6 @@ export default function AICompass() {
   const [hasInitialResultsSnapshot, setHasInitialResultsSnapshot] =
     useState(false);
   const [homeCanvasDrawn, setHomeCanvasDrawn] = useState(false);
-  const [showHomeLoading, setShowHomeLoading] = useState(true);
   const [submissionLockRetryAt, setSubmissionLockRetryAt] = useState(0);
   const [lockCountdownNow, setLockCountdownNow] = useState(() => Date.now());
   const lockCountdownText = useMemo(() => {
@@ -4795,9 +4821,8 @@ export default function AICompass() {
   const showResultsStrip = screen === "results" && hasCompletedQuiz;
   const activeQuadrant = pinnedQuadrant || hoveredQuadrant;
   const homeBodyReady = hasInitialResultsSnapshot && homeCanvasDrawn;
+  const isCompassLoading = !devPerfValves.noLoadingFade && !homeBodyReady;
   const effectiveHomeBodyReady = true;
-  const showEffectiveHomeLoading =
-    !devPerfValves.noLoadingFade && showHomeLoading && !homeBodyReady;
   const toggleDevPerfValve = (key) => {
     setDevPerfValves((prev) => ({
       ...prev,
@@ -4874,13 +4899,6 @@ export default function AICompass() {
       </button>
     </div>
   ) : null;
-  useEffect(() => {
-    if (!homeBodyReady || !showHomeLoading) return;
-    const timeoutId = setTimeout(() => {
-      setShowHomeLoading(false);
-    }, 1000);
-    return () => clearTimeout(timeoutId);
-  }, [homeBodyReady, showHomeLoading]);
   const ageFilterOptions = useMemo(
     () => [
       ...AGE_RANGES.map((age) => ({
@@ -5480,22 +5498,6 @@ export default function AICompass() {
                 minHeight: `calc(100vh - ${HEADER_BAR_HEIGHT + (showHomepageChrome ? FOOTER_BAR_HEIGHT + 5 : 0) + 24 + (showHomepageChrome ? 40 : 48)}px)`,
               }}
             >
-              {showEffectiveHomeLoading && (
-                <div
-                  className="type-caption"
-                  style={{
-                    position: "fixed",
-                    left: "50%",
-                    top: HEADER_BAR_HEIGHT + 200,
-                    transform: "translateX(-50%)",
-                    color: "var(--color-ink)",
-                    pointerEvents: "none",
-                    zIndex: 2,
-                  }}
-                >
-                  LOADING
-                </div>
-              )}
               {devPerfValvePanel}
               <div
                 style={{
@@ -5643,6 +5645,7 @@ export default function AICompass() {
                     dotCountSummary={dotCountSummary}
                     showAverageMarker={showCompassView}
                     showResultMarkers={screen === "results"}
+                    isLoading={isCompassLoading}
                     perfValves={devPerfValves}
                   />
                 </div>
