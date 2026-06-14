@@ -193,6 +193,15 @@ const QUESTION_AVERAGES_DOC_ID = "question-averages-v1";
 const COMPASS_SUBMIT_ENDPOINT = (
   import.meta.env.VITE_COMPASS_SUBMIT_ENDPOINT || ""
 ).trim();
+const COMPASS_SHARE_ENDPOINT = (
+  import.meta.env.VITE_COMPASS_SHARE_ENDPOINT ||
+  deriveSiblingFunctionEndpoint(
+    COMPASS_SUBMIT_ENDPOINT,
+    "submitCompassResult",
+    "shareCompassResult",
+  ) ||
+  ""
+).trim();
 const DEVICE_ID_STORAGE_KEY = "ai_compass_device_id_v1";
 const SESSION_ID_STORAGE_KEY = "ai_compass_session_id_v1";
 const LAST_RESULT_STORAGE_KEY = "ai_compass_last_result_v1";
@@ -243,6 +252,23 @@ function readVisitorSource() {
     source,
     referrer,
   };
+}
+
+function deriveSiblingFunctionEndpoint(endpoint, fromName, toName) {
+  if (!endpoint) return "";
+  try {
+    const url = new URL(endpoint);
+    url.hostname = url.hostname.replace(
+      new RegExp(`^${fromName}`, "i"),
+      toName.toLowerCase(),
+    );
+    url.pathname = url.pathname.replace(new RegExp(fromName, "i"), toName);
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return "";
+  }
 }
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -939,6 +965,88 @@ function getShareStance(scores) {
     acceleration:
       x >= 0 ? "Supportive of Acceleration" : "Critical of Acceleration",
   };
+}
+
+function createResultShareThumbnailFile(scores) {
+  if (
+    typeof document === "undefined" ||
+    typeof File !== "function" ||
+    !scores
+  ) {
+    return null;
+  }
+  const x = Number(scores.x);
+  const y = Number(scores.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+
+  const canvas = document.createElement("canvas");
+  const width = 1200;
+  const height = 630;
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+
+  const backgroundColor = resolveCssColorVar("--color-paper", "#ffffff");
+  const markerColor = resolveCssColorVar("--color-ink", COMPASS_DOT_COLOR);
+  const lineColor = GRAY;
+  const insetX = 66;
+  const insetY = 58;
+  const plotWidth = width - insetX * 2;
+  const plotHeight = height - insetY * 2;
+  const centerX = insetX + plotWidth / 2;
+  const centerY = insetY + plotHeight / 2;
+  const clampedX = Math.max(-1, Math.min(1, x));
+  const clampedY = Math.max(-1, Math.min(1, y));
+  const markerSize = 28;
+  const markerX = centerX + clampedX * (plotWidth / 2) - markerSize / 2;
+  const markerY = centerY - clampedY * (plotHeight / 2) - markerSize / 2;
+
+  ctx.fillStyle = backgroundColor;
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.strokeStyle = lineColor;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(insetX, insetY, plotWidth, plotHeight);
+  ctx.beginPath();
+  ctx.moveTo(centerX, insetY);
+  ctx.lineTo(centerX, insetY + plotHeight);
+  ctx.moveTo(insetX, centerY);
+  ctx.lineTo(insetX + plotWidth, centerY);
+  ctx.stroke();
+
+  ctx.fillStyle = markerColor;
+  ctx.fillRect(
+    Math.round(markerX),
+    Math.round(markerY),
+    markerSize,
+    markerSize,
+  );
+
+  const dataUrl = canvas.toDataURL("image/png");
+  const [header, base64] = dataUrl.split(",");
+  const mimeType = header.match(/^data:([^;]+)/)?.[1] || "image/png";
+  const binary = window.atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new File([bytes], "ai-compass-result.png", { type: mimeType });
+}
+
+function buildResultShareUrl(scores, fallbackUrl) {
+  if (!COMPASS_SHARE_ENDPOINT || !scores) return fallbackUrl;
+  const x = Number(scores.x);
+  const y = Number(scores.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return fallbackUrl;
+  try {
+    const url = new URL(COMPASS_SHARE_ENDPOINT);
+    url.searchParams.set("x", Math.max(-1, Math.min(1, x)).toFixed(4));
+    url.searchParams.set("y", Math.max(-1, Math.min(1, y)).toFixed(4));
+    return url.toString();
+  } catch {
+    return fallbackUrl;
+  }
 }
 
 function buildWeightedChoices(entries) {
@@ -4864,14 +4972,33 @@ export default function AICompass() {
 
     const archetype = resultArchetypeName || "Unknown";
     const shareStance = getShareStance(resultScores);
-    const shareTitle = "State Your Stance on AI";
+    const shareTitle = "The AI Compass: State Your Stance";
     const message = shareStance
       ? `I'm ${shareStance.progress}, ${shareStance.acceleration}. Where do you stand?`
       : "Where do you stand on AI?";
-    const shareUrl = window.location.href;
+    const appShareUrl = window.location.href;
+    const shareUrl = buildResultShareUrl(resultScores, appShareUrl);
     const shareText = `${shareTitle}\n\n${message} ${shareUrl}`;
+    const shareThumbnail = createResultShareThumbnailFile(resultScores);
 
     if (navigator.share) {
+      if (
+        shareThumbnail &&
+        navigator.canShare?.({ files: [shareThumbnail] })
+      ) {
+        try {
+          await navigator.share({
+            title: shareTitle,
+            text: message,
+            url: shareUrl,
+            files: [shareThumbnail],
+          });
+          return;
+        } catch (error) {
+          if (error instanceof Error && error.name === "AbortError") return;
+        }
+      }
+
       try {
         await navigator.share({
           title: shareTitle,
@@ -4898,7 +5025,7 @@ export default function AICompass() {
       }
     }
 
-    const tweetIntent = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
+    const tweetIntent = `https://twitter.com/intent/tweet?text=${encodeURIComponent(`${shareTitle}\n\n${message}`)}&url=${encodeURIComponent(shareUrl)}`;
     window.open(tweetIntent, "_blank", "noopener,noreferrer");
   }, [resultArchetypeName, resultScores]);
   const hasCompletedQuiz = Boolean(
