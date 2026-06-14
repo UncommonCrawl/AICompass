@@ -238,6 +238,30 @@ h6 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.homepage-copy-section {
+  width: 100%;
+  max-width: 640px;
+  margin: 26px auto 0;
+  text-align: center;
+}
+
+.homepage-copy-heading {
+  color: var(--color-ink);
+  margin-bottom: 8px;
+}
+
+.homepage-copy-body {
+  color: var(--color-ink);
+  max-width: 50%;
+  margin: 12px auto 0;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.homepage-copy-body:first-of-type {
+  margin-top: 0;
+}
+
 @media (max-width: 780px) {
   .homepage-filter-grid {
     grid-template-columns: 1fr;

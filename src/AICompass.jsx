@@ -199,8 +199,7 @@ const LAST_SUBMISSION_STORAGE_KEY = "ai_compass_last_submission_v1";
 const QUIZ_DRAFT_STORAGE_KEY = "ai_compass_quiz_draft_v1";
 const DEV_DOT_DISPLAY_ENABLED_STORAGE_KEY =
   "ai_compass_dev_dot_display_enabled_v1";
-const DEV_DOT_COUNT_ENABLED_STORAGE_KEY =
-  "ai_compass_dev_dot_count_enabled_v1";
+const DEV_DOT_COUNT_ENABLED_STORAGE_KEY = "ai_compass_dev_dot_count_enabled_v1";
 const DEV_RESULT_PERSISTENCE_ENABLED_STORAGE_KEY =
   "ai_compass_dev_result_persistence_enabled_v1";
 const DEV_PERF_VALVE_DEFAULTS = {
@@ -1092,10 +1091,7 @@ function getPublicDotFilterSelections(
     ...COUNTRY_OPTIONS.map((country) => country.code),
     UNSPECIFIED_FILTER_VALUE,
   ];
-  const industryOptionValues = [
-    ...INDUSTRY_OPTIONS,
-    UNSPECIFIED_FILTER_VALUE,
-  ];
+  const industryOptionValues = [...INDUSTRY_OPTIONS, UNSPECIFIED_FILTER_VALUE];
   return {
     age: {
       field: "age",
@@ -1141,8 +1137,7 @@ function buildPublicDotCountConstraintSets(
   const baseConstraints = includeDevDots ? [] : [where("is_dev", "==", false)];
   const constrainedDimensions = dimensions
     .filter(
-      ({ selectedValues, optionCount }) =>
-        selectedValues.length < optionCount,
+      ({ selectedValues, optionCount }) => selectedValues.length < optionCount,
     )
     .map(({ field, selectedValues }) => ({
       field,
@@ -2395,6 +2390,21 @@ function Compass({
     () => new Set(disabledIndustries),
     [disabledIndustries],
   );
+  const resultMatchesActiveFilters = useCallback(
+    (result) =>
+      !disabledAgeSet.has(
+        normalizeFilterValue(result?.age ?? result?.demographics?.ageRange),
+      ) &&
+      !disabledCountrySet.has(
+        normalizeFilterValue(result?.country ?? result?.demographics?.country),
+      ) &&
+      !disabledIndustrySet.has(
+        normalizeFilterValue(
+          result?.industry ?? result?.demographics?.industry,
+        ),
+      ),
+    [disabledAgeSet, disabledCountrySet, disabledIndustrySet],
+  );
   const plotPoints = useMemo(
     () =>
       results.map((dot, i) => {
@@ -2412,11 +2422,7 @@ function Compass({
           isUser,
           dotRadius,
           hitRadius: COMPASS_DOT_GEOMETRY.hitRadius,
-          enabled:
-            isUser ||
-            (!disabledAgeSet.has(normalizeFilterValue(dot.age)) &&
-              !disabledCountrySet.has(normalizeFilterValue(dot.country)) &&
-              !disabledIndustrySet.has(normalizeFilterValue(dot.industry))),
+          enabled: resultMatchesActiveFilters(dot),
         };
       }),
     [
@@ -2426,10 +2432,8 @@ function Compass({
       cy,
       xRange,
       yRange,
-      disabledAgeSet,
-      disabledCountrySet,
-      disabledIndustrySet,
       userDotColor,
+      resultMatchesActiveFilters,
     ],
   );
   const plotPointById = useMemo(
@@ -2455,6 +2459,10 @@ function Compass({
   const userScores = useMemo(
     () => extractScoresFromResult(userResult),
     [userResult],
+  );
+  const userMarkerIsEnabled = useMemo(
+    () => Boolean(userResult && resultMatchesActiveFilters(userResult)),
+    [resultMatchesActiveFilters, userResult],
   );
   const userMarkerPoint = useMemo(() => {
     if (!showResultMarkers || !userScores) return null;
@@ -2488,6 +2496,15 @@ function Compass({
       sy: cy - globalAverageScores.y * yRange,
     };
   }, [globalAverageScores, cx, cy, xRange, yRange]);
+  const markerLabelOutlineProps = {
+    stroke: THEME.SiteBG,
+    strokeWidth: 3,
+    strokeLinejoin: "miter",
+    paintOrder: "stroke fill",
+  };
+  const markerLabelTextStyle = {
+    letterSpacing: 0,
+  };
 
   useLayoutEffect(() => {
     if (!dotCountText) {
@@ -2921,7 +2938,7 @@ function Compass({
             ...compassFadeStyle,
           }}
         >
-          {showResultMarkers && userMarkerPoint && (
+          {showResultMarkers && userMarkerPoint && userMarkerIsEnabled && (
             <>
               <rect
                 x={userMarkerPoint.sx - COMPASS_DOT_GEOMETRY.radius}
@@ -2933,9 +2950,11 @@ function Compass({
               <text
                 className="type-caption color-ink"
                 x={userMarkerPoint.sx}
-                y={userMarkerPoint.sy - COMPASS_DOT_GEOMETRY.radius - 8}
+                y={userMarkerPoint.sy - COMPASS_DOT_GEOMETRY.radius - 4}
                 fill="currentColor"
                 textAnchor="middle"
+                style={markerLabelTextStyle}
+                {...markerLabelOutlineProps}
               >
                 YOU
               </text>
@@ -2953,10 +2972,11 @@ function Compass({
               <text
                 className="type-caption color-muted"
                 x={globalAveragePoint.sx}
-                y={globalAveragePoint.sy + COMPASS_DOT_GEOMETRY.radius + 6}
+                y={globalAveragePoint.sy - COMPASS_DOT_GEOMETRY.radius - 4}
                 fill="currentColor"
                 textAnchor="middle"
-                dominantBaseline="hanging"
+                style={markerLabelTextStyle}
+                {...markerLabelOutlineProps}
               >
                 AVG
               </text>
@@ -4118,10 +4138,16 @@ export default function AICompass() {
           getCountFromServer(query(publicDotsCollection, ...constraints)),
         ),
       );
-      return snapshots.reduce((sum, snapshot) => sum + snapshot.data().count, 0);
+      return snapshots.reduce(
+        (sum, snapshot) => sum + snapshot.data().count,
+        0,
+      );
     };
 
-    Promise.all([readCount(validConstraintSets), readCount(totalConstraintSets)])
+    Promise.all([
+      readCount(validConstraintSets),
+      readCount(totalConstraintSets),
+    ])
       .then(([valid, total]) => {
         if (cancelled) return;
         setDotCountSummary({ valid, total });
@@ -5191,78 +5217,44 @@ export default function AICompass() {
           </button>
         </div>
       )}
-      <section
-        style={{
-          width: "100%",
-          maxWidth: 640,
-          margin: "26px auto 0",
-          textAlign: "center",
-        }}
-      >
-        <div
-          className="type-display-lg"
-          style={{
-            color: "var(--color-ink)",
-            marginBottom: 8,
-          }}
-        >
-          ABOUT
-        </div>
-        <p
-          className="type-body-sm"
-          style={{
-            color: "var(--color-ink)",
-            maxWidth: "50%",
-            margin: "0 auto",
-            lineHeight: 1.5,
-            textAlign: "center",
-          }}
-        >
+      <section className="homepage-copy-section">
+        <div className="type-display-lg homepage-copy-heading">ABOUT</div>
+        <p className="type-body-sm homepage-copy-body">
           As large language models (LLMs) become more visible, more contested,
           and more present in our daily lives, public opinion on AI is no longer
           captured by a simple divide between optimism and skepticism.
         </p>
-        <p
-          className="type-body-sm"
-          style={{
-            color: "var(--color-ink)",
-            maxWidth: "50%",
-            margin: "12px auto 0",
-            lineHeight: 1.5,
-            textAlign: "center",
-          }}
-        >
+        <p className="type-body-sm homepage-copy-body">
           One can believe AI will be transformative while opposing the way it is
           being developed; others may doubt its most ambitious promises while
           still supporting practical adoption.
         </p>
-        <p
-          className="type-body-sm"
-          style={{
-            color: "var(--color-ink)",
-            maxWidth: "50%",
-            margin: "12px auto 0",
-            lineHeight: 1.5,
-            textAlign: "center",
-          }}
-        >
+        <p className="type-body-sm homepage-copy-body">
           The project maps those views across two dimensions: confidence in AI’s
           abilities and approval of AI’s direction.
         </p>
-        <p
-          className="type-body-sm"
-          style={{
-            color: "var(--color-ink)",
-            maxWidth: "50%",
-            margin: "12px auto 0",
-            lineHeight: 1.5,
-            textAlign: "center",
-          }}
-        >
+        <p className="type-body-sm homepage-copy-body">
           By separating belief in what AI can do from judgment about what should
           happen next, AI Compass creates a clearer picture of how individuals,
           communities, and demographics relate to one of the defining
           technologies of our time.
+        </p>
+      </section>
+      <section className="homepage-copy-section">
+        <div className="type-display-lg homepage-copy-heading">DISCLAIMER</div>
+        <p className="type-body-sm homepage-copy-body">
+          AI Compass is an informal public opinion map, not a scientific survey
+          or a representative study.
+        </p>
+        <p className="type-body-sm homepage-copy-body">
+          Results reflect the people who choose to take the quiz and share their
+          views. They should be read as a snapshot of participant responses, not
+          as a measurement of public opinion at large.
+        </p>
+        <p className="type-body-sm homepage-copy-body">
+          The compass is designed to separate two questions that often get
+          collapsed together: how capable people believe AI will become, and how
+          freely they think it should be developed.
         </p>
       </section>
     </>
