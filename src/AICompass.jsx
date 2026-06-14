@@ -273,6 +273,9 @@ const QUADRANT_INFO = {
     color: "var(--color-ink)",
   },
 };
+const ARCHETYPE_FILTER_VALUES = Object.values(QUADRANT_INFO).map(
+  ({ name }) => name,
+);
 
 const AGE_RANGES = [
   "Under 18",
@@ -1085,6 +1088,7 @@ function getPublicDotFilterSelections(
   disabledAges,
   disabledCountries,
   disabledIndustries,
+  selectedArchetype,
 ) {
   const ageOptionValues = [...AGE_RANGES, UNSPECIFIED_FILTER_VALUE];
   const countryOptionValues = [
@@ -1092,6 +1096,7 @@ function getPublicDotFilterSelections(
     UNSPECIFIED_FILTER_VALUE,
   ];
   const industryOptionValues = [...INDUSTRY_OPTIONS, UNSPECIFIED_FILTER_VALUE];
+  const archetypeOptionValues = [...ARCHETYPE_FILTER_VALUES];
   return {
     age: {
       field: "age",
@@ -1113,6 +1118,13 @@ function getPublicDotFilterSelections(
       selectedValues: industryOptionValues.filter(
         (value) => !disabledIndustries.includes(value),
       ),
+    },
+    archetype: {
+      field: "archetype",
+      optionCount: archetypeOptionValues.length,
+      selectedValues: selectedArchetype
+        ? archetypeOptionValues.filter((value) => value === selectedArchetype)
+        : archetypeOptionValues,
     },
   };
 }
@@ -1208,6 +1220,11 @@ function publicDotMatchesClientFilters(dot, clientFilters) {
   }
   if (clientFilters.industry) {
     if (!clientFilters.industry.has(normalizeFilterValue(dot.industry))) {
+      return false;
+    }
+  }
+  if (clientFilters.archetype) {
+    if (!clientFilters.archetype.has(normalizeFilterValue(dot.archetype))) {
       return false;
     }
   }
@@ -2236,6 +2253,7 @@ function Compass({
   archivePoints = [],
   userResult,
   activeQuadrant,
+  selectedArchetype,
   disabledAges,
   disabledCountries,
   disabledIndustries,
@@ -2402,8 +2420,16 @@ function Compass({
         normalizeFilterValue(
           result?.industry ?? result?.demographics?.industry,
         ),
-      ),
-    [disabledAgeSet, disabledCountrySet, disabledIndustrySet],
+      ) &&
+      (!selectedArchetype ||
+        normalizeFilterValue(result?.archetype) ===
+          normalizeFilterValue(selectedArchetype)),
+    [
+      disabledAgeSet,
+      disabledCountrySet,
+      disabledIndustrySet,
+      selectedArchetype,
+    ],
   );
   const plotPoints = useMemo(
     () =>
@@ -3975,6 +4001,7 @@ export default function AICompass() {
   const [disabledAges, setDisabledAges] = useState([]);
   const [disabledCountries, setDisabledCountries] = useState([]);
   const [disabledIndustries, setDisabledIndustries] = useState([]);
+  const [selectedArchetype, setSelectedArchetype] = useState("");
   const localDeviceId = useMemo(
     () => getOrCreateStorageId("local", DEVICE_ID_STORAGE_KEY),
     [],
@@ -4122,6 +4149,7 @@ export default function AICompass() {
       disabledAges,
       disabledCountries,
       disabledIndustries,
+      selectedArchetype,
     );
     const includeDevDots = import.meta.env.DEV && devDotCountEnabled;
     const validConstraintSets = buildPublicDotCountConstraintSets(
@@ -4165,6 +4193,7 @@ export default function AICompass() {
     disabledAges,
     disabledCountries,
     disabledIndustries,
+    selectedArchetype,
     devDotCountEnabled,
     devPerfValves.noFirestore,
   ]);
@@ -4186,6 +4215,7 @@ export default function AICompass() {
       disabledAges,
       disabledCountries,
       disabledIndustries,
+      selectedArchetype,
     );
     const queryFilters = [];
     const clientFilters = {};
@@ -4228,6 +4258,11 @@ export default function AICompass() {
       "industry",
       filterSelections.industry.selectedValues,
       filterSelections.industry.optionCount,
+    );
+    addFilter(
+      "archetype",
+      filterSelections.archetype.selectedValues,
+      filterSelections.archetype.optionCount,
     );
     const normalizePublicDots = (docs) =>
       docs
@@ -4322,6 +4357,7 @@ export default function AICompass() {
     disabledAges,
     disabledCountries,
     disabledIndustries,
+    selectedArchetype,
     devPerfValves.noFirestore,
   ]);
 
@@ -4846,6 +4882,22 @@ export default function AICompass() {
   const showHeaderActionRow = screen === "home" || screen === "quiz";
   const showResultsStrip = screen === "results" && hasCompletedQuiz;
   const activeQuadrant = pinnedQuadrant || hoveredQuadrant;
+  const setArchetypeFilterFromCard = useCallback((key, archetype) => {
+    setSelectedArchetype((prev) => (prev === archetype ? "" : archetype));
+    setPinnedQuadrant((prev) => {
+      if (prev === key) return null;
+      setHoveredQuadrant(null);
+      return key;
+    });
+  }, []);
+  const handleArchetypeCardKeyDown = useCallback(
+    (event, key, archetype) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      setArchetypeFilterFromCard(key, archetype);
+    },
+    [setArchetypeFilterFromCard],
+  );
   const homeBodyReady = hasInitialResultsSnapshot && homeCanvasDrawn;
   const isCompassLoading = !devPerfValves.noLoadingFade && !homeBodyReady;
   const effectiveHomeBodyReady = true;
@@ -5036,31 +5088,34 @@ export default function AICompass() {
       >
         {ARCHETYPE_GRID_ORDER.map((key) => {
           const val = QUADRANT_INFO[key];
+          const isSelected = selectedArchetype === val.name;
           return (
             <div
               key={key}
+              role="button"
+              tabIndex={0}
+              aria-pressed={isSelected}
+              aria-label={`Filter by ${val.name}`}
               onMouseEnter={() => {
                 if (!pinnedQuadrant) setHoveredQuadrant(key);
               }}
               onMouseLeave={() => {
                 if (!pinnedQuadrant) setHoveredQuadrant(null);
               }}
-              onClick={() =>
-                setPinnedQuadrant((prev) => {
-                  if (prev === key) return null;
-                  setHoveredQuadrant(null);
-                  return key;
-                })
+              onClick={() => setArchetypeFilterFromCard(key, val.name)}
+              onKeyDown={(event) =>
+                handleArchetypeCardKeyDown(event, key, val.name)
               }
               style={{
                 padding: "24px 14px",
                 background: TAB_STYLE_VARS.outerBackground,
                 border:
-                  activeQuadrant === key
+                  activeQuadrant === key || isSelected
                     ? tabBorder(TAB_STYLE_VARS.borderColorStrong)
                     : tabBorder(TAB_STYLE_VARS.borderColorSubtle),
                 borderRadius: TAB_STYLE_VARS.borderRadius,
                 cursor: "pointer",
+                outline: "none",
                 transition: "border-color 220ms ease",
               }}
             >
@@ -5630,6 +5685,7 @@ export default function AICompass() {
                     archivePoints={effectiveArchivePoints}
                     userResult={userResult}
                     activeQuadrant={activeQuadrant}
+                    selectedArchetype={selectedArchetype}
                     disabledAges={disabledAges}
                     disabledCountries={disabledCountries}
                     disabledIndustries={disabledIndustries}
