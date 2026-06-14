@@ -312,7 +312,12 @@ const INDUSTRY_OPTIONS = [
   "Other",
 ];
 
-const COUNTRY_OPTIONS = ISO_COUNTRIES;
+const COUNTRY_NAME_COLLATOR = new Intl.Collator("en", { sensitivity: "base" });
+const COUNTRY_OPTIONS = [...ISO_COUNTRIES].sort(
+  (a, b) =>
+    COUNTRY_NAME_COLLATOR.compare(a.name, b.name) ||
+    a.code.localeCompare(b.code),
+);
 
 function getAgeRangeLabel(value) {
   return value;
@@ -1811,20 +1816,6 @@ function buildQuizDraftSnapshot({
   return normalizedDraft;
 }
 
-function getClientCountryHint() {
-  if (typeof navigator === "undefined") return "";
-  const locales = navigator.languages?.length
-    ? navigator.languages
-    : [navigator.language];
-  for (const locale of locales) {
-    if (typeof locale !== "string") continue;
-    const parts = locale.split(/[-_]/);
-    const maybeCode = parts[1]?.toUpperCase();
-    if (maybeCode && COUNTRY_NAME_BY_CODE[maybeCode]) return maybeCode;
-  }
-  return "";
-}
-
 async function submitCompassResult(payload) {
   if (!COMPASS_SUBMIT_ENDPOINT) {
     throw new Error(
@@ -3151,7 +3142,6 @@ function QuizPage({
   const [countryCode, setCountryCode] = useState(
     () => initialFormState.countryCode,
   );
-  const [ipCountryCode] = useState(() => getClientCountryHint());
   const [industry, setIndustry] = useState(() => initialFormState.industry);
   const [jobTitle, setJobTitle] = useState(() => initialFormState.jobTitle);
   const [notes, setNotes] = useState(() => initialFormState.notes);
@@ -3218,23 +3208,16 @@ function QuizPage({
     [],
   );
   const quizCountryOptions = useMemo(() => {
-    const orderedCountries = COUNTRY_OPTIONS.filter(
-      (country) => country.code !== ipCountryCode,
-    ).map((country) => ({
+    const orderedCountries = COUNTRY_OPTIONS.map((country) => ({
       value: country.code,
       label:
         COUNTRY_NAME_BY_CODE[country.code] || formatCountryName(country.name),
     }));
-    const ipOption =
-      ipCountryCode && COUNTRY_NAME_BY_CODE[ipCountryCode]
-        ? [{ value: ipCountryCode, label: COUNTRY_NAME_BY_CODE[ipCountryCode] }]
-        : [];
     return [
       { value: PREFER_NOT_TO_SAY_VALUE, label: "Prefer not to say" },
-      ...ipOption,
       ...orderedCountries,
     ];
-  }, [ipCountryCode]);
+  }, []);
   const quizIndustryOptions = useMemo(
     () => [
       { value: PREFER_NOT_TO_SAY_VALUE, label: "Prefer not to say" },
@@ -3945,7 +3928,6 @@ export default function AICompass() {
   const [disabledAges, setDisabledAges] = useState([]);
   const [disabledCountries, setDisabledCountries] = useState([]);
   const [disabledIndustries, setDisabledIndustries] = useState([]);
-  const [filterIpCountryCode] = useState(() => getClientCountryHint());
   const localDeviceId = useMemo(
     () => getOrCreateStorageId("local", DEVICE_ID_STORAGE_KEY),
     [],
@@ -4925,26 +4907,11 @@ export default function AICompass() {
       label:
         COUNTRY_NAME_BY_CODE[country.code] || formatCountryName(country.name),
     }));
-    if (filterIpCountryCode) {
-      const pinned = options.find(
-        (option) => option.value === filterIpCountryCode,
-      );
-      if (pinned) {
-        const rest = options.filter(
-          (option) => option.value !== filterIpCountryCode,
-        );
-        return [
-          pinned,
-          ...rest,
-          { value: UNSPECIFIED_FILTER_VALUE, label: "Unspecified" },
-        ];
-      }
-    }
     return [
       ...options,
       { value: UNSPECIFIED_FILTER_VALUE, label: "Unspecified" },
     ];
-  }, [filterIpCountryCode]);
+  }, []);
   const selectedCountryFilterValue = useMemo(() => {
     const selectableValues = countryFilterOptions.map((option) => option.value);
     const selectedValues = selectableValues.filter(
