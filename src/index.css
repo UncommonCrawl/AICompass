@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Newsreader:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
-
 :root {
   --text: var(--color-muted);
   --text-h: var(--color-ink);
@@ -13,9 +11,6 @@
   --shadow:
     color-mix(in oklab, var(--color-ink) 12%, transparent) 0 10px 15px -3px,
     color-mix(in oklab, var(--color-ink) 8%, transparent) 0 4px 6px -2px;
-
-  --font-ibm-plex-mono: var(--font-mono);
-  --font-newsreader: 'Newsreader', 'Iowan Old Style', 'Palatino Linotype', serif;
 
   --tab-bg-outer: color-mix(in oklab, var(--color-ink) 2%, transparent);
   --tab-bg-form: color-mix(in oklab, var(--color-ink) 2%, transparent);

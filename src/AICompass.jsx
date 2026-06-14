@@ -193,15 +193,6 @@ const QUESTION_AVERAGES_DOC_ID = "question-averages-v1";
 const COMPASS_SUBMIT_ENDPOINT = (
   import.meta.env.VITE_COMPASS_SUBMIT_ENDPOINT || ""
 ).trim();
-const COMPASS_SHARE_ENDPOINT = (
-  import.meta.env.VITE_COMPASS_SHARE_ENDPOINT ||
-  deriveSiblingFunctionEndpoint(
-    COMPASS_SUBMIT_ENDPOINT,
-    "submitCompassResult",
-    "shareCompassResult",
-  ) ||
-  ""
-).trim();
 const DEVICE_ID_STORAGE_KEY = "ai_compass_device_id_v1";
 const SESSION_ID_STORAGE_KEY = "ai_compass_session_id_v1";
 const LAST_RESULT_STORAGE_KEY = "ai_compass_last_result_v1";
@@ -252,23 +243,6 @@ function readVisitorSource() {
     source,
     referrer,
   };
-}
-
-function deriveSiblingFunctionEndpoint(endpoint, fromName, toName) {
-  if (!endpoint) return "";
-  try {
-    const url = new URL(endpoint);
-    url.hostname = url.hostname.replace(
-      new RegExp(`^${fromName}`, "i"),
-      toName.toLowerCase(),
-    );
-    url.pathname = url.pathname.replace(new RegExp(fromName, "i"), toName);
-    url.search = "";
-    url.hash = "";
-    return url.toString();
-  } catch {
-    return "";
-  }
 }
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -414,6 +388,9 @@ const COMPASS_DOT_GEOMETRY = {
   hoverRingRadius: 8,
   hoverRingPulseRadius: 8,
 };
+const SHARE_TITLE = "The AI Compass: State Your Stance";
+const SHARE_BASE_URL = "https://theaicompass.io/share";
+const DEV_SHARE_SAMPLE_SCORES = { x: -0.8, y: -0.35 };
 
 const DEV_WEIGHT_TARGET_TOTAL = 100;
 const DEV_DEFAULT_STD_DEV = 0.4;
@@ -954,99 +931,19 @@ function getQuadrant(x, y) {
   return "bottomLeft";
 }
 
-function getShareStance(scores) {
-  if (!scores) return null;
+function getShareResultSlug(scores) {
+  if (!scores) return "";
   const x = Number(scores.x);
   const y = Number(scores.y);
-  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-  return {
-    progress:
-      y >= 0 ? "Convinced of Progress" : "Unconvinced of Progress",
-    acceleration:
-      x >= 0 ? "Supportive of Acceleration" : "Critical of Acceleration",
-  };
-}
-
-function createResultShareThumbnailFile(scores) {
-  if (
-    typeof document === "undefined" ||
-    typeof File !== "function" ||
-    !scores
-  ) {
-    return null;
-  }
-  const x = Number(scores.x);
-  const y = Number(scores.y);
-  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-
-  const canvas = document.createElement("canvas");
-  const width = 1200;
-  const height = 630;
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return null;
-
-  const backgroundColor = resolveCssColorVar("--color-paper", "#ffffff");
-  const markerColor = resolveCssColorVar("--color-ink", COMPASS_DOT_COLOR);
-  const lineColor = GRAY;
-  const insetX = 66;
-  const insetY = 58;
-  const plotWidth = width - insetX * 2;
-  const plotHeight = height - insetY * 2;
-  const centerX = insetX + plotWidth / 2;
-  const centerY = insetY + plotHeight / 2;
-  const clampedX = Math.max(-1, Math.min(1, x));
-  const clampedY = Math.max(-1, Math.min(1, y));
-  const markerSize = 28;
-  const markerX = centerX + clampedX * (plotWidth / 2) - markerSize / 2;
-  const markerY = centerY - clampedY * (plotHeight / 2) - markerSize / 2;
-
-  ctx.fillStyle = backgroundColor;
-  ctx.fillRect(0, 0, width, height);
-
-  ctx.strokeStyle = lineColor;
-  ctx.lineWidth = 2;
-  ctx.strokeRect(insetX, insetY, plotWidth, plotHeight);
-  ctx.beginPath();
-  ctx.moveTo(centerX, insetY);
-  ctx.lineTo(centerX, insetY + plotHeight);
-  ctx.moveTo(insetX, centerY);
-  ctx.lineTo(insetX + plotWidth, centerY);
-  ctx.stroke();
-
-  ctx.fillStyle = markerColor;
-  ctx.fillRect(
-    Math.round(markerX),
-    Math.round(markerY),
-    markerSize,
-    markerSize,
-  );
-
-  const dataUrl = canvas.toDataURL("image/png");
-  const [header, base64] = dataUrl.split(",");
-  const mimeType = header.match(/^data:([^;]+)/)?.[1] || "image/png";
-  const binary = window.atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return new File([bytes], "ai-compass-result.png", { type: mimeType });
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return "";
+  const progress = y >= 0 ? "convinced" : "unconvinced";
+  const acceleration = x >= 0 ? "supportive" : "critical";
+  return `${progress}-${acceleration}`;
 }
 
 function buildResultShareUrl(scores, fallbackUrl) {
-  if (!COMPASS_SHARE_ENDPOINT || !scores) return fallbackUrl;
-  const x = Number(scores.x);
-  const y = Number(scores.y);
-  if (!Number.isFinite(x) || !Number.isFinite(y)) return fallbackUrl;
-  try {
-    const url = new URL(COMPASS_SHARE_ENDPOINT);
-    url.searchParams.set("x", Math.max(-1, Math.min(1, x)).toFixed(4));
-    url.searchParams.set("y", Math.max(-1, Math.min(1, y)).toFixed(4));
-    return url.toString();
-  } catch {
-    return fallbackUrl;
-  }
+  const slug = getShareResultSlug(scores);
+  return slug ? `${SHARE_BASE_URL}/${slug}` : fallbackUrl;
 }
 
 function buildWeightedChoices(entries) {
@@ -4971,38 +4868,17 @@ export default function AICompass() {
     });
 
     const archetype = resultArchetypeName || "Unknown";
-    const shareStance = getShareStance(resultScores);
-    const shareTitle = "The AI Compass: State Your Stance";
-    const message = shareStance
-      ? `I'm ${shareStance.progress}, ${shareStance.acceleration}. Where do you stand?`
-      : "Where do you stand on AI?";
+    const shareScores = import.meta.env.DEV
+      ? DEV_SHARE_SAMPLE_SCORES
+      : resultScores;
     const appShareUrl = window.location.href;
-    const shareUrl = buildResultShareUrl(resultScores, appShareUrl);
-    const shareText = `${shareTitle}\n\n${message} ${shareUrl}`;
-    const shareThumbnail = createResultShareThumbnailFile(resultScores);
+    const shareUrl = buildResultShareUrl(shareScores, appShareUrl);
+    const shareText = shareUrl;
 
     if (navigator.share) {
-      if (
-        shareThumbnail &&
-        navigator.canShare?.({ files: [shareThumbnail] })
-      ) {
-        try {
-          await navigator.share({
-            title: shareTitle,
-            text: message,
-            url: shareUrl,
-            files: [shareThumbnail],
-          });
-          return;
-        } catch (error) {
-          if (error instanceof Error && error.name === "AbortError") return;
-        }
-      }
-
       try {
         await navigator.share({
-          title: shareTitle,
-          text: message,
+          title: SHARE_TITLE,
           url: shareUrl,
         });
         return;
@@ -5025,7 +4901,7 @@ export default function AICompass() {
       }
     }
 
-    const tweetIntent = `https://twitter.com/intent/tweet?text=${encodeURIComponent(`${shareTitle}\n\n${message}`)}&url=${encodeURIComponent(shareUrl)}`;
+    const tweetIntent = `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}`;
     window.open(tweetIntent, "_blank", "noopener,noreferrer");
   }, [resultArchetypeName, resultScores]);
   const hasCompletedQuiz = Boolean(
@@ -5519,11 +5395,6 @@ export default function AICompass() {
         color: THEME.SiteText,
       }}
     >
-      <link
-        href="https://fonts.googleapis.com/css2?family=Newsreader:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
-        rel="stylesheet"
-      />
-
       {/* Header */}
       <div
         style={{

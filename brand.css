@@ -36,7 +36,7 @@
   /* Typography */
   --font-display: "Cabinet Grotesk", "IBM Plex Sans", "Segoe UI", sans-serif;
   --font-body: "IBM Plex Sans", "Avenir Next", "Avenir", "Segoe UI", sans-serif;
-  --font-mono: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+  --font-mono: "SFMono-Regular", Menlo, Consolas, monospace;
 
   /* Backward-compatible aliases */
   --font-sans: var(--font-body);
