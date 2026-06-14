@@ -1,9 +1,13 @@
+import { lazy, Suspense } from "react";
 import AICompass from "./AICompass.jsx";
-import AdminDashboard from "./AdminDashboard.jsx";
+
+const AdminDashboard = lazy(() => import("./AdminDashboard.jsx"));
 
 function Root() {
   return window.location.pathname === "/admin" ? (
-    <AdminDashboard />
+    <Suspense fallback={<main className="admin-page">Loading...</main>}>
+      <AdminDashboard />
+    </Suspense>
   ) : (
     <AICompass />
   );

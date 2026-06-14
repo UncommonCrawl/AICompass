@@ -14,7 +14,8 @@ import {
   signInWithPopup,
   signOut,
 } from "firebase/auth";
-import { auth, db } from "./firebase";
+import { db } from "./firebase";
+import { auth } from "./firebaseAuth";
 
 const SUBMISSIONS_COLLECTION = "compass-results-v2";
 const SUBMISSION_PRIVATE_COLLECTION = "compass-submission-private-v1";
