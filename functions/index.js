@@ -333,6 +333,8 @@ export const submitCompassResult = onRequest(
     const submittedUserAgent = cleanString(payload.user_agent, 1024);
     const requestUserAgent = cleanString(req.get("user-agent"), 1024);
     const userAgent = submittedUserAgent || requestUserAgent;
+    const source = cleanString(payload.source, 256) || "direct";
+    const referrer = cleanString(payload.referrer, 2048);
     const ip = cleanString(getClientIp(req), 128);
 
     const ipHash = ip ? hashValue(secret, `ip:${ip}`) : "";
@@ -558,6 +560,8 @@ export const submitCompassResult = onRequest(
           x: xScore,
           y: yScore,
           archetype: cleanString(payload.archetype, 128),
+          source,
+          referrer,
           demographics,
           age: demographics.age,
           country: demographics.country,

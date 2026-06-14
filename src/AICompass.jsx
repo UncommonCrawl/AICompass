@@ -20,6 +20,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import { recordCompassEvent } from "./analyticsEvents";
 import { ISO_COUNTRIES } from "./isoCountries";
 import aiCompassHeader from "../AI Compass header.png";
 
@@ -220,6 +221,30 @@ const DEV_PERF_VALVE_OPTIONS = [
   { key: "noDevControls", label: "Dev controls" },
   { key: "noFpsMeter", label: "FPS meter" },
 ];
+
+function readVisitorSource() {
+  if (typeof window === "undefined") {
+    return {
+      source: "direct",
+      referrer: "",
+    };
+  }
+  const params = new URLSearchParams(window.location.search);
+  const referrer =
+    typeof document !== "undefined" && typeof document.referrer === "string"
+      ? document.referrer
+      : "";
+  const source =
+    params.get("source") ||
+    params.get("utm_source") ||
+    referrer ||
+    "direct";
+  return {
+    source,
+    referrer,
+  };
+}
+
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 const RESUBMIT_LOCK_WINDOW_MS = DAY_MS;
@@ -2525,7 +2550,7 @@ function Compass({
   const markerLabelOutlineProps = {
     stroke: THEME.SiteBG,
     strokeWidth: 3,
-    strokeLinejoin: "miter",
+    strokeLinejoin: "round",
     paintOrder: "stroke fill",
   };
   const markerLabelTextStyle = {
@@ -4426,6 +4451,7 @@ export default function AICompass() {
     const quadrantKey = getQuadrant(activeScores.x, activeScores.y);
     const archetype = QUADRANT_INFO[quadrantKey]?.name || "";
     const clientCreatedAt = Date.now();
+    const visitorSource = readVisitorSource();
     const entry = {
       x: activeScores.x,
       y: activeScores.y,
@@ -4458,6 +4484,8 @@ export default function AICompass() {
       repeat_classification: "first_or_stale",
       repeat_group_id: "",
       created_at: clientCreatedAt,
+      source: visitorSource.source,
+      referrer: visitorSource.referrer,
       is_dev: isDevSubmit,
       ts: clientCreatedAt,
     };
@@ -4509,6 +4537,8 @@ export default function AICompass() {
       result_schema_version: RESULT_SCHEMA_VERSION,
       is_dev: isDevSubmit,
       client_created_at: clientCreatedAt,
+      source: visitorSource.source,
+      referrer: visitorSource.referrer,
       device_uuid: getOrCreateStorageId("local", DEVICE_ID_STORAGE_KEY),
       session_uuid: getOrCreateStorageId("session", SESSION_ID_STORAGE_KEY),
       user_agent: navigator.userAgent || "",
@@ -4547,6 +4577,13 @@ export default function AICompass() {
           ...localSubmissionSnapshot,
           submissionId: savedId,
           createdAt: Number(saved.created_at ?? saved.ts) || clientCreatedAt,
+        });
+        recordCompassEvent("quiz_complete", {
+          submission_id: savedId,
+          archetype,
+          is_dev: isDevSubmit,
+          source: visitorSource.source,
+          referrer: visitorSource.referrer,
         });
       })
       .catch((error) => {
@@ -4805,6 +4842,12 @@ export default function AICompass() {
   const resultArchetypeDesc = qi?.desc || "";
   const handleShare = useCallback(async () => {
     if (typeof window === "undefined") return;
+    const visitorSource = readVisitorSource();
+    recordCompassEvent("result_share_click", {
+      archetype: resultArchetypeName || "Unknown",
+      source: visitorSource.source,
+      referrer: visitorSource.referrer,
+    });
 
     const archetype = resultArchetypeName || "Unknown";
     const message = `I'm a ${archetype}. Where do you stand on AI?`;
@@ -4827,6 +4870,11 @@ export default function AICompass() {
     if (navigator.clipboard?.writeText) {
       try {
         await navigator.clipboard.writeText(shareText);
+        recordCompassEvent("result_copy_click", {
+          archetype,
+          source: visitorSource.source,
+          referrer: visitorSource.referrer,
+        });
         return;
       } catch {
         // Continue to web share fallback when clipboard is unavailable.
@@ -5392,6 +5440,12 @@ export default function AICompass() {
                 <button
                   className="type-body-sm compass-action-button"
                   onClick={() => {
+                    const visitorSource = readVisitorSource();
+                    recordCompassEvent("quiz_start", {
+                      has_completed_quiz: hasCompletedQuiz,
+                      source: visitorSource.source,
+                      referrer: visitorSource.referrer,
+                    });
                     setScreen("quiz");
                     setScores(null);
                     setQuizEditAnswersEnabled(false);

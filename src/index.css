@@ -300,6 +300,155 @@ h6 {
   color: var(--color-ink);
 }
 
+.admin-page {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 28px;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+}
+
+.admin-auth-card {
+  max-width: 420px;
+  min-height: auto;
+  margin: 80px auto;
+  border: 1px solid color-mix(in oklab, var(--color-ink) 15%, var(--color-paper));
+  border-radius: var(--radius-base);
+}
+
+.admin-page h1,
+.admin-page h2 {
+  margin: 0;
+  font-family: var(--font-display);
+}
+
+.admin-page h1 {
+  font-size: 28px;
+}
+
+.admin-page h2 {
+  font-size: 18px;
+  margin-bottom: 12px;
+}
+
+.admin-page button {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid color-mix(in oklab, var(--color-ink) 30%, var(--color-paper));
+  border-radius: var(--radius-base);
+  background: var(--color-ink);
+  color: var(--color-paper);
+  cursor: pointer;
+}
+
+.admin-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.admin-muted {
+  color: color-mix(in oklab, var(--color-ink) 62%, var(--color-paper));
+}
+
+.admin-error {
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border: 1px solid #b00020;
+  border-radius: var(--radius-base);
+  background: #fff5f5;
+  color: #850018;
+}
+
+.admin-card-grid,
+.admin-breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.admin-breakdown-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.admin-card,
+.admin-section {
+  padding: 14px;
+  border: 1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper));
+  border-radius: var(--radius-base);
+  background: color-mix(in oklab, var(--color-paper) 94%, white);
+}
+
+.admin-card span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.admin-card strong {
+  font-size: 28px;
+}
+
+.admin-day-grid,
+.admin-breakdown-list {
+  display: grid;
+  gap: 6px;
+}
+
+.admin-day-grid {
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+}
+
+.admin-day-row,
+.admin-breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid color-mix(in oklab, var(--color-ink) 10%, var(--color-paper));
+}
+
+.admin-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  min-width: 1180px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 8px;
+  border-bottom: 1px solid color-mix(in oklab, var(--color-ink) 12%, var(--color-paper));
+  text-align: left;
+  vertical-align: top;
+}
+
+.admin-table th {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--color-ink) 65%, var(--color-paper));
+}
+
+@media (max-width: 960px) {
+  .admin-card-grid,
+  .admin-breakdown-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-header {
+    display: block;
+  }
+}
+
 p {
   margin: 0;
 }
