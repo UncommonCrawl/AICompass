@@ -9,9 +9,10 @@ import {
   query,
 } from "firebase/firestore";
 import {
+  getRedirectResult,
   GoogleAuthProvider,
   onAuthStateChanged,
-  signInWithPopup,
+  signInWithRedirect,
   signOut,
 } from "firebase/auth";
 import { db } from "./firebase";
@@ -26,6 +27,17 @@ const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || "")
 const RECENT_LIMIT = 50;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const THIRTY_DAY_CUTOFF = Date.now() - 30 * DAY_MS;
+
+function getAuthErrorMessage(authError) {
+  const code = authError?.code || "";
+  if (code === "auth/unauthorized-domain") {
+    return "This domain is not authorized for Google sign-in in Firebase Auth.";
+  }
+  if (code === "auth/operation-not-allowed") {
+    return "Google sign-in is not enabled for this Firebase project.";
+  }
+  return authError?.message || "Unable to start Google sign-in.";
+}
 
 function readNumber(...values) {
   for (const value of values) {
@@ -155,6 +167,28 @@ function AdminDashboard() {
     });
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    getRedirectResult(auth).catch((authError) => {
+      if (cancelled) return;
+      console.error("Admin sign-in failed:", authError);
+      setError(getAuthErrorMessage(authError));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleSignIn = async () => {
+    setError("");
+    try {
+      await signInWithRedirect(auth, new GoogleAuthProvider());
+    } catch (authError) {
+      console.error("Admin sign-in failed:", authError);
+      setError(getAuthErrorMessage(authError));
+    }
+  };
+
   const adminEmail = authUser?.email?.toLowerCase() || "";
   const isConfigured = ADMIN_EMAILS.length > 0;
   const isAuthorized = isConfigured && ADMIN_EMAILS.includes(adminEmail);
@@ -281,7 +315,8 @@ function AdminDashboard() {
       <main className="admin-page admin-auth-card">
         <h1>AI Compass Admin</h1>
         <p>Sign in to view private submission data.</p>
-        <button type="button" onClick={() => signInWithPopup(auth, new GoogleAuthProvider())}>
+        {error && <div className="admin-error">{error}</div>}
+        <button type="button" onClick={handleSignIn}>
           Sign in with Google
         </button>
       </main>
