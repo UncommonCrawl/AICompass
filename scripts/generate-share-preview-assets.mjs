@@ -3,47 +3,47 @@ import path from "node:path";
 import { deflateSync } from "node:zlib";
 
 const rootDir = process.cwd();
-const publicShareDir = path.join(rootDir, "public", "share");
-const title = "The AI Compass: State Your Stance";
+const publicShareDir = path.join(rootDir, "public", "s");
+const obsoletePublicShareDir = path.join(rootDir, "public", "share");
 const siteUrl = "https://theaicompass.io";
+const shareDescription = "Take the quiz and state your own stance.";
 const imageWidth = 1200;
 const imageHeight = 630;
 const insetX = 66;
 const insetY = 58;
-const markerSize = 28;
 const colors = {
   background: { r: 255, g: 255, b: 255, a: 255 },
+  quadrant: { r: 184, g: 184, b: 184, a: 255 },
   line: { r: 184, g: 184, b: 184, a: 255 },
-  marker: { r: 0, g: 0, b: 0, a: 255 },
 };
 const shareResults = [
   {
-    slug: "convinced-critical",
-    x: -0.62,
-    y: 0.42,
-    description:
-      "I'm Convinced of Progress, Critical of Acceleration. Where do you stand?",
-  },
-  {
-    slug: "convinced-supportive",
-    x: 0.62,
-    y: 0.42,
-    description:
+    alias: "a7k3",
+    resultSlug: "convinced-supportive",
+    quadrant: "topRight",
+    title:
       "I'm Convinced of Progress, Supportive of Acceleration. Where do you stand?",
   },
   {
-    slug: "unconvinced-critical",
-    x: -0.62,
-    y: -0.42,
-    description:
-      "I'm Unconvinced of Progress, Critical of Acceleration. Where do you stand?",
+    alias: "m92q",
+    resultSlug: "convinced-critical",
+    quadrant: "topLeft",
+    title:
+      "I'm Convinced of Progress, Critical of Acceleration. Where do you stand?",
   },
   {
-    slug: "unconvinced-supportive",
-    x: 0.62,
-    y: -0.42,
-    description:
+    alias: "r4vx",
+    resultSlug: "unconvinced-supportive",
+    quadrant: "bottomRight",
+    title:
       "I'm Unconvinced of Progress, Supportive of Acceleration. Where do you stand?",
+  },
+  {
+    alias: "t8pb",
+    resultSlug: "unconvinced-critical",
+    quadrant: "bottomLeft",
+    title:
+      "I'm Unconvinced of Progress, Critical of Acceleration. Where do you stand?",
   },
 ];
 
@@ -88,25 +88,37 @@ function fillRect(pixels, x, y, width, height, color) {
   }
 }
 
-function createPreviewPng(x, y) {
+function createPreviewPng(quadrant) {
   const pixels = Buffer.alloc(imageWidth * imageHeight * 4, 255);
   const plotWidth = imageWidth - insetX * 2;
   const plotHeight = imageHeight - insetY * 2;
   const centerX = insetX + plotWidth / 2;
   const centerY = insetY + plotHeight / 2;
-  const clampedX = Math.max(-1, Math.min(1, x));
-  const clampedY = Math.max(-1, Math.min(1, y));
-  const markerX = centerX + clampedX * (plotWidth / 2) - markerSize / 2;
-  const markerY = centerY - clampedY * (plotHeight / 2) - markerSize / 2;
+  const quadrantRects = {
+    topLeft: { x: insetX, y: insetY },
+    topRight: { x: centerX, y: insetY },
+    bottomLeft: { x: insetX, y: centerY },
+    bottomRight: { x: centerX, y: centerY },
+  };
+  const highlightRect = quadrantRects[quadrant];
 
   fillRect(pixels, 0, 0, imageWidth, imageHeight, colors.background);
+  if (highlightRect) {
+    fillRect(
+      pixels,
+      highlightRect.x,
+      highlightRect.y,
+      plotWidth / 2,
+      plotHeight / 2,
+      colors.quadrant,
+    );
+  }
   fillRect(pixels, insetX, insetY, plotWidth, 2, colors.line);
   fillRect(pixels, insetX, insetY + plotHeight - 2, plotWidth, 2, colors.line);
   fillRect(pixels, insetX, insetY, 2, plotHeight, colors.line);
   fillRect(pixels, insetX + plotWidth - 2, insetY, 2, plotHeight, colors.line);
   fillRect(pixels, centerX - 1, insetY, 2, plotHeight, colors.line);
   fillRect(pixels, insetX, centerY - 1, plotWidth, 2, colors.line);
-  fillRect(pixels, markerX, markerY, markerSize, markerSize, colors.marker);
 
   const rawRows = Buffer.alloc((imageWidth * 4 + 1) * imageHeight);
   for (let row = 0; row < imageHeight; row += 1) {
@@ -146,53 +158,52 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;");
 }
 
-function createSharePage({ slug, description }) {
-  const pageUrl = `${siteUrl}/share/${slug}`;
-  const imageUrl = `${siteUrl}/share/${slug}.png`;
+function createSharePage({ alias, title: resultTitle }) {
+  const pageUrl = `${siteUrl}/s/${alias}`;
+  const imageUrl = `${siteUrl}/s/${alias}.png`;
   return `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>${escapeHtml(title)}</title>
-    <meta name="description" content="${escapeHtml(description)}" />
+    <title>${escapeHtml(resultTitle)}</title>
+    <meta name="description" content="${escapeHtml(shareDescription)}" />
     <link rel="canonical" href="${pageUrl}" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="${pageUrl}" />
     <meta property="og:site_name" content="AI Compass" />
-    <meta property="og:title" content="${escapeHtml(title)}" />
-    <meta property="og:description" content="${escapeHtml(description)}" />
+    <meta property="og:title" content="${escapeHtml(resultTitle)}" />
+    <meta property="og:description" content="${escapeHtml(shareDescription)}" />
     <meta property="og:image" content="${imageUrl}" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="${imageWidth}" />
     <meta property="og:image:height" content="${imageHeight}" />
-    <meta property="og:image:alt" content="A minimalist AI Compass result preview with one black marker on the compass." />
+    <meta property="og:image:alt" content="A minimalist AI Compass result preview with the matching quadrant highlighted." />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:url" content="${pageUrl}" />
-    <meta name="twitter:title" content="${escapeHtml(title)}" />
-    <meta name="twitter:description" content="${escapeHtml(description)}" />
+    <meta name="twitter:title" content="${escapeHtml(resultTitle)}" />
+    <meta name="twitter:description" content="${escapeHtml(shareDescription)}" />
     <meta name="twitter:image" content="${imageUrl}" />
-    <meta name="twitter:image:alt" content="A minimalist AI Compass result preview with one black marker on the compass." />
+    <meta name="twitter:image:alt" content="A minimalist AI Compass result preview with the matching quadrant highlighted." />
     <script>
-      window.setTimeout(() => {
-        window.location.replace("${siteUrl}/");
-      }, 1200);
+      window.location.replace("/");
     </script>
   </head>
   <body>
-    <a href="${siteUrl}/">Continue to The AI Compass</a>
+    <noscript><a href="/">Open The AI Compass</a></noscript>
   </body>
 </html>
 `;
 }
 
+fs.rmSync(obsoletePublicShareDir, { recursive: true, force: true });
 fs.mkdirSync(publicShareDir, { recursive: true });
 for (const result of shareResults) {
   fs.writeFileSync(
-    path.join(publicShareDir, `${result.slug}.png`),
-    createPreviewPng(result.x, result.y),
+    path.join(publicShareDir, `${result.alias}.png`),
+    createPreviewPng(result.quadrant),
   );
-  const routeDir = path.join(publicShareDir, result.slug);
+  const routeDir = path.join(publicShareDir, result.alias);
   fs.mkdirSync(routeDir, { recursive: true });
   fs.writeFileSync(path.join(routeDir, "index.html"), createSharePage(result));
 }

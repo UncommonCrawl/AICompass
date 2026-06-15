@@ -388,8 +388,14 @@ const COMPASS_DOT_GEOMETRY = {
   hoverRingRadius: 8,
   hoverRingPulseRadius: 8,
 };
-const SHARE_TITLE = "The AI Compass: State Your Stance";
-const SHARE_BASE_URL = "https://theaicompass.io/share";
+const SHARE_TITLE = "The AI Compass - Show Your Stance";
+const SHARE_BASE_URL = "https://theaicompass.io/s";
+const SHARE_ALIASES_BY_RESULT_SLUG = {
+  "convinced-supportive": "a7k3",
+  "convinced-critical": "m92q",
+  "unconvinced-supportive": "r4vx",
+  "unconvinced-critical": "t8pb",
+};
 const DEV_SHARE_SAMPLE_SCORES = { x: -0.8, y: -0.35 };
 
 const DEV_WEIGHT_TARGET_TOTAL = 100;
@@ -943,7 +949,8 @@ function getShareResultSlug(scores) {
 
 function buildResultShareUrl(scores, fallbackUrl) {
   const slug = getShareResultSlug(scores);
-  return slug ? `${SHARE_BASE_URL}/${slug}` : fallbackUrl;
+  const alias = SHARE_ALIASES_BY_RESULT_SLUG[slug];
+  return alias ? `${SHARE_BASE_URL}/${alias}` : fallbackUrl;
 }
 
 function buildWeightedChoices(entries) {

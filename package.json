@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5173",
-    "build": "vite build && node scripts/prepare-static-routes.mjs",
+    "build": "npm run build:share-previews && vite build && node scripts/prepare-static-routes.mjs",
     "build:share-previews": "node scripts/generate-share-preview-assets.mjs",
     "start": "node server.mjs",
     "lint": "eslint .",

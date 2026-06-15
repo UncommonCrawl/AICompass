@@ -36,6 +36,9 @@ function getAuthErrorMessage(authError) {
   if (code === "auth/operation-not-allowed") {
     return "Google sign-in is not enabled for this Firebase project.";
   }
+  if (code === "auth/configuration-not-found") {
+    return "Firebase Auth is not configured for this project. Enable Authentication and the Google sign-in provider in Firebase Console.";
+  }
   return authError?.message || "Unable to start Google sign-in.";
 }
 
