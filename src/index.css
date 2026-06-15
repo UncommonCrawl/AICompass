@@ -283,6 +283,34 @@ h6 {
   cursor: pointer;
 }
 
+.result-share-link {
+  margin: 14px auto 0;
+  max-width: 360px;
+}
+
+.result-share-link-label {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--color-ink);
+}
+
+.result-share-link-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 10px;
+  border-radius: var(--radius-base);
+  border: 1px solid var(--color-border);
+  background: var(--color-paper);
+  color: var(--color-ink);
+  text-align: center;
+}
+
+.result-share-link-status {
+  min-height: 1.35em;
+  margin-top: 4px;
+  color: var(--color-ink);
+}
+
 .app-error-message {
   --app-error-max-width: 1000px;
   --app-error-margin: 0 auto 16px;

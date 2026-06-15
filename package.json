@@ -5,8 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5173",
-    "build": "npm run build:share-previews && vite build && node scripts/prepare-static-routes.mjs",
-    "build:share-previews": "node scripts/generate-share-preview-assets.mjs",
+    "build": "vite build && node scripts/prepare-static-routes.mjs",
     "start": "node server.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -14,7 +13,7 @@
     "check:dots:temp": "node scripts/check-live-dots.mjs --temp",
     "reconcile:public-dots": "npm --prefix functions run reconcile:public-dots -- --project=ai-compass-b430a",
     "reconcile:public-dots:write": "npm --prefix functions run reconcile:public-dots -- --project=ai-compass-b430a --write",
-    "deploy:functions": "firebase deploy --only functions:submitCompassResult --project ai-compass-b430a",
+    "deploy:functions": "firebase deploy --only functions:submitCompassResult,functions:shareResult,functions:shareImage --project ai-compass-b430a",
     "test:compass-results-v2": "node scripts/test-compass-results-v2.mjs",
     "prestart": "npm run build"
   },

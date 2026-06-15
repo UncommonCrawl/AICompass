@@ -388,15 +388,14 @@ const COMPASS_DOT_GEOMETRY = {
   hoverRingRadius: 8,
   hoverRingPulseRadius: 8,
 };
-const SHARE_TITLE = "The AI Compass - Show Your Stance";
 const SHARE_BASE_URL = "https://theaicompass.io/s";
-const SHARE_ALIASES_BY_RESULT_SLUG = {
-  "convinced-supportive": "a7k3",
-  "convinced-critical": "m92q",
-  "unconvinced-supportive": "r4vx",
-  "unconvinced-critical": "t8pb",
-};
 const DEV_SHARE_SAMPLE_SCORES = { x: -0.8, y: -0.35 };
+const SHARE_TOKEN_SCALE = 10000;
+const SHARE_TOKEN_MAX_QUANTIZED = SHARE_TOKEN_SCALE * 2;
+const SHARE_TOKEN_X_MASK = 0x52ab;
+const SHARE_TOKEN_Y_MASK = 0x36d7;
+const SHARE_TOKEN_Y_BITS = 15n;
+const SHARE_TOKEN_Y_MASK_BITS = (1n << SHARE_TOKEN_Y_BITS) - 1n;
 
 const DEV_WEIGHT_TARGET_TOTAL = 100;
 const DEV_DEFAULT_STD_DEV = 0.4;
@@ -937,20 +936,35 @@ function getQuadrant(x, y) {
   return "bottomLeft";
 }
 
-function getShareResultSlug(scores) {
+function quantizeShareScore(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return null;
+  const clamped = Math.max(-1, Math.min(1, number));
+  return Math.max(
+    0,
+    Math.min(
+      SHARE_TOKEN_MAX_QUANTIZED,
+      Math.round((clamped + 1) * SHARE_TOKEN_SCALE),
+    ),
+  );
+}
+
+function encodeShareResultToken(scores) {
   if (!scores) return "";
-  const x = Number(scores.x);
-  const y = Number(scores.y);
-  if (!Number.isFinite(x) || !Number.isFinite(y)) return "";
-  const progress = y >= 0 ? "convinced" : "unconvinced";
-  const acceleration = x >= 0 ? "supportive" : "critical";
-  return `${progress}-${acceleration}`;
+  const quantizedX = quantizeShareScore(scores.x);
+  const quantizedY = quantizeShareScore(scores.y);
+  if (quantizedX === null || quantizedY === null) return "";
+  const maskedX = quantizedX ^ SHARE_TOKEN_X_MASK;
+  const maskedY = quantizedY ^ SHARE_TOKEN_Y_MASK;
+  const packed =
+    (BigInt(maskedX) << SHARE_TOKEN_Y_BITS) |
+    (BigInt(maskedY) & SHARE_TOKEN_Y_MASK_BITS);
+  return packed.toString(36);
 }
 
 function buildResultShareUrl(scores, fallbackUrl) {
-  const slug = getShareResultSlug(scores);
-  const alias = SHARE_ALIASES_BY_RESULT_SLUG[slug];
-  return alias ? `${SHARE_BASE_URL}/${alias}` : fallbackUrl;
+  const token = encodeShareResultToken(scores);
+  return token ? `${SHARE_BASE_URL}/${token}` : fallbackUrl;
 }
 
 function buildWeightedChoices(entries) {
@@ -4017,6 +4031,7 @@ export default function AICompass() {
   const [quizEditAnswersEnabled, setQuizEditAnswersEnabled] = useState(false);
   const [quizEditAnswersUnlocked, setQuizEditAnswersUnlocked] = useState(false);
   const [quizResetAnswersRequest, setQuizResetAnswersRequest] = useState(0);
+  const [shareLinkCopied, setShareLinkCopied] = useState(false);
   const [results, setResults] = useState([]);
   const [archivePoints, setArchivePoints] = useState([]);
   const [dotCountSummary, setDotCountSummary] = useState({
@@ -4865,6 +4880,22 @@ export default function AICompass() {
   const resultArchetypeName =
     qi?.name || latestLocalSubmission?.archetype || "Unknown";
   const resultArchetypeDesc = qi?.desc || "";
+  const resultShareUrl = useMemo(
+    () => buildResultShareUrl(resultScores, ""),
+    [resultScores],
+  );
+  const copyShareLink = useCallback(async () => {
+    if (!resultShareUrl) return;
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(resultShareUrl);
+      } catch {
+        return;
+      }
+    }
+    setShareLinkCopied(true);
+    window.setTimeout(() => setShareLinkCopied(false), 1600);
+  }, [resultShareUrl]);
   const handleShare = useCallback(async () => {
     if (typeof window === "undefined") return;
     const visitorSource = readVisitorSource();
@@ -4885,7 +4916,6 @@ export default function AICompass() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: SHARE_TITLE,
           url: shareUrl,
         });
         return;
@@ -5740,6 +5770,35 @@ export default function AICompass() {
                           REVIEW
                         </button>
                       </div>
+                      {resultShareUrl && (
+                        <div className="result-share-link">
+                          <label
+                            className="type-caption result-share-link-label"
+                            htmlFor="result-share-link"
+                          >
+                            SHARE LINK
+                          </label>
+                          <input
+                            id="result-share-link"
+                            className="type-body-sm result-share-link-input"
+                            readOnly
+                            value={resultShareUrl}
+                            onClick={(event) => {
+                              event.currentTarget.select();
+                              copyShareLink();
+                            }}
+                            onFocus={(event) => {
+                              event.currentTarget.select();
+                            }}
+                          />
+                          <div
+                            className="type-caption result-share-link-status"
+                            aria-live="polite"
+                          >
+                            {shareLinkCopied ? "Copied" : ""}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
