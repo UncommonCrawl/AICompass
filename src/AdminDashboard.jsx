@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   collection,
   doc,
-  getCountFromServer,
   getDoc,
   getDocs,
   orderBy,
@@ -123,6 +122,7 @@ function normalizeSubmission(docSnap) {
 
   return {
     id: docSnap.id,
+    isDev: data.is_dev === true || data.isDev === true,
     timestamp,
     x: readNumber(data.x, data.x_score),
     y: readNumber(data.y, data.y_score),
@@ -228,12 +228,13 @@ function AdminDashboard() {
       setError("");
       try {
         const submissionsRef = collection(db, SUBMISSIONS_COLLECTION);
-        const [countSnap, docsSnap] = await Promise.all([
-          getCountFromServer(submissionsRef),
-          getDocs(query(submissionsRef, orderBy("created_at", "desc"))),
-        ]);
+        const docsSnap = await getDocs(
+          query(submissionsRef, orderBy("created_at", "desc")),
+        );
         if (cancelled) return;
-        const normalized = docsSnap.docs.map(normalizeSubmission);
+        const normalized = docsSnap.docs
+          .map(normalizeSubmission)
+          .filter((submission) => !submission.isDev);
         const privateDocs = await Promise.all(
           normalized.slice(0, RECENT_LIMIT).map(async (submission) => {
             try {
@@ -247,7 +248,7 @@ function AdminDashboard() {
           }),
         );
         const privateById = new Map(privateDocs);
-        setTotalSubmissions(countSnap.data().count);
+        setTotalSubmissions(normalized.length);
         setSubmissions(
           normalized.map((submission) =>
             mergePrivateSubmissionFields(submission, privateById.get(submission.id)),
