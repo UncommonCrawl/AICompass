@@ -42,6 +42,23 @@ jobs:
       - name: Build site
         run: npm run build
 
+      - name: Validate Firebase service account secret
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_AI_COMPASS_B430A }}
+        run: |
+          node -e '
+          const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON || "";
+          let parsed;
+          try {
+            parsed = JSON.parse(raw);
+          } catch {
+            throw new Error("FIREBASE_SERVICE_ACCOUNT_AI_COMPASS_B430A must be the full downloaded Firebase service account JSON.");
+          }
+          if (parsed.type !== "service_account" || !parsed.client_email || !parsed.private_key || !parsed.project_id) {
+            throw new Error("FIREBASE_SERVICE_ACCOUNT_AI_COMPASS_B430A is missing required service account JSON fields.");
+          }
+          '
+
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
