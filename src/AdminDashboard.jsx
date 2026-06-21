@@ -12,6 +12,7 @@ import {
   getRedirectResult,
   GoogleAuthProvider,
   onAuthStateChanged,
+  signInWithPopup,
   signInWithRedirect,
   signOut,
 } from "firebase/auth";
@@ -38,6 +39,12 @@ function getAuthErrorMessage(authError) {
   }
   if (code === "auth/configuration-not-found") {
     return "Firebase Auth is not configured for this project. Enable Authentication and the Google sign-in provider in Firebase Console.";
+  }
+  if (code === "auth/popup-blocked") {
+    return "Your browser blocked the Google sign-in popup. Allow popups for this site and try again.";
+  }
+  if (code === "auth/popup-closed-by-user") {
+    return "Google sign-in was closed before it finished.";
   }
   return authError?.message || "Unable to start Google sign-in.";
 }
@@ -161,6 +168,7 @@ function AdminDashboard() {
   const [submissions, setSubmissions] = useState([]);
   const [totalSubmissions, setTotalSubmissions] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -184,11 +192,26 @@ function AdminDashboard() {
 
   const handleSignIn = async () => {
     setError("");
+    setSigningIn(true);
+    const provider = new GoogleAuthProvider();
     try {
-      await signInWithRedirect(auth, new GoogleAuthProvider());
+      const result = await signInWithPopup(auth, provider);
+      setAuthUser(result.user);
     } catch (authError) {
       console.error("Admin sign-in failed:", authError);
-      setError(getAuthErrorMessage(authError));
+      if (authError?.code === "auth/popup-blocked") {
+        try {
+          await signInWithRedirect(auth, provider);
+          return;
+        } catch (redirectError) {
+          console.error("Admin redirect sign-in failed:", redirectError);
+          setError(getAuthErrorMessage(redirectError));
+        }
+      } else {
+        setError(getAuthErrorMessage(authError));
+      }
+    } finally {
+      setSigningIn(false);
     }
   };
 
@@ -319,8 +342,8 @@ function AdminDashboard() {
         <h1>AI Compass Admin</h1>
         <p>Sign in to view private submission data.</p>
         {error && <div className="admin-error">{error}</div>}
-        <button type="button" onClick={handleSignIn}>
-          Sign in with Google
+        <button type="button" onClick={handleSignIn} disabled={signingIn}>
+          {signingIn ? "Signing in..." : "Sign in with Google"}
         </button>
       </main>
     );
