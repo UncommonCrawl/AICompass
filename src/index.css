@@ -265,12 +265,12 @@ h6 {
 }
 
 .compass-action-button {
-  --compass-action-bg: var(--color-paper);
+  --compass-action-bg: color-mix(in oklab, #b8b8b8 20%, var(--color-paper) 80%);
   --compass-action-color: var(--color-ink);
   --compass-action-border: color-mix(in oklab, var(--color-paper) 65%, transparent);
   --compass-action-width: 144px;
   --compass-action-height: 40px;
-  --compass-action-padding-inline: 18px;
+  --compass-action-padding-inline: 0px;
   width: var(--compass-action-width);
   height: var(--compass-action-height);
   padding: 0 var(--compass-action-padding-inline);

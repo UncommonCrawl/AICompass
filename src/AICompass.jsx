@@ -4941,14 +4941,10 @@ export default function AICompass() {
     : questionAveragesById;
   const showCompassView = screen === "home" || screen === "results";
   const showHomepageChrome = showCompassView;
-  const showResultsStrip = screen === "results" && hasCompletedQuiz;
-  const showHeaderActionRow =
-    screen === "home" || screen === "quiz" || showResultsStrip;
-  const headerLogoNavigatesHome = screen !== "results";
+  const showResultsStrip = showCompassView && hasCompletedQuiz;
   const handleHeaderLogoClick = useCallback(() => {
-    if (!headerLogoNavigatesHome) return;
     setScreen("home");
-  }, [headerLogoNavigatesHome]);
+  }, []);
   const activeQuadrant = pinnedQuadrant || hoveredQuadrant;
   const setArchetypeFilterFromCard = useCallback((key, archetype) => {
     setSelectedArchetype((prev) => (prev === archetype ? "" : archetype));
@@ -5420,19 +5416,17 @@ export default function AICompass() {
           background: THEME.SiteText,
           display: "flex",
           flexDirection: "column",
-          gap: showHeaderActionRow ? 10 : 0,
+          gap: 4,
         }}
       >
         <button
           onClick={handleHeaderLogoClick}
-          aria-label={
-            headerLogoNavigatesHome ? "Go to AI Compass home" : "AI Compass"
-          }
+          aria-label="AI Compass"
           style={{
             background: "none",
             border: "none",
             padding: 0,
-            cursor: headerLogoNavigatesHome ? "pointer" : "default",
+            cursor: "pointer",
             alignSelf: "center",
             width: "min(100%, 493px)",
           }}
@@ -5448,166 +5442,158 @@ export default function AICompass() {
             The AI Compass
           </span>
         </button>
-        {!showHeaderActionRow && (
-          <div aria-hidden="true" style={{ height: 8 }} />
-        )}
-        {showHeaderActionRow && (
-          <div
-            style={{
-              height: HEADER_ACTION_HEIGHT,
-              maxWidth: 640,
-              width: "100%",
-              margin: "0 auto",
-            }}
-          >
-            {(screen === "home" || showResultsStrip) && (
+        <div
+          style={{
+            height: screen === "quiz" ? HEADER_ACTION_HEIGHT : 36,
+            maxWidth: 640,
+            width: "100%",
+            margin: "0 auto",
+          }}
+        >
+          {(screen === "home" || showResultsStrip) && (
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <button
+                className="type-body-sm compass-action-button"
+                onClick={() => {
+                  if (hasCompletedQuiz) {
+                    handleReviewAnswers();
+                    return;
+                  }
+                  const visitorSource = readVisitorSource();
+                  recordCompassEvent("quiz_start", {
+                    has_completed_quiz: hasCompletedQuiz,
+                    source: visitorSource.source,
+                    referrer: visitorSource.referrer,
+                  });
+                  setScreen("quiz");
+                  setScores(null);
+                  setQuizEditAnswersEnabled(false);
+                  setQuizEditAnswersUnlocked(false);
+                  resetQuizProgress();
+                }}
+                style={{
+                  "--compass-action-border":
+                    "color-mix(in oklab, var(--color-paper) 65%, transparent)",
+                  "--compass-action-height": "36px",
+                }}
+              >
+                {hasCompletedQuiz ? "YOUR ANSWERS" : "TAKE THE QUIZ"}
+              </button>
+            </div>
+          )}
+          {screen === "quiz" && (
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                gap: 6,
+              }}
+            >
               <div
                 style={{
                   width: "100%",
-                  height: "100%",
+                  height: HEADER_ACTION_HEIGHT * 0.25,
+                  background:
+                    "color-mix(in oklab, var(--color-paper) 20%, transparent)",
+                  borderRadius: 999,
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${(quizProgress.answered / quizProgress.total) * 100}%`,
+                    height: "100%",
+                    background: THEME.SiteBG,
+                    transition: "width 0.3s",
+                  }}
+                />
+              </div>
+              <div
+                className="type-caption"
+                style={{
+                  height: HEADER_ACTION_HEIGHT * 0.75 - 6,
                   display: "flex",
-                  justifyContent: "center",
                   alignItems: "center",
-                }}
-              >
-                <button
-                  className="type-body-sm compass-action-button"
-                  onClick={() => {
-                    if (hasCompletedQuiz) {
-                      handleReviewAnswers();
-                      return;
-                    }
-                    const visitorSource = readVisitorSource();
-                    recordCompassEvent("quiz_start", {
-                      has_completed_quiz: hasCompletedQuiz,
-                      source: visitorSource.source,
-                      referrer: visitorSource.referrer,
-                    });
-                    setScreen("quiz");
-                    setScores(null);
-                    setQuizEditAnswersEnabled(false);
-                    setQuizEditAnswersUnlocked(false);
-                    resetQuizProgress();
-                  }}
-                  style={{
-                    "--compass-action-bg": THEME.SiteBG,
-                    "--compass-action-color": THEME.SiteText,
-                    "--compass-action-border":
-                      "color-mix(in oklab, var(--color-paper) 65%, transparent)",
-                    "--compass-action-height": "36px",
-                    "--compass-action-padding-inline": "14px",
-                  }}
-                >
-                  {hasCompletedQuiz ? "YOUR ANSWERS" : "TAKE THE QUIZ"}
-                </button>
-              </div>
-            )}
-            {screen === "quiz" && (
-              <div
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  display: "flex",
-                  flexDirection: "column",
                   justifyContent: "center",
-                  gap: 6,
+                  color: THEME.SiteBG,
+                  gap: 8,
                 }}
               >
-                <div
-                  style={{
-                    width: "100%",
-                    height: HEADER_ACTION_HEIGHT * 0.25,
-                    background:
-                      "color-mix(in oklab, var(--color-paper) 20%, transparent)",
-                    borderRadius: 999,
-                    overflow: "hidden",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: `${(quizProgress.answered / quizProgress.total) * 100}%`,
-                      height: "100%",
-                      background: THEME.SiteBG,
-                      transition: "width 0.3s",
-                    }}
-                  />
-                </div>
-                <div
-                  className="type-caption"
-                  style={{
-                    height: HEADER_ACTION_HEIGHT * 0.75 - 6,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: THEME.SiteBG,
-                    gap: 8,
-                  }}
-                >
-                  <span>
-                    {quizProgress.answered} / {quizProgress.total} ANSWERED
-                  </span>
-                  {quizProgress.canEditAnswers && (
-                    <>
-                      <span aria-hidden="true">•</span>
-                      <button
-                        type="button"
-                        className="type-caption"
-                        onClick={() => {
-                          setQuizEditAnswersEnabled((prev) => {
-                            const next = !prev;
-                            if (next) setQuizEditAnswersUnlocked(true);
-                            return next;
-                          });
-                        }}
-                        style={{
-                          border: "none",
-                          background: "none",
-                          padding: 0,
-                          margin: 0,
-                          color: THEME.SiteBG,
-                          textDecoration: "underline",
-                          cursor: "pointer",
-                        }}
-                      >
-                        {quizProgress.editAnswersEnabled
-                          ? "EDITING ANSWERS"
-                          : "EDIT ANSWERS"}
-                      </button>
-                      {quizProgress.editAnswersEnabled &&
-                        quizProgress.hasEditedFromLastSubmitted && (
-                          <>
-                            <span aria-hidden="true">•</span>
-                            <button
-                              type="button"
-                              className="type-caption"
-                              onClick={() => {
-                                setQuizResetAnswersRequest(
-                                  (request) => request + 1,
-                                );
-                                setQuizEditAnswersEnabled(false);
-                                setQuizEditAnswersUnlocked(false);
-                              }}
-                              style={{
-                                border: "none",
-                                background: "none",
-                                padding: 0,
-                                margin: 0,
-                                color: THEME.SiteBG,
-                                textDecoration: "underline",
-                                cursor: "pointer",
-                              }}
-                            >
-                              RESET
-                            </button>
-                          </>
-                        )}
-                    </>
-                  )}
-                </div>
+                <span>
+                  {quizProgress.answered} / {quizProgress.total} ANSWERED
+                </span>
+                {quizProgress.canEditAnswers && (
+                  <>
+                    <span aria-hidden="true">•</span>
+                    <button
+                      type="button"
+                      className="type-caption"
+                      onClick={() => {
+                        setQuizEditAnswersEnabled((prev) => {
+                          const next = !prev;
+                          if (next) setQuizEditAnswersUnlocked(true);
+                          return next;
+                        });
+                      }}
+                      style={{
+                        border: "none",
+                        background: "none",
+                        padding: 0,
+                        margin: 0,
+                        color: THEME.SiteBG,
+                        textDecoration: "underline",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {quizProgress.editAnswersEnabled
+                        ? "EDITING ANSWERS"
+                        : "EDIT ANSWERS"}
+                    </button>
+                    {quizProgress.editAnswersEnabled &&
+                      quizProgress.hasEditedFromLastSubmitted && (
+                        <>
+                          <span aria-hidden="true">•</span>
+                          <button
+                            type="button"
+                            className="type-caption"
+                            onClick={() => {
+                              setQuizResetAnswersRequest(
+                                (request) => request + 1,
+                              );
+                              setQuizEditAnswersEnabled(false);
+                              setQuizEditAnswersUnlocked(false);
+                            }}
+                            style={{
+                              border: "none",
+                              background: "none",
+                              padding: 0,
+                              margin: 0,
+                              color: THEME.SiteBG,
+                              textDecoration: "underline",
+                              cursor: "pointer",
+                            }}
+                          >
+                            RESET
+                          </button>
+                        </>
+                      )}
+                  </>
+                )}
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </div>
 
       <div
@@ -5769,7 +5755,7 @@ export default function AICompass() {
                     onCanvasDraw={handleHomeCanvasDraw}
                     dotCountSummary={dotCountSummary}
                     showAverageMarker={showCompassView}
-                    showResultMarkers={screen === "results"}
+                    showResultMarkers={showResultsStrip}
                     isLoading={isCompassLoading}
                     perfValves={devPerfValves}
                   />
