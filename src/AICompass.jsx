@@ -22,7 +22,6 @@ import {
 import { db } from "./firebase";
 import { recordCompassEvent } from "./analyticsEvents";
 import { ISO_COUNTRIES } from "./isoCountries";
-import aiCompassHeader from "../AI Compass header.png";
 
 const QUESTIONS = [
   {
@@ -4986,6 +4985,11 @@ export default function AICompass() {
   const showHomepageChrome = showCompassView;
   const showHeaderActionRow = screen === "home" || screen === "quiz";
   const showResultsStrip = screen === "results" && hasCompletedQuiz;
+  const headerLogoNavigatesHome = screen !== "results";
+  const handleHeaderLogoClick = useCallback(() => {
+    if (!headerLogoNavigatesHome) return;
+    setScreen("home");
+  }, [headerLogoNavigatesHome]);
   const activeQuadrant = pinnedQuadrant || hoveredQuadrant;
   const setArchetypeFilterFromCard = useCallback((key, archetype) => {
     setSelectedArchetype((prev) => (prev === archetype ? "" : archetype));
@@ -5446,26 +5450,29 @@ export default function AICompass() {
         }}
       >
         <button
-          onClick={() => setScreen("home")}
-          aria-label="Go to AI Compass home"
+          onClick={handleHeaderLogoClick}
+          aria-label={
+            headerLogoNavigatesHome ? "Go to AI Compass home" : "AI Compass"
+          }
           style={{
             background: "none",
             border: "none",
             padding: 0,
-            cursor: "pointer",
+            cursor: headerLogoNavigatesHome ? "pointer" : "default",
             alignSelf: "center",
             width: "min(100%, 493px)",
           }}
         >
-          <img
-            src={aiCompassHeader}
-            alt="AI Compass"
+          <span
+            className="type-display-xl"
             style={{
               display: "block",
-              width: "100%",
-              height: "auto",
+              color: "#fff",
+              textAlign: "center",
             }}
-          />
+          >
+            The AI Compass
+          </span>
         </button>
         {!showHeaderActionRow && (
           <div aria-hidden="true" style={{ height: 8 }} />
