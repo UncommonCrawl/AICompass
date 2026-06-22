@@ -234,10 +234,7 @@ function readVisitorSource() {
       ? document.referrer
       : "";
   const source =
-    params.get("source") ||
-    params.get("utm_source") ||
-    referrer ||
-    "direct";
+    params.get("source") || params.get("utm_source") || referrer || "direct";
   return {
     source,
     referrer,
@@ -5022,7 +5019,7 @@ export default function AICompass() {
   const devPerfValvePanel = import.meta.env.DEV ? (
     <div
       style={{
-        margin: "0 auto 12px",
+        margin: "0 auto",
         padding: "8px 10px",
         display: "flex",
         alignItems: "center",
@@ -5249,136 +5246,151 @@ export default function AICompass() {
           );
         })}
       </div>
-      {import.meta.env.DEV && !devPerfValves.noDevControls && (
+      {import.meta.env.DEV && (
         <div
           style={{
             marginTop: 18,
             display: "flex",
+            flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
             gap: 8,
-            flexWrap: "wrap",
           }}
         >
-          <button
-            className="type-body-sm"
-            onClick={handleDevShortcutSubmit}
-            style={{
-              padding: "8px 14px",
-              background:
-                "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
-              border:
-                "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
-              color: "var(--color-ink)",
-              borderRadius: "var(--radius-base)",
-              cursor: "pointer",
-            }}
-          >
-            Dev shortcut: random dot
-          </button>
-          <button
-            className="type-body-sm"
-            onClick={handleClearDevDots}
-            disabled={clearingDevDots}
-            style={{
-              padding: "8px 14px",
-              background:
-                "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
-              border:
-                "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
-              color: "var(--color-ink)",
-              borderRadius: "var(--radius-base)",
-              cursor: clearingDevDots ? "wait" : "pointer",
-            }}
-          >
-            {clearingDevDots ? "Clearing dev dots..." : "Reset dev dots"}
-          </button>
-          <button
-            className="type-body-sm"
-            onClick={() => setDevDotDisplayEnabled((prev) => !prev)}
-            style={{
-              padding: "8px 14px",
-              background:
-                "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
-              border:
-                "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
-              color: "var(--color-ink)",
-              borderRadius: "var(--radius-base)",
-              cursor: "pointer",
-            }}
-          >
-            Dev dots: {devDotDisplayEnabled ? "Shown" : "Hidden"}
-          </button>
-          <button
-            className="type-body-sm"
-            onClick={() => setDevDotCountEnabled((prev) => !prev)}
-            style={{
-              padding: "8px 14px",
-              background:
-                "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
-              border:
-                "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
-              color: "var(--color-ink)",
-              borderRadius: "var(--radius-base)",
-              cursor: "pointer",
-            }}
-          >
-            Dev dot count: {devDotCountEnabled ? "Included" : "Excluded"}
-          </button>
-          <button
-            className="type-body-sm"
-            onClick={handleToggleDevResultPersistence}
-            style={{
-              padding: "8px 14px",
-              background:
-                "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
-              border:
-                "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
-              color: "var(--color-ink)",
-              borderRadius: "var(--radius-base)",
-              cursor: "pointer",
-            }}
-          >
-            Result persistence + dummy user:{" "}
-            {devResultPersistenceEnabled ? "On" : "Off"}
-          </button>
-          <button
-            className="type-body-sm"
-            onClick={handleToggleDummyRetakable}
-            disabled={!devResultPersistenceEnabled}
-            style={{
-              padding: "8px 14px",
-              background: !devResultPersistenceEnabled
-                ? "color-mix(in oklab, var(--color-ink) 4%, var(--color-paper))"
-                : "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
-              border:
-                "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
-              color: !devResultPersistenceEnabled
-                ? "color-mix(in oklab, var(--color-ink) 45%, var(--color-paper))"
-                : "var(--color-ink)",
-              borderRadius: "var(--radius-base)",
-              cursor: !devResultPersistenceEnabled ? "not-allowed" : "pointer",
-            }}
-          >
-            Dummy user + retakable quiz:{" "}
-            {devRetakableDummyEnabled ? "On" : "Off"}
-          </button>
-          <button
-            className="type-body-sm"
-            onClick={handleShowDevErrors}
-            style={{
-              padding: "8px 14px",
-              background:
-                "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
-              border:
-                "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
-              color: "var(--color-ink)",
-              borderRadius: "var(--radius-base)",
-              cursor: "pointer",
-            }}
-          >
-            SHOW ERRORS
-          </button>
+          {devPerfValvePanel}
+          {!devPerfValves.noDevControls && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                flexWrap: "wrap",
+              }}
+            >
+              <button
+                className="type-body-sm"
+                onClick={handleDevShortcutSubmit}
+                style={{
+                  padding: "8px 14px",
+                  background:
+                    "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
+                  border:
+                    "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
+                  color: "var(--color-ink)",
+                  borderRadius: "var(--radius-base)",
+                  cursor: "pointer",
+                }}
+              >
+                Dev shortcut: random dot
+              </button>
+              <button
+                className="type-body-sm"
+                onClick={handleClearDevDots}
+                disabled={clearingDevDots}
+                style={{
+                  padding: "8px 14px",
+                  background:
+                    "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
+                  border:
+                    "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
+                  color: "var(--color-ink)",
+                  borderRadius: "var(--radius-base)",
+                  cursor: clearingDevDots ? "wait" : "pointer",
+                }}
+              >
+                {clearingDevDots ? "Clearing dev dots..." : "Reset dev dots"}
+              </button>
+              <button
+                className="type-body-sm"
+                onClick={() => setDevDotDisplayEnabled((prev) => !prev)}
+                style={{
+                  padding: "8px 14px",
+                  background:
+                    "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
+                  border:
+                    "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
+                  color: "var(--color-ink)",
+                  borderRadius: "var(--radius-base)",
+                  cursor: "pointer",
+                }}
+              >
+                Dev dots: {devDotDisplayEnabled ? "Shown" : "Hidden"}
+              </button>
+              <button
+                className="type-body-sm"
+                onClick={() => setDevDotCountEnabled((prev) => !prev)}
+                style={{
+                  padding: "8px 14px",
+                  background:
+                    "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
+                  border:
+                    "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
+                  color: "var(--color-ink)",
+                  borderRadius: "var(--radius-base)",
+                  cursor: "pointer",
+                }}
+              >
+                Dev dot count: {devDotCountEnabled ? "Included" : "Excluded"}
+              </button>
+              <button
+                className="type-body-sm"
+                onClick={handleToggleDevResultPersistence}
+                style={{
+                  padding: "8px 14px",
+                  background:
+                    "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
+                  border:
+                    "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
+                  color: "var(--color-ink)",
+                  borderRadius: "var(--radius-base)",
+                  cursor: "pointer",
+                }}
+              >
+                Result persistence + dummy user:{" "}
+                {devResultPersistenceEnabled ? "On" : "Off"}
+              </button>
+              <button
+                className="type-body-sm"
+                onClick={handleToggleDummyRetakable}
+                disabled={!devResultPersistenceEnabled}
+                style={{
+                  padding: "8px 14px",
+                  background: !devResultPersistenceEnabled
+                    ? "color-mix(in oklab, var(--color-ink) 4%, var(--color-paper))"
+                    : "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
+                  border:
+                    "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
+                  color: !devResultPersistenceEnabled
+                    ? "color-mix(in oklab, var(--color-ink) 45%, var(--color-paper))"
+                    : "var(--color-ink)",
+                  borderRadius: "var(--radius-base)",
+                  cursor: !devResultPersistenceEnabled
+                    ? "not-allowed"
+                    : "pointer",
+                }}
+              >
+                Dummy user + retakable quiz:{" "}
+                {devRetakableDummyEnabled ? "On" : "Off"}
+              </button>
+              <button
+                className="type-body-sm"
+                onClick={handleShowDevErrors}
+                style={{
+                  padding: "8px 14px",
+                  background:
+                    "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
+                  border:
+                    "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
+                  color: "var(--color-ink)",
+                  borderRadius: "var(--radius-base)",
+                  cursor: "pointer",
+                }}
+              >
+                SHOW ERRORS
+              </button>
+            </div>
+          )}
         </div>
       )}
       <section className="homepage-copy-section">
@@ -5658,7 +5670,6 @@ export default function AICompass() {
                 minHeight: `calc(100vh - ${HEADER_BAR_HEIGHT + (showHomepageChrome ? FOOTER_BAR_HEIGHT + 5 : 0) + 24 + (showHomepageChrome ? 40 : 48)}px)`,
               }}
             >
-              {devPerfValvePanel}
               <div
                 style={{
                   pointerEvents: effectiveHomeBodyReady ? "auto" : "none",
@@ -5780,10 +5791,10 @@ export default function AICompass() {
                       {resultShareUrl && (
                         <div className="result-share-link">
                           <label
-                            className="type-caption result-share-link-label"
+                            className="type-label result-share-link-label"
                             htmlFor="result-share-link"
                           >
-                            SHARE LINK
+                            SHARE YOUR STANCE
                           </label>
                           <input
                             id="result-share-link"
