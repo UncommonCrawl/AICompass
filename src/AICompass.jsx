@@ -2583,7 +2583,7 @@ function Compass({
   }, [globalAverageScores, cx, cy, xRange, yRange]);
   const markerLabelOutlineProps = {
     stroke: THEME.SiteBG,
-    strokeWidth: 3,
+    strokeWidth: 1.5,
     strokeLinejoin: "round",
     paintOrder: "stroke fill",
   };
@@ -5647,7 +5647,7 @@ export default function AICompass() {
                         className="type-label"
                         style={{
                           color: "var(--color-ink)",
-                          marginBottom: 8,
+                          marginBottom: 4,
                         }}
                       >
                         YOU ARE

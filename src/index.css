@@ -192,9 +192,8 @@ h6 {
   font-family: var(--font-mono);
   font-size: 0.7rem;
   line-height: 1.35;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
   font-weight: var(--font-weight-medium);
-  text-transform: uppercase;
 }
 
 .type-label-light {
