@@ -385,7 +385,6 @@ const COMPASS_DOT_GEOMETRY = {
   hoverRingPulseRadius: 8,
 };
 const SHARE_BASE_URL = "https://theaicompass.io/s";
-const DEV_SHARE_SAMPLE_SCORES = { x: -0.8, y: -0.35 };
 const SHARE_TOKEN_SCALE = 10000;
 const SHARE_TOKEN_MAX_QUANTIZED = SHARE_TOKEN_SCALE * 2;
 const SHARE_TOKEN_X_MASK = 0x52ab;
@@ -4892,57 +4891,19 @@ export default function AICompass() {
     setShareLinkCopied(true);
     window.setTimeout(() => setShareLinkCopied(false), 1600);
   }, [resultShareUrl]);
-  const handleShare = useCallback(async () => {
-    if (typeof window === "undefined") return;
-    const visitorSource = readVisitorSource();
-    recordCompassEvent("result_share_click", {
-      archetype: resultArchetypeName || "Unknown",
-      source: visitorSource.source,
-      referrer: visitorSource.referrer,
-    });
-
-    const archetype = resultArchetypeName || "Unknown";
-    const shareScores = import.meta.env.DEV
-      ? DEV_SHARE_SAMPLE_SCORES
-      : resultScores;
-    const appShareUrl = window.location.href;
-    const shareUrl = buildResultShareUrl(shareScores, appShareUrl);
-    const shareText = shareUrl;
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          url: shareUrl,
-        });
-        return;
-      } catch (error) {
-        if (error instanceof Error && error.name === "AbortError") return;
-      }
-    }
-
-    if (navigator.clipboard?.writeText) {
-      try {
-        await navigator.clipboard.writeText(shareText);
-        recordCompassEvent("result_copy_click", {
-          archetype,
-          source: visitorSource.source,
-          referrer: visitorSource.referrer,
-        });
-        return;
-      } catch {
-        // Continue to web share fallback when clipboard is unavailable.
-      }
-    }
-
-    const tweetIntent = `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}`;
-    window.open(tweetIntent, "_blank", "noopener,noreferrer");
-  }, [resultArchetypeName, resultScores]);
   const hasCompletedQuiz = Boolean(
     (latestLocalSubmission?.answersByQuestionId &&
       typeof latestLocalSubmission.answersByQuestionId === "object" &&
       Object.keys(latestLocalSubmission.answersByQuestionId).length > 0) ||
     (userResult && typeof userResult === "object"),
   );
+  const handleReviewAnswers = () => {
+    setScreen("quiz");
+    setScores(null);
+    setQuizEditAnswersEnabled(false);
+    setQuizEditAnswersUnlocked(false);
+    resetQuizProgress();
+  };
   const visibleResults = useMemo(() => {
     // Keep the current user's dot independent of the capped public feed.
     const withUser =
@@ -4980,8 +4941,9 @@ export default function AICompass() {
     : questionAveragesById;
   const showCompassView = screen === "home" || screen === "results";
   const showHomepageChrome = showCompassView;
-  const showHeaderActionRow = screen === "home" || screen === "quiz";
   const showResultsStrip = screen === "results" && hasCompletedQuiz;
+  const showHeaderActionRow =
+    screen === "home" || screen === "quiz" || showResultsStrip;
   const headerLogoNavigatesHome = screen !== "results";
   const handleHeaderLogoClick = useCallback(() => {
     if (!headerLogoNavigatesHome) return;
@@ -5498,7 +5460,7 @@ export default function AICompass() {
               margin: "0 auto",
             }}
           >
-            {screen === "home" && (
+            {(screen === "home" || showResultsStrip) && (
               <div
                 style={{
                   width: "100%",
@@ -5511,6 +5473,10 @@ export default function AICompass() {
                 <button
                   className="type-body-sm compass-action-button"
                   onClick={() => {
+                    if (hasCompletedQuiz) {
+                      handleReviewAnswers();
+                      return;
+                    }
                     const visitorSource = readVisitorSource();
                     recordCompassEvent("quiz_start", {
                       has_completed_quiz: hasCompletedQuiz,
@@ -5745,48 +5711,6 @@ export default function AICompass() {
                         ) : (
                           "Results available"
                         )}
-                      </div>
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "repeat(2, max-content)",
-                          justifyContent: "center",
-                          gap: 10,
-                          marginTop: 18,
-                        }}
-                      >
-                        <button
-                          type="button"
-                          className="type-body-sm compass-action-button"
-                          onClick={handleShare}
-                          style={{
-                            "--compass-action-width": "120px",
-                            "--compass-action-border": GRAY,
-                            "--compass-action-bg": THEME.SiteBG,
-                            "--compass-action-color": THEME.SiteText,
-                          }}
-                        >
-                          SHARE
-                        </button>
-                        <button
-                          type="button"
-                          className="type-body-sm compass-action-button"
-                          onClick={() => {
-                            setScreen("quiz");
-                            setScores(null);
-                            setQuizEditAnswersEnabled(false);
-                            setQuizEditAnswersUnlocked(false);
-                            resetQuizProgress();
-                          }}
-                          style={{
-                            "--compass-action-width": "120px",
-                            "--compass-action-border": GRAY,
-                            "--compass-action-bg": THEME.SiteBG,
-                            "--compass-action-color": THEME.SiteText,
-                          }}
-                        >
-                          REVIEW
-                        </button>
                       </div>
                       {resultShareUrl && (
                         <div className="result-share-link">
