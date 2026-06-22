@@ -1,10 +1,12 @@
 import { createHmac, randomUUID } from "node:crypto";
 import { Buffer } from "node:buffer";
-import { deflateSync } from "node:zlib";
+import { readFileSync } from "node:fs";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { onRequest } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
+import satori from "satori";
+import sharp from "sharp";
 
 initializeApp();
 
@@ -41,12 +43,19 @@ const SHARE_IMAGE_GRID_WIDTH = 1020;
 const SHARE_IMAGE_GRID_HEIGHT = 420;
 const SHARE_IMAGE_MARKER_SIZE = 24;
 const SHARE_IMAGE_COLORS = {
-  background: { r: 255, g: 255, b: 255, a: 255 },
-  line: { r: 184, g: 184, b: 184, a: 255 },
-  quadrant: { r: 235, g: 235, b: 235, a: 255 },
-  marker: { r: 0, g: 0, b: 0, a: 255 },
-  text: { r: 0, g: 0, b: 0, a: 255 },
+  background: "#ffffff",
+  line: "#b8b8b8",
+  quadrant: "#ebebeb",
+  marker: "#000000",
+  text: "#000000",
 };
+const SHARE_TITLE = "Show your stance on AI";
+const CABINET_GROTESK_FONT_DATA = readFileSync(
+  new URL("./fonts/CabinetGrotesk-Regular.ttf", import.meta.url),
+);
+const IBM_PLEX_MONO_FONT_DATA = readFileSync(
+  new URL("./fonts/IBMPlexMono-Regular.ttf", import.meta.url),
+);
 
 function hashValue(secret, value) {
   return createHmac("sha256", secret).update(value).digest("hex");
@@ -121,110 +130,26 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;");
 }
 
-function crc32(buffer) {
-  let crc = 0xffffffff;
-  for (const byte of buffer) {
-    crc ^= byte;
-    for (let i = 0; i < 8; i += 1) {
-      crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
-    }
-  }
-  return (crc ^ 0xffffffff) >>> 0;
+function toSentenceCase(value) {
+  const text = cleanString(value, 128).toLocaleLowerCase("en-US");
+  if (!text) return "";
+  return text.charAt(0).toLocaleUpperCase("en-US") + text.slice(1);
 }
 
-function createPngChunk(type, data = Buffer.alloc(0)) {
-  const typeBuffer = Buffer.from(type, "ascii");
-  const lengthBuffer = Buffer.alloc(4);
-  lengthBuffer.writeUInt32BE(data.length, 0);
-  const crcBuffer = Buffer.alloc(4);
-  crcBuffer.writeUInt32BE(crc32(Buffer.concat([typeBuffer, data])), 0);
-  return Buffer.concat([lengthBuffer, typeBuffer, data, crcBuffer]);
-}
-
-function setPngPixel(pixels, x, y, color) {
-  if (
-    x < 0 ||
-    x >= SHARE_IMAGE_WIDTH ||
-    y < 0 ||
-    y >= SHARE_IMAGE_HEIGHT
-  ) {
-    return;
-  }
-  const index = (y * SHARE_IMAGE_WIDTH + x) * 4;
-  pixels[index] = color.r;
-  pixels[index + 1] = color.g;
-  pixels[index + 2] = color.b;
-  pixels[index + 3] = color.a;
-}
-
-function fillPngRect(pixels, x, y, width, height, color) {
-  const startX = Math.max(0, Math.round(x));
-  const startY = Math.max(0, Math.round(y));
-  const endX = Math.min(SHARE_IMAGE_WIDTH, Math.round(x + width));
-  const endY = Math.min(SHARE_IMAGE_HEIGHT, Math.round(y + height));
-  for (let py = startY; py < endY; py += 1) {
-    for (let px = startX; px < endX; px += 1) {
-      setPngPixel(pixels, px, py, color);
-    }
-  }
-}
-
-function drawPngText(pixels, text, x, y, scale = 4) {
-  const glyphs = {
-    " ": ["000", "000", "000", "000", "000", "000", "000"],
-    "'": ["010", "010", "000", "000", "000", "000", "000"],
-    "I": ["111", "010", "010", "010", "010", "111", "000"],
-    "S": ["111", "100", "100", "111", "001", "111", "000"],
-    "a": ["000", "110", "001", "111", "101", "111", "000"],
-    "c": ["000", "111", "100", "100", "100", "111", "000"],
-    "e": ["000", "111", "100", "111", "100", "111", "000"],
-    "g": ["000", "111", "101", "111", "001", "111", "000"],
-    "h": ["100", "100", "110", "101", "101", "101", "000"],
-    "i": ["010", "000", "110", "010", "010", "111", "000"],
-    "k": ["100", "101", "110", "110", "101", "101", "000"],
-    "l": ["110", "010", "010", "010", "010", "111", "000"],
-    "m": ["000", "10101", "11111", "10101", "10101", "10101", "000"],
-    "n": ["000", "110", "101", "101", "101", "101", "000"],
-    "p": ["000", "110", "101", "110", "100", "100", "000"],
-    "r": ["000", "101", "110", "100", "100", "100", "000"],
-    "s": ["000", "111", "100", "111", "001", "111", "000"],
-    "t": ["010", "111", "010", "010", "010", "011", "000"],
-    "u": ["000", "101", "101", "101", "101", "111", "000"],
-    "y": ["000", "101", "101", "111", "001", "111", "000"],
+function satoriDiv(style, children = []) {
+  return {
+    type: "div",
+    props: {
+      style: {
+        display: "flex",
+        ...style,
+      },
+      children,
+    },
   };
-  let cursorX = x;
-  for (const rawChar of text) {
-    const glyph = glyphs[rawChar] || glyphs[rawChar.toLowerCase()] || glyphs[" "];
-    for (let row = 0; row < glyph.length; row += 1) {
-      for (let col = 0; col < glyph[row].length; col += 1) {
-        if (glyph[row][col] !== "1") continue;
-        fillPngRect(
-          pixels,
-          cursorX + col * scale,
-          y + row * scale,
-          scale,
-          scale,
-          SHARE_IMAGE_COLORS.text,
-        );
-      }
-    }
-    cursorX += (glyph[0].length + 1) * scale;
-  }
 }
 
-function measurePngText(text, scale = 4) {
-  const widths = { m: 5 };
-  return [...text].reduce(
-    (sum, char) => sum + ((widths[char.toLowerCase()] || 3) + 1) * scale,
-    0,
-  );
-}
-
-function createSharePreviewPng(scores) {
-  const pixels = Buffer.alloc(
-    SHARE_IMAGE_WIDTH * SHARE_IMAGE_HEIGHT * 4,
-    255,
-  );
+async function createSharePreviewPng(scores) {
   const gridX = SHARE_IMAGE_INSET_X;
   const gridY = SHARE_IMAGE_INSET_Y;
   const gridWidth = SHARE_IMAGE_GRID_WIDTH;
@@ -245,106 +170,116 @@ function createSharePreviewPng(scores) {
   const markerY =
     centerY - Math.max(-1, Math.min(1, scores.y)) * (gridHeight / 2) -
     SHARE_IMAGE_MARKER_SIZE / 2;
-  const label = `I'm a ${getShareArchetypeName(scores.x, scores.y)}`;
-  const labelScale = 8;
-  const labelWidth = measurePngText(label, labelScale);
-
-  fillPngRect(
-    pixels,
-    0,
-    0,
-    SHARE_IMAGE_WIDTH,
-    SHARE_IMAGE_HEIGHT,
-    SHARE_IMAGE_COLORS.background,
-  );
-  fillPngRect(
-    pixels,
-    highlightRect.x,
-    highlightRect.y,
-    gridWidth / 2,
-    gridHeight / 2,
-    SHARE_IMAGE_COLORS.quadrant,
-  );
-  fillPngRect(pixels, gridX, gridY, gridWidth, 2, SHARE_IMAGE_COLORS.line);
-  fillPngRect(
-    pixels,
-    gridX,
-    gridY + gridHeight - 2,
-    gridWidth,
-    2,
-    SHARE_IMAGE_COLORS.line,
-  );
-  fillPngRect(pixels, gridX, gridY, 2, gridHeight, SHARE_IMAGE_COLORS.line);
-  fillPngRect(
-    pixels,
-    gridX + gridWidth - 2,
-    gridY,
-    2,
-    gridHeight,
-    SHARE_IMAGE_COLORS.line,
-  );
-  fillPngRect(
-    pixels,
-    centerX - 1,
-    gridY,
-    2,
-    gridHeight,
-    SHARE_IMAGE_COLORS.line,
-  );
-  fillPngRect(
-    pixels,
-    gridX,
-    centerY - 1,
-    gridWidth,
-    2,
-    SHARE_IMAGE_COLORS.line,
-  );
-  fillPngRect(
-    pixels,
-    markerX,
-    markerY,
-    SHARE_IMAGE_MARKER_SIZE,
-    SHARE_IMAGE_MARKER_SIZE,
-    SHARE_IMAGE_COLORS.marker,
-  );
-  drawPngText(
-    pixels,
-    label,
-    Math.round((SHARE_IMAGE_WIDTH - labelWidth) / 2),
-    526,
-    labelScale,
-  );
-
-  const rawRows = Buffer.alloc(
-    (SHARE_IMAGE_WIDTH * 4 + 1) * SHARE_IMAGE_HEIGHT,
-  );
-  for (let row = 0; row < SHARE_IMAGE_HEIGHT; row += 1) {
-    const sourceStart = row * SHARE_IMAGE_WIDTH * 4;
-    const targetStart = row * (SHARE_IMAGE_WIDTH * 4 + 1);
-    rawRows[targetStart] = 0;
-    pixels.copy(
-      rawRows,
-      targetStart + 1,
-      sourceStart,
-      sourceStart + SHARE_IMAGE_WIDTH * 4,
+  const label = toSentenceCase(getShareArchetypeName(scores.x, scores.y));
+  const absoluteRect = (x, y, width, height, backgroundColor) =>
+    satoriDiv({
+      position: "absolute",
+      left: x,
+      top: y,
+      width,
+      height,
+      backgroundColor,
+    });
+  const centeredText = (top, height, fontFamily, fontSize, letterSpacing, text) =>
+    satoriDiv(
+      {
+        position: "absolute",
+        left: 0,
+        top,
+        width: SHARE_IMAGE_WIDTH,
+        height,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: SHARE_IMAGE_COLORS.text,
+        fontFamily,
+        fontSize,
+        fontWeight: 400,
+        letterSpacing,
+        lineHeight: 1,
+      },
+      text,
     );
-  }
+  const svg = await satori(
+    satoriDiv(
+      {
+        width: SHARE_IMAGE_WIDTH,
+        height: SHARE_IMAGE_HEIGHT,
+        backgroundColor: SHARE_IMAGE_COLORS.background,
+        position: "relative",
+      },
+      [
+        absoluteRect(
+          highlightRect.x,
+          highlightRect.y,
+          gridWidth / 2,
+          gridHeight / 2,
+          SHARE_IMAGE_COLORS.quadrant,
+        ),
+        absoluteRect(gridX, gridY, gridWidth, 2, SHARE_IMAGE_COLORS.line),
+        absoluteRect(
+          gridX,
+          gridY + gridHeight - 2,
+          gridWidth,
+          2,
+          SHARE_IMAGE_COLORS.line,
+        ),
+        absoluteRect(gridX, gridY, 2, gridHeight, SHARE_IMAGE_COLORS.line),
+        absoluteRect(
+          gridX + gridWidth - 2,
+          gridY,
+          2,
+          gridHeight,
+          SHARE_IMAGE_COLORS.line,
+        ),
+        absoluteRect(centerX - 1, gridY, 2, gridHeight, SHARE_IMAGE_COLORS.line),
+        absoluteRect(gridX, centerY - 1, gridWidth, 2, SHARE_IMAGE_COLORS.line),
+        absoluteRect(
+          markerX,
+          markerY,
+          SHARE_IMAGE_MARKER_SIZE,
+          SHARE_IMAGE_MARKER_SIZE,
+          SHARE_IMAGE_COLORS.marker,
+        ),
+        centeredText(
+          gridY + gridHeight + 13,
+          36,
+          "IBM Plex Mono",
+          31,
+          2,
+          "I'M A",
+        ),
+        centeredText(
+          gridY + gridHeight + 43,
+          76,
+          "Cabinet Grotesk",
+          64,
+          0,
+          label,
+        ),
+      ],
+    ),
+    {
+      width: SHARE_IMAGE_WIDTH,
+      height: SHARE_IMAGE_HEIGHT,
+      fonts: [
+        {
+          name: "IBM Plex Mono",
+          data: IBM_PLEX_MONO_FONT_DATA,
+          weight: 400,
+          style: "normal",
+        },
+        {
+          name: "Cabinet Grotesk",
+          data: CABINET_GROTESK_FONT_DATA,
+          weight: 400,
+          style: "normal",
+        },
+      ],
+    },
+  );
 
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(SHARE_IMAGE_WIDTH, 0);
-  ihdr.writeUInt32BE(SHARE_IMAGE_HEIGHT, 4);
-  ihdr[8] = 8;
-  ihdr[9] = 6;
-  ihdr[10] = 0;
-  ihdr[11] = 0;
-  ihdr[12] = 0;
-
-  return Buffer.concat([
-    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    createPngChunk("IHDR", ihdr),
-    createPngChunk("IDAT", deflateSync(rawRows)),
-    createPngChunk("IEND"),
-  ]);
+  return sharp(Buffer.from(svg)).png().toBuffer();
 }
 
 function getClientIp(req) {
@@ -621,7 +556,7 @@ export const shareImage = onRequest(
   {
     cors: true,
   },
-  (req, res) => {
+  async (req, res) => {
     if (req.method === "OPTIONS") {
       res.status(204).send("");
       return;
@@ -638,7 +573,7 @@ export const shareImage = onRequest(
       return;
     }
 
-    const png = createSharePreviewPng(scores);
+    const png = await createSharePreviewPng(scores);
     res.set("Cache-Control", "public, max-age=31536000, immutable");
     res.set("Content-Type", "image/png");
     if (req.method === "HEAD") {
@@ -670,8 +605,7 @@ export const shareResult = onRequest(
       return;
     }
 
-    const archetype = getShareArchetypeName(scores.x, scores.y);
-    const title = `I'm a ${archetype}`;
+    const title = SHARE_TITLE;
     const description = "Take the AI Compass quiz and state your own stance.";
     const pageUrl = `${PUBLIC_SITE_URL}/s/${encodeURIComponent(token)}`;
     const imageUrl = `${PUBLIC_SITE_URL}/api/share-image?token=${encodeURIComponent(token)}`;
