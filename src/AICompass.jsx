@@ -5416,7 +5416,7 @@ export default function AICompass() {
           background: THEME.SiteText,
           display: "flex",
           flexDirection: "column",
-          gap: 4,
+          gap: 8,
         }}
       >
         <button
