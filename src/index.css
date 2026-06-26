@@ -47,6 +47,7 @@
 }
 
 .ai-compass-public {
+  --ai-shell-width: min(1180px, calc(100vw - 40px));
   --ai-bg: #0a0a0a;
   --ai-surface: #111111;
   --ai-surface-strong: #1a1a1a;
@@ -73,6 +74,7 @@
   --radius-base: 0;
   --compass-dot-faded: #2f2f2f;
   min-height: 100vh;
+  position: relative;
   background: var(--ai-bg);
   color: var(--ai-text);
 }
@@ -293,18 +295,22 @@ h6 {
 }
 
 .ai-public-content {
+  width: var(--ai-shell-width);
+  margin: 0 auto;
   box-sizing: border-box;
-  padding: 0 48px 48px;
+  padding: 0 0 48px;
+  border-left: 1px solid var(--ai-border);
+  border-right: 1px solid var(--ai-border);
   background: var(--ai-bg);
 }
 
 .ai-public-content-inner {
-  width: min(100%, 960px);
+  width: 100%;
   margin: 0 auto;
 }
 
 .ai-section {
-  width: min(100%, 960px);
+  width: 100%;
   margin: 0 auto;
   padding: 0 0 80px;
   text-align: left;
@@ -326,10 +332,31 @@ h6 {
 }
 
 .ai-result-hero {
-  width: min(100%, 960px);
+  width: 100%;
   margin: 0 auto;
-  padding: 80px 0 64px;
+  padding: 0;
+  border-bottom: 1px solid var(--ai-border);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  min-height: 430px;
   text-align: left;
+}
+
+.ai-result-identity {
+  position: relative;
+  min-width: 0;
+  padding: 64px 64px 56px 150px;
+}
+
+.ai-result-identity::before {
+  content: "";
+  position: absolute;
+  top: 31px;
+  left: 31px;
+  width: 32px;
+  height: 32px;
+  border-top: 1px solid var(--ai-text);
+  border-left: 1px solid var(--ai-text);
 }
 
 .ai-result-eyebrow {
@@ -337,11 +364,21 @@ h6 {
   color: var(--ai-muted);
 }
 
+.ai-result-side-label {
+  position: absolute;
+  left: 64px;
+  top: 50%;
+  transform: translateY(-50%);
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  color: var(--ai-muted);
+}
+
 .ai-result-name {
   margin: 0 0 32px;
   color: var(--ai-text);
   font-family: var(--font-display);
-  font-size: 96px;
+  font-size: 104px;
   font-weight: var(--font-weight-bold);
   line-height: 0.92;
   letter-spacing: 0;
@@ -353,30 +390,64 @@ h6 {
 
 .ai-result-desc {
   max-width: 420px;
-  margin: 0 0 48px;
+  margin: 0;
   color: var(--ai-secondary);
   font-size: 18px;
   font-weight: var(--font-weight-regular);
   line-height: 1.6;
 }
 
+.ai-result-rail {
+  border-left: 1px solid var(--ai-border);
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
 .ai-stats-row {
-  display: flex;
-  max-width: 480px;
-  border: 1px solid var(--ai-border);
+  display: grid;
+  align-content: center;
+  max-width: none;
+  border: 0;
+  padding: 56px 28px;
 }
 
 .ai-stat {
-  flex: 1;
-  padding: 24px 28px;
+  padding: 0 0 28px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 20px;
+  border-bottom: 1px solid var(--ai-border);
 }
 
 .ai-stat + .ai-stat {
-  border-left: 1px solid var(--ai-border);
+  margin-top: 28px;
+  padding-bottom: 0;
+  border-left: 0;
+  border-bottom: 0;
+}
+
+.ai-result-rail .ai-result-share {
+  width: auto;
+  margin: 0;
+  padding: 28px;
+  border-top: 1px solid var(--ai-border);
+  display: grid;
+  gap: 14px;
+}
+
+.ai-result-rail .result-share-link {
+  max-width: none;
+  min-width: 0;
+  width: 100%;
+}
+
+.ai-result-rail .result-share-link-input {
+  min-height: 48px;
 }
 
 .ai-stat-label {
-  margin-bottom: 8px;
+  margin-bottom: 0;
   color: var(--ai-muted);
 }
 
@@ -417,7 +488,6 @@ h6 {
   gap: 0;
   margin-top: 0;
   border-top: 1px solid var(--ai-border);
-  border-left: 1px solid var(--ai-border);
   background: transparent;
 }
 
@@ -437,6 +507,10 @@ h6 {
   transition:
     background-color 160ms ease,
     box-shadow 160ms ease;
+}
+
+.ai-type-card:nth-child(even) {
+  border-right: 0;
 }
 
 .ai-type-card:hover {
@@ -562,10 +636,12 @@ h6 {
 }
 
 .ai-public-footer {
-  width: min(100%, 960px);
+  width: var(--ai-shell-width);
   margin: 0 auto;
   padding: 24px 48px;
   border-top: 1px solid var(--ai-border);
+  border-left: 1px solid var(--ai-border);
+  border-right: 1px solid var(--ai-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -599,9 +675,30 @@ h6 {
   font-family: inherit;
 }
 
-@media (max-width: 960px) {
-  .ai-result-name {
-    font-size: 72px;
+@media (max-width: 1280px) {
+  .ai-result-hero {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .ai-result-identity {
+    padding: 64px 64px 56px 150px;
+  }
+
+  .ai-result-rail {
+    border-left: 0;
+    border-top: 1px solid var(--ai-border);
+    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-rows: auto;
+  }
+
+  .ai-stats-row {
+    padding: 32px;
+  }
+
+  .ai-result-rail .ai-result-share {
+    border-top: 0;
+    border-left: 1px solid var(--ai-border);
   }
 }
 
@@ -611,23 +708,47 @@ h6 {
   }
 
   .ai-public-content {
-    padding: 0 24px 36px;
+    padding: 0 0 36px;
   }
 
   .ai-result-hero {
-    padding: 56px 0 48px;
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .ai-result-identity {
+    padding: 56px 28px 40px;
+  }
+
+  .ai-result-identity::before {
+    top: 24px;
+    left: 24px;
+  }
+
+  .ai-result-side-label {
+    position: static;
+    transform: none;
+    writing-mode: horizontal-tb;
+    margin-bottom: 24px;
+  }
+
+  .ai-result-rail {
+    grid-template-columns: 1fr;
   }
 
   .ai-result-name {
     font-size: 48px;
   }
 
-  .ai-stats-row,
-  .ai-result-share {
-    display: grid;
+  .ai-stats-row {
+    padding: 28px;
   }
 
   .ai-stat + .ai-stat {
+    border-top: 0;
+  }
+
+  .ai-result-rail .ai-result-share {
     border-left: 0;
     border-top: 1px solid var(--ai-border);
   }
@@ -651,6 +772,7 @@ h6 {
 
   .ai-type-card {
     min-height: 220px;
+    border-right: 0;
   }
 
   .homepage-copy-grid {
@@ -667,6 +789,7 @@ h6 {
 }
 
 .site-header {
+  width: var(--ai-shell-width);
   flex: 0 0 auto;
   z-index: 20;
   box-sizing: border-box;
@@ -677,7 +800,10 @@ h6 {
   justify-content: center;
   gap: 14px;
   border-bottom: 1px solid var(--ai-border);
+  border-left: 1px solid var(--ai-border);
+  border-right: 1px solid var(--ai-border);
   background: var(--ai-bg);
+  margin: 0 auto;
 }
 
 .site-header-main {

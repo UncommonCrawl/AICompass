@@ -5592,42 +5592,80 @@ export default function AICompass() {
               >
                 {showResultsStrip && (
                   <section className="ai-result-hero">
-                    <div className="type-caption ai-result-eyebrow">
-                      You are
+                    <div className="ai-result-identity">
+                      <div className="type-caption ai-result-side-label">
+                        Your Position
+                      </div>
+                      <div className="type-caption ai-result-eyebrow">
+                        You are mapped as
+                      </div>
+                      <h1 className="ai-result-name">
+                        The
+                        <br />
+                        <span className="ai-result-name-accent">
+                          {resultArchetypeDisplayName}
+                        </span>
+                      </h1>
+                      <p className="ai-result-desc">{resultArchetypeDesc}</p>
                     </div>
-                    <h1 className="ai-result-name">
-                      The
-                      <br />
-                      <span className="ai-result-name-accent">
-                        {resultArchetypeDisplayName}
-                      </span>
-                    </h1>
-                    <p className="ai-result-desc">{resultArchetypeDesc}</p>
-                    <div className="ai-stats-row">
-                      <div className="ai-stat">
-                        <div className="type-caption ai-stat-label">
-                          Advancement
+                    <div className="ai-result-rail">
+                      <div className="ai-stats-row">
+                        <div className="ai-stat">
+                          <div className="type-caption ai-stat-label">
+                            Advancement
+                          </div>
+                          <div
+                            className={`ai-stat-value ${
+                              resultScores?.x >= 0
+                                ? "is-positive"
+                                : "is-negative"
+                            }`}
+                          >
+                            {resultAdvancementValue}
+                          </div>
                         </div>
-                        <div
-                          className={`ai-stat-value ${
-                            resultScores?.x >= 0 ? "is-positive" : "is-negative"
-                          }`}
-                        >
-                          {resultAdvancementValue}
-                        </div>
-                      </div>
-                      <div className="ai-stat">
-                        <div className="type-caption ai-stat-label">
-                          LLM Belief
-                        </div>
-                        <div
-                          className={`ai-stat-value ${
-                            resultScores?.y >= 0 ? "is-positive" : "is-negative"
-                          }`}
-                        >
-                          {resultBeliefValue}
+                        <div className="ai-stat">
+                          <div className="type-caption ai-stat-label">
+                            LLM Belief
+                          </div>
+                          <div
+                            className={`ai-stat-value ${
+                              resultScores?.y >= 0
+                                ? "is-positive"
+                                : "is-negative"
+                            }`}
+                          >
+                            {resultBeliefValue}
+                          </div>
                         </div>
                       </div>
+                      {resultShareUrl && (
+                        <section className="ai-result-share">
+                          <div className="type-caption">Share your stance</div>
+                          <div className="result-share-link">
+                            <input
+                              id="result-share-link"
+                              className="type-body-sm result-share-link-input"
+                              readOnly
+                              aria-label="Share URL"
+                              value={resultShareUrl}
+                              onClick={(event) => {
+                                event.currentTarget.select();
+                                copyShareLink();
+                              }}
+                              onFocus={(event) => {
+                                event.currentTarget.select();
+                              }}
+                            />
+                            <div
+                              className="type-caption result-share-link-status"
+                              aria-live="polite"
+                            >
+                              {shareLinkCopied ? "Copied" : ""}
+                            </div>
+                          </div>
+                        </section>
+                      )}
                     </div>
                   </section>
                 )}
@@ -5668,45 +5706,6 @@ export default function AICompass() {
                   </div>
                 </section>
                 {!devPerfValves.noHomeBody && homepageBelowCompassContent}
-                {showResultsStrip && resultShareUrl && (
-                  <section className="ai-result-share">
-                    <div className="type-caption">Share your stance</div>
-                    <div className="result-share-link">
-                      <label
-                        className="type-label result-share-link-label"
-                        htmlFor="result-share-link"
-                      >
-                        Share URL
-                      </label>
-                      <input
-                        id="result-share-link"
-                        className="type-body-sm result-share-link-input"
-                        readOnly
-                        value={resultShareUrl}
-                        onClick={(event) => {
-                          event.currentTarget.select();
-                          copyShareLink();
-                        }}
-                        onFocus={(event) => {
-                          event.currentTarget.select();
-                        }}
-                      />
-                      <div
-                        className="type-caption result-share-link-status"
-                        aria-live="polite"
-                      >
-                        {shareLinkCopied ? "Copied" : ""}
-                      </div>
-                    </div>
-                    <button
-                      className="type-caption ai-copy-button"
-                      type="button"
-                      onClick={copyShareLink}
-                    >
-                      {shareLinkCopied ? "Copied" : "Copy Link"}
-                    </button>
-                  </section>
-                )}
               </div>
             </div>
           )}
