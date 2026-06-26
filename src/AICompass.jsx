@@ -4050,7 +4050,7 @@ export default function AICompass() {
   const [showFirestoreError, setShowFirestoreError] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [colorMode, setColorMode] = useState("dark");
+  const [colorMode, setColorMode] = useState("light");
   const [clearingDevDots, setClearingDevDots] = useState(false);
   const [devDotDisplayEnabled, setDevDotDisplayEnabled] = useState(() =>
     readDevDotDisplayEnabled(),
@@ -5600,10 +5600,7 @@ export default function AICompass() {
                       : firestoreError}
                   </div>
                 )}
-                <section className="ai-section">
-                  <div className="type-caption ai-section-label">
-                    Position Map
-                  </div>
+                <section className="ai-section ai-compass-section">
                   <div className="ai-compass-frame">
                     <Compass
                       results={effectiveVisibleResults}

@@ -343,6 +343,7 @@ h6 {
   margin: 0 auto;
   box-sizing: border-box;
   padding: 0 0 48px;
+  border-top: 1px solid var(--ai-border);
   border-left: 1px solid var(--ai-border);
   border-right: 1px solid var(--ai-border);
   background: var(--ai-bg);
@@ -515,7 +516,11 @@ h6 {
 
 .ai-compass-frame {
   position: relative;
-  margin: 40px 60px 48px;
+  margin: 32px 60px;
+}
+
+.ai-compass-section {
+  padding-bottom: 0;
 }
 
 .ai-filter-section {
@@ -813,8 +818,12 @@ h6 {
     padding-bottom: 56px;
   }
 
+  .ai-compass-section {
+    padding-bottom: 0;
+  }
+
   .ai-compass-frame {
-    margin: 32px 16px 40px;
+    margin: 24px 16px;
   }
 
   .ai-types-grid,
@@ -863,7 +872,6 @@ h6 {
   flex-direction: column;
   justify-content: center;
   gap: 14px;
-  border-bottom: 1px solid var(--ai-border);
   border-left: 1px solid var(--ai-border);
   border-right: 1px solid var(--ai-border);
   background: var(--ai-bg);
