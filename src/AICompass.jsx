@@ -5407,89 +5407,50 @@ export default function AICompass() {
       }}
     >
       {/* Header */}
-      <div
-        style={{
-          flex: "0 0 auto",
-          zIndex: 20,
-          boxSizing: "border-box",
-          padding: "16px 16px 8px",
-          background: THEME.SiteText,
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-        }}
-      >
-        <button
-          onClick={handleHeaderLogoClick}
-          aria-label="AI Compass"
-          style={{
-            background: "none",
-            border: "none",
-            padding: 0,
-            cursor: "pointer",
-            alignSelf: "center",
-            width: "min(100%, 493px)",
-          }}
-        >
-          <span
-            className="type-display-xl"
-            style={{
-              display: "block",
-              color: "#fff",
-              textAlign: "center",
-            }}
+      <div className="site-header">
+        <div className="site-header-main">
+          <button
+            className="site-header-logo"
+            onClick={handleHeaderLogoClick}
+            aria-label="AI Compass"
           >
-            The AI Compass
-          </span>
-        </button>
-        <div
-          style={{
-            height: screen === "quiz" ? HEADER_ACTION_HEIGHT : 36,
-            maxWidth: 640,
-            width: "100%",
-            margin: "0 auto",
-          }}
-        >
+            <span className="type-caption site-header-title">
+              <span>THE AI</span>
+              <span className="site-header-title-muted">COMPASS</span>
+            </span>
+          </button>
           {(screen === "home" || showResultsStrip) && (
-            <div
-              style={{
-                width: "100%",
-                height: "100%",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
+            <button
+              className="type-caption compass-action-button site-header-action-button"
+              onClick={() => {
+                if (hasCompletedQuiz) {
+                  handleReviewAnswers();
+                  return;
+                }
+                const visitorSource = readVisitorSource();
+                recordCompassEvent("quiz_start", {
+                  has_completed_quiz: hasCompletedQuiz,
+                  source: visitorSource.source,
+                  referrer: visitorSource.referrer,
+                });
+                setScreen("quiz");
+                setScores(null);
+                setQuizEditAnswersEnabled(false);
+                setQuizEditAnswersUnlocked(false);
+                resetQuizProgress();
               }}
             >
-              <button
-                className="type-body-sm compass-action-button"
-                onClick={() => {
-                  if (hasCompletedQuiz) {
-                    handleReviewAnswers();
-                    return;
-                  }
-                  const visitorSource = readVisitorSource();
-                  recordCompassEvent("quiz_start", {
-                    has_completed_quiz: hasCompletedQuiz,
-                    source: visitorSource.source,
-                    referrer: visitorSource.referrer,
-                  });
-                  setScreen("quiz");
-                  setScores(null);
-                  setQuizEditAnswersEnabled(false);
-                  setQuizEditAnswersUnlocked(false);
-                  resetQuizProgress();
-                }}
-                style={{
-                  "--compass-action-border":
-                    "color-mix(in oklab, var(--color-paper) 65%, transparent)",
-                  "--compass-action-height": "36px",
-                }}
-              >
-                {hasCompletedQuiz ? "YOUR ANSWERS" : "TAKE THE QUIZ"}
-              </button>
-            </div>
+              {hasCompletedQuiz ? "YOUR ANSWERS" : "TAKE THE QUIZ"}
+            </button>
           )}
-          {screen === "quiz" && (
+        </div>
+        {screen === "quiz" && (
+          <div
+            className="site-header-quiz-progress"
+            style={{
+              height: HEADER_ACTION_HEIGHT,
+            }}
+          >
             <div
               style={{
                 width: "100%",
@@ -5592,8 +5553,8 @@ export default function AICompass() {
                 )}
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       <div

@@ -263,6 +263,67 @@ h6 {
   }
 }
 
+.site-header {
+  flex: 0 0 auto;
+  z-index: 20;
+  box-sizing: border-box;
+  min-height: clamp(96px, 7.1vw, 145px);
+  padding: clamp(24px, 1.9vw, 39px) clamp(16px, 4.1vw, 84px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 16px;
+  border-bottom: 1px solid color-mix(in oklab, var(--color-paper) 14%, transparent);
+  background: var(--color-ink);
+}
+
+.site-header-main {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.site-header-logo {
+  min-width: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  border: 0;
+  background: none;
+  color: var(--color-paper);
+  text-align: left;
+  cursor: pointer;
+}
+
+.site-header-title {
+  display: inline-flex;
+  gap: 14px;
+  color: var(--color-paper);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.site-header-title-muted {
+  color: color-mix(in oklab, var(--color-paper) 34%, transparent);
+}
+
+.site-header .site-header-action-button {
+  --compass-action-bg: transparent;
+  --compass-action-color: var(--color-paper);
+  --compass-action-border: color-mix(in oklab, var(--color-paper) 20%, transparent);
+  --compass-action-width: clamp(150px, 11.6vw, 238px);
+  --compass-action-height: clamp(44px, 3vw, 62px);
+  flex: 0 0 auto;
+  border-radius: 0;
+}
+
+.site-header-quiz-progress {
+  width: min(100%, 640px);
+  margin: 0 auto;
+}
+
 .compass-action-button {
   --compass-action-bg: color-mix(in oklab, #b8b8b8 20%, var(--color-paper) 80%);
   --compass-action-color: var(--color-ink);
@@ -270,6 +331,7 @@ h6 {
   --compass-action-width: 144px;
   --compass-action-height: 40px;
   --compass-action-padding-inline: 0px;
+  box-sizing: border-box;
   width: var(--compass-action-width);
   height: var(--compass-action-height);
   padding: 0 var(--compass-action-padding-inline);
