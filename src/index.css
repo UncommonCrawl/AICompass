@@ -747,6 +747,17 @@ h6 {
   }
 }
 
+@media (max-width: 920px) {
+  .site-header-main {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .site-header-title {
+    font-size: 48px;
+  }
+}
+
 @media (max-width: 780px) {
   .homepage-filter-grid {
     grid-template-columns: 1fr;
@@ -831,6 +842,14 @@ h6 {
   .ai-public-footer {
     padding-inline: 24px;
   }
+
+  .site-header-title {
+    font-size: 38px;
+  }
+
+  .site-header-subtitle {
+    line-height: 1.5;
+  }
 }
 
 .site-header {
@@ -869,25 +888,39 @@ h6 {
 .site-header-logo {
   min-width: 0;
   padding: 0;
-  display: inline-flex;
-  align-items: center;
+  display: block;
   border: 0;
   background: none;
-  color: var(--ai-muted);
+  color: var(--ai-text);
   text-align: left;
   cursor: pointer;
 }
 
-.site-header-title {
-  display: inline-flex;
-  gap: 8px;
-  color: var(--ai-muted);
-  text-align: left;
-  white-space: nowrap;
+.site-header-wordmark {
+  display: grid;
+  gap: 10px;
 }
 
-.site-header-title-muted {
+.site-header-title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.18em;
   color: var(--ai-text);
+  font-family: var(--font-display);
+  font-size: 64px;
+  line-height: 0.9;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0;
+  text-align: left;
+}
+
+.site-header-title-accent {
+  color: var(--ai-accent);
+}
+
+.site-header-subtitle {
+  color: var(--ai-muted);
+  text-align: left;
 }
 
 .site-header .site-header-action-button {

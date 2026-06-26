@@ -5331,9 +5331,14 @@ export default function AICompass() {
             onClick={handleHeaderLogoClick}
             aria-label="AI Compass"
           >
-            <span className="type-caption site-header-title">
-              <span>THE AI</span>
-              <span className="site-header-title-muted">COMPASS</span>
+            <span className="site-header-wordmark">
+              <span className="site-header-title">
+                <span className="site-header-title-accent">The</span>
+                <span>AI Compass</span>
+              </span>
+              <span className="type-caption site-header-subtitle">
+                A map of AI belief × AI approval
+              </span>
             </span>
           </button>
           <div className="site-header-actions">
