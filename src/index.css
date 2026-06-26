@@ -48,6 +48,7 @@
 
 .ai-compass-public {
   --ai-shell-width: min(1180px, calc(100vw - 40px));
+  --ai-shell-gutter: clamp(24px, 4vw, 48px);
   --ai-bg: #0a0a0a;
   --ai-surface: #111111;
   --ai-surface-strong: #1a1a1a;
@@ -90,6 +91,49 @@
   --ai-accent: #007f5f;
   --ai-accent-dim: rgba(0, 127, 95, 0.12);
   --compass-dot-faded: #d6d6d0;
+}
+
+.dev-controls-strip {
+  --color-ink: #111111;
+  --color-paper: #ffffff;
+  --color-border: #d8d8d8;
+  --tab-radius: 0;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px 20px;
+  border-bottom: 1px solid #d8d8d8;
+  background: #ffffff;
+  color: #111111;
+}
+
+.dev-controls-inner {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+}
+
+.dev-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dev-control-button {
+  padding: 8px 14px;
+  border: 1px solid #d8d8d8;
+  border-radius: 0;
+  background: #f7f7f7;
+  color: #111111;
+  cursor: pointer;
+}
+
+.dev-control-button:disabled {
+  color: #8a8a8a;
+  cursor: not-allowed;
 }
 
 body {
@@ -312,7 +356,8 @@ h6 {
 .ai-section {
   width: 100%;
   margin: 0 auto;
-  padding: 0 0 80px;
+  box-sizing: border-box;
+  padding: 0 var(--ai-shell-gutter) 80px;
   text-align: left;
 }
 
@@ -638,7 +683,7 @@ h6 {
 .ai-public-footer {
   width: var(--ai-shell-width);
   margin: 0 auto;
-  padding: 24px 48px;
+  padding: 24px var(--ai-shell-gutter);
   border-top: 1px solid var(--ai-border);
   border-left: 1px solid var(--ai-border);
   border-right: 1px solid var(--ai-border);
@@ -794,7 +839,7 @@ h6 {
   z-index: 20;
   box-sizing: border-box;
   min-height: auto;
-  padding: 24px 48px;
+  padding: 24px var(--ai-shell-gutter);
   display: flex;
   flex-direction: column;
   justify-content: center;

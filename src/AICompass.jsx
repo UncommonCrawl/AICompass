@@ -4047,6 +4047,7 @@ export default function AICompass() {
   const [hoveredQuadrant, setHoveredQuadrant] = useState(null);
   const [pinnedQuadrant, setPinnedQuadrant] = useState(null);
   const [firestoreError, setFirestoreError] = useState("");
+  const [showFirestoreError, setShowFirestoreError] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [colorMode, setColorMode] = useState("dark");
@@ -4859,6 +4860,7 @@ export default function AICompass() {
     setScreen("results");
   };
   const handleShowDevErrors = () => {
+    setShowFirestoreError(true);
     setFirestoreError("The live map is temporarily unavailable.");
     setSubmitError(
       "We could not save your result yet. Your answers are still saved on this device.",
@@ -5052,6 +5054,63 @@ export default function AICompass() {
       </button>
     </div>
   ) : null;
+  const devControlsStrip = import.meta.env.DEV ? (
+    <div className="dev-controls-strip">
+      <div className="dev-controls-inner">
+        {devPerfValvePanel}
+        {!devPerfValves.noDevControls && (
+          <div className="dev-controls-row">
+            <button
+              className="type-body-sm dev-control-button"
+              onClick={handleDevShortcutSubmit}
+            >
+              Dev shortcut: random dot
+            </button>
+            <button
+              className="type-body-sm dev-control-button"
+              onClick={handleClearDevDots}
+              disabled={clearingDevDots}
+            >
+              {clearingDevDots ? "Clearing dev dots..." : "Reset dev dots"}
+            </button>
+            <button
+              className="type-body-sm dev-control-button"
+              onClick={() => setDevDotDisplayEnabled((prev) => !prev)}
+            >
+              Dev dots: {devDotDisplayEnabled ? "Shown" : "Hidden"}
+            </button>
+            <button
+              className="type-body-sm dev-control-button"
+              onClick={() => setDevDotCountEnabled((prev) => !prev)}
+            >
+              Dev dot count: {devDotCountEnabled ? "Included" : "Excluded"}
+            </button>
+            <button
+              className="type-body-sm dev-control-button"
+              onClick={handleToggleDevResultPersistence}
+            >
+              Result persistence + dummy user:{" "}
+              {devResultPersistenceEnabled ? "On" : "Off"}
+            </button>
+            <button
+              className="type-body-sm dev-control-button"
+              onClick={handleToggleDummyRetakable}
+              disabled={!devResultPersistenceEnabled}
+            >
+              Dummy user + retakable quiz:{" "}
+              {devRetakableDummyEnabled ? "On" : "Off"}
+            </button>
+            <button
+              className="type-body-sm dev-control-button"
+              onClick={handleShowDevErrors}
+            >
+              SHOW ERRORS
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  ) : null;
   const ageFilterOptions = useMemo(
     () => [
       ...AGE_RANGES.map((age) => ({
@@ -5196,153 +5255,6 @@ export default function AICompass() {
           })}
         </div>
       </section>
-      {import.meta.env.DEV && (
-        <div
-          style={{
-            marginTop: 18,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-          }}
-        >
-          {devPerfValvePanel}
-          {!devPerfValves.noDevControls && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                flexWrap: "wrap",
-              }}
-            >
-              <button
-                className="type-body-sm"
-                onClick={handleDevShortcutSubmit}
-                style={{
-                  padding: "8px 14px",
-                  background:
-                    "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
-                  border:
-                    "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
-                  color: "var(--color-ink)",
-                  borderRadius: "var(--radius-base)",
-                  cursor: "pointer",
-                }}
-              >
-                Dev shortcut: random dot
-              </button>
-              <button
-                className="type-body-sm"
-                onClick={handleClearDevDots}
-                disabled={clearingDevDots}
-                style={{
-                  padding: "8px 14px",
-                  background:
-                    "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
-                  border:
-                    "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
-                  color: "var(--color-ink)",
-                  borderRadius: "var(--radius-base)",
-                  cursor: clearingDevDots ? "wait" : "pointer",
-                }}
-              >
-                {clearingDevDots ? "Clearing dev dots..." : "Reset dev dots"}
-              </button>
-              <button
-                className="type-body-sm"
-                onClick={() => setDevDotDisplayEnabled((prev) => !prev)}
-                style={{
-                  padding: "8px 14px",
-                  background:
-                    "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
-                  border:
-                    "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
-                  color: "var(--color-ink)",
-                  borderRadius: "var(--radius-base)",
-                  cursor: "pointer",
-                }}
-              >
-                Dev dots: {devDotDisplayEnabled ? "Shown" : "Hidden"}
-              </button>
-              <button
-                className="type-body-sm"
-                onClick={() => setDevDotCountEnabled((prev) => !prev)}
-                style={{
-                  padding: "8px 14px",
-                  background:
-                    "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
-                  border:
-                    "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
-                  color: "var(--color-ink)",
-                  borderRadius: "var(--radius-base)",
-                  cursor: "pointer",
-                }}
-              >
-                Dev dot count: {devDotCountEnabled ? "Included" : "Excluded"}
-              </button>
-              <button
-                className="type-body-sm"
-                onClick={handleToggleDevResultPersistence}
-                style={{
-                  padding: "8px 14px",
-                  background:
-                    "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
-                  border:
-                    "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
-                  color: "var(--color-ink)",
-                  borderRadius: "var(--radius-base)",
-                  cursor: "pointer",
-                }}
-              >
-                Result persistence + dummy user:{" "}
-                {devResultPersistenceEnabled ? "On" : "Off"}
-              </button>
-              <button
-                className="type-body-sm"
-                onClick={handleToggleDummyRetakable}
-                disabled={!devResultPersistenceEnabled}
-                style={{
-                  padding: "8px 14px",
-                  background: !devResultPersistenceEnabled
-                    ? "color-mix(in oklab, var(--color-ink) 4%, var(--color-paper))"
-                    : "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
-                  border:
-                    "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
-                  color: !devResultPersistenceEnabled
-                    ? "color-mix(in oklab, var(--color-ink) 45%, var(--color-paper))"
-                    : "var(--color-ink)",
-                  borderRadius: "var(--radius-base)",
-                  cursor: !devResultPersistenceEnabled
-                    ? "not-allowed"
-                    : "pointer",
-                }}
-              >
-                Dummy user + retakable quiz:{" "}
-                {devRetakableDummyEnabled ? "On" : "Off"}
-              </button>
-              <button
-                className="type-body-sm"
-                onClick={handleShowDevErrors}
-                style={{
-                  padding: "8px 14px",
-                  background:
-                    "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))",
-                  border:
-                    "1px solid color-mix(in oklab, var(--color-ink) 14%, var(--color-paper))",
-                  color: "var(--color-ink)",
-                  borderRadius: "var(--radius-base)",
-                  cursor: "pointer",
-                }}
-              >
-                SHOW ERRORS
-              </button>
-            </div>
-          )}
-        </div>
-      )}
       <section className="homepage-copy-section">
         <div className="homepage-copy-grid">
           <div className="type-caption homepage-copy-heading">ABOUT</div>
@@ -5410,6 +5322,7 @@ export default function AICompass() {
         color: THEME.SiteText,
       }}
     >
+      {devControlsStrip}
       {/* Header */}
       <div className="site-header">
         <div className="site-header-main">
@@ -5669,7 +5582,8 @@ export default function AICompass() {
                     </div>
                   </section>
                 )}
-                {(lockCountdownText || firestoreError) && (
+                {(lockCountdownText ||
+                  (showFirestoreError && firestoreError)) && (
                   <div
                     className="type-body-sm app-error-message"
                     style={{
