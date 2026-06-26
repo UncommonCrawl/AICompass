@@ -360,22 +360,20 @@ const PREFER_NOT_TO_SAY_VALUE = "__PREFER_NOT_TO_SAY__";
 const OCCUPATION_CHAR_LIMIT = 30;
 const NOTES_CHAR_LIMIT = 120;
 const HEADER_ACTION_HEIGHT = 44;
-const HEADER_BAR_HEIGHT = 118;
-const FOOTER_BAR_HEIGHT = 20;
-const HOME_SECTION_GAP = 20;
-const GRAY = "#b8b8b8";
-const LIGHT_GRAY = `color-mix(in oklab, ${GRAY} 20%, var(--color-paper) 80%)`;
-const RESULTS_STRIP_BOTTOM_MARGIN = 16;
+const GRAY = "var(--ai-muted)";
 const UNSPECIFIED_FILTER_VALUE = "__UNSPECIFIED__";
 const DROPDOWN_VIEWPORT_BUFFER = 10;
 const DROPDOWN_MENU_MAX_HEIGHT = 200;
 const INTERACTIVE_DOT_LIMIT = 1000;
 const FIRESTORE_IN_FILTER_LIMIT = 30;
 const DOT_COUNT_LABEL_MIN_GAP_PX = 20;
-const COMPASS_DOT_COLOR = "#000000";
-const COMPASS_DOT_FADED_COLOR = "#EBEBEB";
-const COMPASS_SELECTED_RING_COLOR = "var(--color-ink)";
-const DEFAULT_USER_DOT_COLOR = "#17a34a";
+const COMPASS_DOT_COLOR = "#f5f5f2";
+const COMPASS_DOT_FADED_COLOR = "#2f2f2f";
+const LIGHT_MODE_COMPASS_DOT_COLOR = "#0a0a0a";
+const LIGHT_MODE_COMPASS_DOT_FADED_COLOR = "#d6d6d0";
+const COMPASS_SELECTED_RING_COLOR = "var(--ai-accent)";
+const DEFAULT_USER_DOT_COLOR = "#00e5a0";
+const LIGHT_MODE_USER_DOT_COLOR = "#007f5f";
 const COMPASS_DOT_BITMAP_DPR = 2;
 const COMPASS_DOT_GEOMETRY = {
   radius: 2,
@@ -715,9 +713,9 @@ const DEV_OTHER_OCCUPATION_WEIGHTS_BY_INDUSTRY = Object.fromEntries(
 );
 
 const THEME = {
-  SiteBG: "var(--color-paper)",
-  SiteText: "var(--color-ink)",
-  SiteBorder: "var(--color-border)",
+  SiteBG: "var(--ai-bg)",
+  SiteText: "var(--ai-text)",
+  SiteBorder: "var(--ai-border)",
 };
 
 const TAB_STYLE_VARS = {
@@ -2322,6 +2320,7 @@ function Compass({
   showResultMarkers = false,
   isLoading = false,
   perfValves = DEV_PERF_VALVE_DEFAULTS,
+  colorMode = "dark",
 }) {
   const svgRef = useRef(null);
   const plotRef = useRef(null);
@@ -2340,14 +2339,16 @@ function Compass({
   const [devFps, setDevFps] = useState(0);
   const [dotBitmapUrl, setDotBitmapUrl] = useState("");
   const [dotCountLabelFits, setDotCountLabelFits] = useState(false);
-  const userDotColor = useMemo(
-    () => resolveCssColorVar("--user-button", DEFAULT_USER_DOT_COLOR),
-    [],
-  );
-  const compassDotFadedColor = useMemo(
-    () => resolveCssColorVar("--compass-dot-faded", COMPASS_DOT_FADED_COLOR),
-    [],
-  );
+  const isLightMode = colorMode === "light";
+  const userDotColor = isLightMode
+    ? LIGHT_MODE_USER_DOT_COLOR
+    : DEFAULT_USER_DOT_COLOR;
+  const compassDotColor = isLightMode
+    ? LIGHT_MODE_COMPASS_DOT_COLOR
+    : COMPASS_DOT_COLOR;
+  const compassDotFadedColor = isLightMode
+    ? LIGHT_MODE_COMPASS_DOT_FADED_COLOR
+    : COMPASS_DOT_FADED_COLOR;
   const axisLabelGap = 10;
   const axisLabelFontSize = 10;
   const xAxisLetterSpacingEm = 0.1;
@@ -2394,8 +2395,7 @@ function Compass({
     sy: cy - yVal * yRange,
   });
 
-  const quadFill =
-    "color-mix(in oklab, var(--color-ink) 8%, var(--color-paper))";
+  const quadFill = "var(--ai-accent-dim)";
   const quadrantFillRects = [
     { key: "topRight", x: cx, y: pad },
     { key: "topLeft", x: pad, y: pad },
@@ -2404,7 +2404,7 @@ function Compass({
   ];
   const axisLabelTextStyle = {
     textAnchor: "middle",
-    fill: "var(--color-ink)",
+    fill: "var(--ai-muted)",
   };
   const axisLabels = [
     {
@@ -2671,7 +2671,7 @@ function Compass({
       if (!point.enabled && point.isUser) drawDot(point, compassDotFadedColor);
     }
     for (const point of plotPoints) {
-      if (point.enabled && !point.isUser) drawDot(point, COMPASS_DOT_COLOR);
+      if (point.enabled && !point.isUser) drawDot(point, compassDotColor);
     }
     for (const point of plotPoints) {
       if (point.enabled && point.isUser) drawDot(point, userDotColor);
@@ -2700,6 +2700,7 @@ function Compass({
     dims.h,
     onCanvasDraw,
     userDotColor,
+    compassDotColor,
     compassDotFadedColor,
     archivePoints,
     cx,
@@ -2962,7 +2963,7 @@ function Compass({
                 key={key}
                 x={x}
                 y={y}
-                fill={GRAY}
+                fill="var(--ai-border)"
                 {...compassLabelTextStyle}
               >
                 {QUADRANT_INFO[key].compassLabel.toUpperCase()}
@@ -3951,12 +3952,14 @@ function QuizPage({
             padding: "14px 40px",
             fontWeight: "var(--font-weight-semibold)",
             background: canSubmit
-              ? "linear-gradient(135deg, #000000, #2c2c2c)"
-              : "color-mix(in oklab, var(--color-ink) 3%, var(--color-paper))",
-            border: "none",
+              ? "var(--ai-accent)"
+              : "color-mix(in oklab, var(--ai-text) 5%, var(--ai-bg))",
+            border: `1px solid ${
+              canSubmit ? "var(--ai-accent)" : "var(--ai-border)"
+            }`,
             color: canSubmit
-              ? "var(--color-paper)"
-              : "color-mix(in oklab, var(--color-ink) 35%, var(--color-paper))",
+              ? "var(--ai-bg)"
+              : "color-mix(in oklab, var(--ai-text) 35%, var(--ai-bg))",
             borderRadius: "var(--radius-base)",
             cursor: canSubmit ? "pointer" : "default",
             transition: "all 0.3s",
@@ -4046,6 +4049,7 @@ export default function AICompass() {
   const [firestoreError, setFirestoreError] = useState("");
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [colorMode, setColorMode] = useState("dark");
   const [clearingDevDots, setClearingDevDots] = useState(false);
   const [devDotDisplayEnabled, setDevDotDisplayEnabled] = useState(() =>
     readDevDotDisplayEnabled(),
@@ -4874,7 +4878,14 @@ export default function AICompass() {
   const qi = quadrant ? QUADRANT_INFO[quadrant] : null;
   const resultArchetypeName =
     qi?.name || latestLocalSubmission?.archetype || "Unknown";
+  const resultArchetypeDisplayName = resultArchetypeName.replace(/^The\s+/i, "");
   const resultArchetypeDesc = qi?.desc || "";
+  const resultAdvancementValue = resultScores
+    ? `${resultScores.x > 0 ? "+" : ""}${(resultScores.x * 100).toFixed(0)}%`
+    : "";
+  const resultBeliefValue = resultScores
+    ? `${resultScores.y > 0 ? "+" : ""}${(resultScores.y * 100).toFixed(0)}%`
+    : "";
   const resultShareUrl = useMemo(
     () => buildResultShareUrl(resultScores, ""),
     [resultScores],
@@ -5112,98 +5123,79 @@ export default function AICompass() {
   const homepageBelowCompassContent = (
     <>
       {/* Keep homepage body content here so it appears in both home and results states. */}
-      <div
-        className="homepage-filter-grid"
-        style={{
-          marginTop: HOME_SECTION_GAP,
-          display: "grid",
-          gap: 10,
-        }}
-      >
-        <MultiSelectFilter
-          label="AGE"
-          options={ageFilterOptions}
-          disabledValues={disabledAges}
-          setDisabledValues={setDisabledAges}
-        />
-        <MultiSelectFilter
-          label="INDUSTRY"
-          options={industryFilterOptions}
-          disabledValues={disabledIndustries}
-          setDisabledValues={setDisabledIndustries}
-        />
-        <SingleSelectDropdown
-          label="LOCATION"
-          value={selectedCountryFilterValue}
-          onChange={setCountryFilterValue}
-          options={countrySingleSelectOptions}
-          placeholder="All"
-        />
-      </div>
+      <section className="ai-section ai-filter-section">
+        <div className="type-caption ai-section-label">Map Filters</div>
+        <div
+          className="homepage-filter-grid"
+          style={{
+            display: "grid",
+            gap: 10,
+          }}
+        >
+          <MultiSelectFilter
+            label="AGE"
+            options={ageFilterOptions}
+            disabledValues={disabledAges}
+            setDisabledValues={setDisabledAges}
+          />
+          <MultiSelectFilter
+            label="INDUSTRY"
+            options={industryFilterOptions}
+            disabledValues={disabledIndustries}
+            setDisabledValues={setDisabledIndustries}
+          />
+          <SingleSelectDropdown
+            label="LOCATION"
+            value={selectedCountryFilterValue}
+            onChange={setCountryFilterValue}
+            options={countrySingleSelectOptions}
+            placeholder="All"
+          />
+        </div>
+      </section>
 
-      <div
-        style={{
-          width: "100%",
-          margin: `${HOME_SECTION_GAP}px auto 0`,
-          display: "grid",
-          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-          gap: 12,
-        }}
-      >
-        {ARCHETYPE_GRID_ORDER.map((key) => {
-          const val = QUADRANT_INFO[key];
-          const isSelected = selectedArchetype === val.name;
-          return (
-            <div
-              key={key}
-              role="button"
-              tabIndex={0}
-              aria-pressed={isSelected}
-              aria-label={`Filter by ${val.name}`}
-              onMouseEnter={() => {
-                if (!pinnedQuadrant) setHoveredQuadrant(key);
-              }}
-              onMouseLeave={() => {
-                if (!pinnedQuadrant) setHoveredQuadrant(null);
-              }}
-              onClick={() => setArchetypeFilterFromCard(key, val.name)}
-              onKeyDown={(event) =>
-                handleArchetypeCardKeyDown(event, key, val.name)
-              }
-              style={{
-                padding: "24px 14px",
-                background: TAB_STYLE_VARS.outerBackground,
-                border:
-                  activeQuadrant === key || isSelected
-                    ? tabBorder(TAB_STYLE_VARS.borderColorStrong)
-                    : tabBorder(TAB_STYLE_VARS.borderColorSubtle),
-                borderRadius: TAB_STYLE_VARS.borderRadius,
-                cursor: "pointer",
-                outline: "none",
-                transition: "border-color 220ms ease",
-              }}
-            >
+      <section className="ai-section">
+        <div className="type-caption ai-section-label">All Types</div>
+        <div className="ai-types-grid">
+          {ARCHETYPE_GRID_ORDER.map((key, index) => {
+            const val = QUADRANT_INFO[key];
+            const isSelected = selectedArchetype === val.name;
+            const isActive =
+              activeQuadrant === key ||
+              isSelected ||
+              (showResultsStrip && resultArchetypeName === val.name);
+            return (
               <div
-                className="type-heading"
-                style={{
-                  color: val.color,
-                  marginBottom: 4,
+                key={key}
+                className={`ai-type-card ${isActive ? "is-active" : ""}`}
+                role="button"
+                tabIndex={0}
+                aria-pressed={isSelected}
+                aria-label={`Filter by ${val.name}`}
+                onMouseEnter={() => {
+                  if (!pinnedQuadrant) setHoveredQuadrant(key);
                 }}
-              >
-                {val.name}
-              </div>
-              <div
-                className="type-body-sm"
-                style={{
-                  color: "var(--color-ink)",
+                onMouseLeave={() => {
+                  if (!pinnedQuadrant) setHoveredQuadrant(null);
                 }}
+                onClick={() => setArchetypeFilterFromCard(key, val.name)}
+                onKeyDown={(event) =>
+                  handleArchetypeCardKeyDown(event, key, val.name)
+                }
               >
-                {val.desc}
+                <div className="type-caption ai-type-tag">
+                  Type {String(index + 1).padStart(2, "0")}
+                  {showResultsStrip && resultArchetypeName === val.name
+                    ? " / Your Result"
+                    : ""}
+                </div>
+                <div className="ai-type-name">{val.name}</div>
+                <div className="type-body-sm ai-type-desc">{val.desc}</div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      </section>
       {import.meta.env.DEV && (
         <div
           style={{
@@ -5352,50 +5344,62 @@ export default function AICompass() {
         </div>
       )}
       <section className="homepage-copy-section">
-        <div className="type-display-lg homepage-copy-heading">ABOUT</div>
-        <p className="type-body-sm homepage-copy-body">
-          As large language models (LLMs) become more visible, more contested,
-          and more present in our daily lives, public opinion on AI is no longer
-          captured by a simple divide between optimism and skepticism.
-        </p>
-        <p className="type-body-sm homepage-copy-body">
-          One can believe AI will be transformative while opposing the way it is
-          being developed; others may doubt its most ambitious promises while
-          still supporting practical adoption.
-        </p>
-        <p className="type-body-sm homepage-copy-body">
-          The project maps those views across two dimensions: confidence in AI’s
-          abilities and approval of AI’s direction.
-        </p>
-        <p className="type-body-sm homepage-copy-body">
-          By separating belief in what AI can do from judgment about what should
-          happen next, AI Compass creates a clearer picture of how individuals,
-          communities, and demographics relate to one of the defining
-          technologies of our time.
-        </p>
+        <div className="homepage-copy-grid">
+          <div className="type-caption homepage-copy-heading">ABOUT</div>
+          <div>
+            <p className="type-body-sm homepage-copy-body">
+              As large language models (LLMs) become more visible, more
+              contested, and more present in our daily lives, public opinion on
+              AI is no longer captured by a simple divide between optimism and
+              skepticism.
+            </p>
+            <p className="type-body-sm homepage-copy-body">
+              One can believe AI will be transformative while opposing the way
+              it is being developed; others may doubt its most ambitious
+              promises while still supporting practical adoption.
+            </p>
+            <p className="type-body-sm homepage-copy-body">
+              The project maps those views across two dimensions: confidence in
+              AI's abilities and approval of AI's direction.
+            </p>
+            <p className="type-body-sm homepage-copy-body">
+              By separating belief in what AI can do from judgment about what
+              should happen next, AI Compass creates a clearer picture of how
+              individuals, communities, and demographics relate to one of the
+              defining technologies of our time.
+            </p>
+          </div>
+        </div>
       </section>
       <section className="homepage-copy-section">
-        <div className="type-display-lg homepage-copy-heading">DISCLAIMER</div>
-        <p className="type-body-sm homepage-copy-body">
-          AI Compass is an informal public opinion map, not a scientific survey
-          or a representative study.
-        </p>
-        <p className="type-body-sm homepage-copy-body">
-          Results reflect the people who choose to take the quiz and share their
-          views. They should be read as a snapshot of participant responses, not
-          as a measurement of public opinion at large.
-        </p>
-        <p className="type-body-sm homepage-copy-body">
-          The compass is designed to separate two questions that often get
-          collapsed together: how capable people believe AI will become, and how
-          freely they think it should be developed.
-        </p>
+        <div className="homepage-copy-grid">
+          <div className="type-caption homepage-copy-heading">DISCLAIMER</div>
+          <div>
+            <p className="type-body-sm homepage-copy-body">
+              AI Compass is an informal public opinion map, not a scientific
+              survey or a representative study.
+            </p>
+            <p className="type-body-sm homepage-copy-body">
+              Results reflect the people who choose to take the quiz and share
+              their views. They should be read as a snapshot of participant
+              responses, not as a measurement of public opinion at large.
+            </p>
+            <p className="type-body-sm homepage-copy-body">
+              The compass is designed to separate two questions that often get
+              collapsed together: how capable people believe AI will become, and
+              how freely they think it should be developed.
+            </p>
+          </div>
+        </div>
       </section>
     </>
   );
 
   return (
     <div
+      className={`ai-compass-public ${
+        colorMode === "light" ? "is-light-mode" : ""
+      }`}
       style={{
         position: "relative",
         minHeight: "100vh",
@@ -5419,30 +5423,49 @@ export default function AICompass() {
               <span className="site-header-title-muted">COMPASS</span>
             </span>
           </button>
-          {(screen === "home" || showResultsStrip) && (
+          <div className="site-header-actions">
+            {(screen === "home" || showResultsStrip) && (
+              <button
+                className="type-caption compass-action-button site-header-action-button"
+                onClick={() => {
+                  if (hasCompletedQuiz) {
+                    handleReviewAnswers();
+                    return;
+                  }
+                  const visitorSource = readVisitorSource();
+                  recordCompassEvent("quiz_start", {
+                    has_completed_quiz: hasCompletedQuiz,
+                    source: visitorSource.source,
+                    referrer: visitorSource.referrer,
+                  });
+                  setScreen("quiz");
+                  setScores(null);
+                  setQuizEditAnswersEnabled(false);
+                  setQuizEditAnswersUnlocked(false);
+                  resetQuizProgress();
+                }}
+              >
+                {hasCompletedQuiz ? "YOUR ANSWERS" : "TAKE THE QUIZ"}
+              </button>
+            )}
             <button
-              className="type-caption compass-action-button site-header-action-button"
-              onClick={() => {
-                if (hasCompletedQuiz) {
-                  handleReviewAnswers();
-                  return;
-                }
-                const visitorSource = readVisitorSource();
-                recordCompassEvent("quiz_start", {
-                  has_completed_quiz: hasCompletedQuiz,
-                  source: visitorSource.source,
-                  referrer: visitorSource.referrer,
-                });
-                setScreen("quiz");
-                setScores(null);
-                setQuizEditAnswersEnabled(false);
-                setQuizEditAnswersUnlocked(false);
-                resetQuizProgress();
-              }}
+              className="type-caption theme-mode-toggle"
+              type="button"
+              aria-label={
+                colorMode === "light"
+                  ? "Switch to dark mode"
+                  : "Switch to light mode"
+              }
+              aria-pressed={colorMode === "light"}
+              onClick={() =>
+                setColorMode((current) =>
+                  current === "light" ? "dark" : "light",
+                )
+              }
             >
-              {hasCompletedQuiz ? "YOUR ANSWERS" : "TAKE THE QUIZ"}
+              ☾
             </button>
-          )}
+          </div>
         </div>
         {screen === "quiz" && (
           <div
@@ -5466,7 +5489,7 @@ export default function AICompass() {
                   width: "100%",
                   height: HEADER_ACTION_HEIGHT * 0.25,
                   background:
-                    "color-mix(in oklab, var(--color-paper) 20%, transparent)",
+                    "color-mix(in oklab, var(--ai-text) 14%, transparent)",
                   borderRadius: 999,
                   overflow: "hidden",
                 }}
@@ -5475,7 +5498,7 @@ export default function AICompass() {
                   style={{
                     width: `${(quizProgress.answered / quizProgress.total) * 100}%`,
                     height: "100%",
-                    background: THEME.SiteBG,
+                    background: "var(--ai-accent)",
                     transition: "width 0.3s",
                   }}
                 />
@@ -5487,7 +5510,7 @@ export default function AICompass() {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  color: THEME.SiteBG,
+                  color: "var(--ai-secondary)",
                   gap: 8,
                 }}
               >
@@ -5512,7 +5535,7 @@ export default function AICompass() {
                         background: "none",
                         padding: 0,
                         margin: 0,
-                        color: THEME.SiteBG,
+                        color: "var(--ai-secondary)",
                         textDecoration: "underline",
                         cursor: "pointer",
                       }}
@@ -5540,7 +5563,7 @@ export default function AICompass() {
                               background: "none",
                               padding: 0,
                               margin: 0,
-                              color: THEME.SiteBG,
+                              color: "var(--ai-secondary)",
                               textDecoration: "underline",
                               cursor: "pointer",
                             }}
@@ -5557,139 +5580,56 @@ export default function AICompass() {
         )}
       </div>
 
-      <div
-        style={{
-          flex: "1 1 auto",
-          minHeight: 0,
-          overflowX: "hidden",
-          WebkitOverflowScrolling: "touch",
-          background: showResultsStrip
-            ? `linear-gradient(to bottom, ${LIGHT_GRAY} 0, ${LIGHT_GRAY} 192px, ${THEME.SiteBG} 192px, ${THEME.SiteBG} 100%)`
-            : THEME.SiteBG,
-        }}
-      >
-        <div
-          style={{
-            padding: `${showResultsStrip ? 0 : 16}px 48px ${showHomepageChrome ? 20 : 48}px`,
-            boxSizing: "border-box",
-            background: THEME.SiteBG,
-          }}
-        >
+      <div className="ai-page-shell">
+        <div className="ai-public-content">
           {/* Home + Results Screen */}
           {showCompassView && (
-            <div
-              style={{
-                position: "relative",
-                minHeight: `calc(100vh - ${HEADER_BAR_HEIGHT + (showHomepageChrome ? FOOTER_BAR_HEIGHT + 5 : 0) + 24 + (showHomepageChrome ? 40 : 48)}px)`,
-              }}
-            >
+            <div className="ai-public-content-inner">
               <div
                 style={{
                   pointerEvents: effectiveHomeBodyReady ? "auto" : "none",
                 }}
               >
                 {showResultsStrip && (
-                  <div
-                    style={{
-                      marginInline: -48,
-                      marginBottom: RESULTS_STRIP_BOTTOM_MARGIN,
-                      padding: "14px 48px 18px",
-                      background: LIGHT_GRAY,
-                    }}
-                  >
-                    <div
-                      style={{
-                        textAlign: "center",
-                        marginInline: "auto",
-                        maxWidth: 560,
-                      }}
-                    >
-                      <div
-                        className="type-label"
-                        style={{
-                          color: "var(--color-ink)",
-                          marginBottom: 4,
-                        }}
-                      >
-                        YOU ARE
-                      </div>
-                      <div
-                        className="type-heading"
-                        style={{
-                          color: "var(--color-ink)",
-                          marginBottom: 8,
-                        }}
-                      >
-                        {resultArchetypeName}
-                      </div>
-                      <div
-                        aria-hidden="true"
-                        style={{
-                          width: 216,
-                          height: 1,
-                          margin: "0 auto 12px",
-                          background:
-                            "linear-gradient(90deg, transparent 0%, color-mix(in oklab, var(--color-ink) 95%, transparent) 35%, color-mix(in oklab, var(--color-ink) 95%, transparent) 65%, transparent 100%)",
-                        }}
-                      />
-                      <p
-                        className="type-body"
-                        style={{
-                          color: "var(--color-ink)",
-                          maxWidth: 400,
-                          margin: "0 auto 16px",
-                        }}
-                      >
-                        {resultArchetypeDesc}
-                      </p>
-                      <div
-                        className="type-caption"
-                        style={{
-                          color: "var(--color-ink)",
-                        }}
-                      >
-                        {resultScores ? (
-                          <>
-                            Advancement: {resultScores.x > 0 ? "+" : ""}
-                            {(resultScores.x * 100).toFixed(0)}% &nbsp;|&nbsp;
-                            LLM Belief: {resultScores.y > 0 ? "+" : ""}
-                            {(resultScores.y * 100).toFixed(0)}%
-                          </>
-                        ) : (
-                          "Results available"
-                        )}
-                      </div>
-                      {resultShareUrl && (
-                        <div className="result-share-link">
-                          <label
-                            className="type-label result-share-link-label"
-                            htmlFor="result-share-link"
-                          >
-                            SHARE YOUR STANCE
-                          </label>
-                          <input
-                            id="result-share-link"
-                            className="type-body-sm result-share-link-input"
-                            readOnly
-                            value={resultShareUrl}
-                            onClick={(event) => {
-                              event.currentTarget.select();
-                              copyShareLink();
-                            }}
-                            onFocus={(event) => {
-                              event.currentTarget.select();
-                            }}
-                          />
-                          <div
-                            className="type-caption result-share-link-status"
-                            aria-live="polite"
-                          >
-                            {shareLinkCopied ? "Copied" : ""}
-                          </div>
-                        </div>
-                      )}
+                  <section className="ai-result-hero">
+                    <div className="type-caption ai-result-eyebrow">
+                      You are
                     </div>
-                  </div>
+                    <h1 className="ai-result-name">
+                      The
+                      <br />
+                      <span className="ai-result-name-accent">
+                        {resultArchetypeDisplayName}
+                      </span>
+                    </h1>
+                    <p className="ai-result-desc">{resultArchetypeDesc}</p>
+                    <div className="ai-stats-row">
+                      <div className="ai-stat">
+                        <div className="type-caption ai-stat-label">
+                          Advancement
+                        </div>
+                        <div
+                          className={`ai-stat-value ${
+                            resultScores?.x >= 0 ? "is-positive" : "is-negative"
+                          }`}
+                        >
+                          {resultAdvancementValue}
+                        </div>
+                      </div>
+                      <div className="ai-stat">
+                        <div className="type-caption ai-stat-label">
+                          LLM Belief
+                        </div>
+                        <div
+                          className={`ai-stat-value ${
+                            resultScores?.y >= 0 ? "is-positive" : "is-negative"
+                          }`}
+                        >
+                          {resultBeliefValue}
+                        </div>
+                      </div>
+                    </div>
+                  </section>
                 )}
                 {(lockCountdownText || firestoreError) && (
                   <div
@@ -5703,32 +5643,77 @@ export default function AICompass() {
                       : firestoreError}
                   </div>
                 )}
-                <div style={{ marginTop: 0 }}>
-                  <Compass
-                    results={effectiveVisibleResults}
-                    archivePoints={effectiveArchivePoints}
-                    userResult={userResult}
-                    activeQuadrant={activeQuadrant}
-                    selectedArchetype={selectedArchetype}
-                    disabledAges={disabledAges}
-                    disabledCountries={disabledCountries}
-                    disabledIndustries={disabledIndustries}
-                    onCanvasDraw={handleHomeCanvasDraw}
-                    dotCountSummary={dotCountSummary}
-                    showAverageMarker={showCompassView}
-                    showResultMarkers={showResultsStrip}
-                    isLoading={isCompassLoading}
-                    perfValves={devPerfValves}
-                  />
-                </div>
+                <section className="ai-section">
+                  <div className="type-caption ai-section-label">
+                    Position Map
+                  </div>
+                  <div className="ai-compass-frame">
+                    <Compass
+                      results={effectiveVisibleResults}
+                      archivePoints={effectiveArchivePoints}
+                      userResult={userResult}
+                      activeQuadrant={activeQuadrant}
+                      selectedArchetype={selectedArchetype}
+                      disabledAges={disabledAges}
+                      disabledCountries={disabledCountries}
+                      disabledIndustries={disabledIndustries}
+                      onCanvasDraw={handleHomeCanvasDraw}
+                      dotCountSummary={dotCountSummary}
+                      showAverageMarker={showCompassView}
+                      showResultMarkers={showResultsStrip}
+                      isLoading={isCompassLoading}
+                      perfValves={devPerfValves}
+                      colorMode={colorMode}
+                    />
+                  </div>
+                </section>
                 {!devPerfValves.noHomeBody && homepageBelowCompassContent}
+                {showResultsStrip && resultShareUrl && (
+                  <section className="ai-result-share">
+                    <div className="type-caption">Share your stance</div>
+                    <div className="result-share-link">
+                      <label
+                        className="type-label result-share-link-label"
+                        htmlFor="result-share-link"
+                      >
+                        Share URL
+                      </label>
+                      <input
+                        id="result-share-link"
+                        className="type-body-sm result-share-link-input"
+                        readOnly
+                        value={resultShareUrl}
+                        onClick={(event) => {
+                          event.currentTarget.select();
+                          copyShareLink();
+                        }}
+                        onFocus={(event) => {
+                          event.currentTarget.select();
+                        }}
+                      />
+                      <div
+                        className="type-caption result-share-link-status"
+                        aria-live="polite"
+                      >
+                        {shareLinkCopied ? "Copied" : ""}
+                      </div>
+                    </div>
+                    <button
+                      className="type-caption ai-copy-button"
+                      type="button"
+                      onClick={copyShareLink}
+                    >
+                      {shareLinkCopied ? "Copied" : "Copy Link"}
+                    </button>
+                  </section>
+                )}
               </div>
             </div>
           )}
 
           {/* Quiz Screen */}
           {screen === "quiz" && (
-            <div>
+            <div className="ai-public-content-inner ai-quiz-shell">
               <QuizPage
                 onComplete={handleQuizComplete}
                 onProgressChange={setQuizProgress}
@@ -5746,41 +5731,29 @@ export default function AICompass() {
         </div>
 
         {showHomepageChrome && (
-          <footer
-            style={{
-              height: FOOTER_BAR_HEIGHT,
-              marginBottom: 5,
-              background: THEME.SiteBG,
-              color: THEME.SiteText,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "0 12px",
-              boxSizing: "border-box",
-            }}
-          >
-            <span className="type-body-sm">
+          <footer className="ai-public-footer">
+            <p className="type-body-sm ai-public-footer-note">
+              AI Compass is an informal public opinion map, not a scientific
+              survey. Results reflect participants who chose to take the quiz
+              and should be read as a snapshot, not a measurement of public
+              opinion at large.
+            </p>
+            <div className="type-caption ai-public-footer-credit">
               Created by{" "}
               <a
                 href="https://www.linkedin.com/in/keithherrmann/"
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{
-                  color: THEME.SiteText,
-                }}
               >
                 Keith Herrmann
               </a>{" "}
               •{" "}
               <a
                 href="mailto:uncommoncrawl@gmail.com"
-                style={{
-                  color: THEME.SiteText,
-                }}
               >
                 Contact
               </a>
-            </span>
+            </div>
           </footer>
         )}
       </div>
