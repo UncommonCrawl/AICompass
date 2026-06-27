@@ -4880,7 +4880,10 @@ export default function AICompass() {
   const qi = quadrant ? QUADRANT_INFO[quadrant] : null;
   const resultArchetypeName =
     qi?.name || latestLocalSubmission?.archetype || "Unknown";
-  const resultArchetypeDisplayName = resultArchetypeName.replace(/^The\s+/i, "");
+  const resultArchetypeDisplayName = resultArchetypeName.replace(
+    /^The\s+/i,
+    "",
+  );
   const resultArchetypeDesc = qi?.desc || "";
   const resultAdvancementValue = resultScores
     ? `${resultScores.x > 0 ? "+" : ""}${(resultScores.x * 100).toFixed(0)}%`
@@ -5183,7 +5186,9 @@ export default function AICompass() {
     <>
       {/* Keep homepage body content here so it appears in both home and results states. */}
       <section className="ai-section ai-filter-section">
-        <div className="type-caption ai-section-label">Map Filters</div>
+        <div className="homepage-section-heading ai-section-label">
+          Map Filters
+        </div>
         <div
           className="homepage-filter-grid"
           style={{
@@ -5214,7 +5219,9 @@ export default function AICompass() {
       </section>
 
       <section className="ai-section">
-        <div className="type-caption ai-section-label">All Types</div>
+        <div className="homepage-section-heading ai-section-label">
+          All Types
+        </div>
         <div className="ai-types-grid">
           {ARCHETYPE_GRID_ORDER.map((key, index) => {
             const val = QUADRANT_INFO[key];
@@ -5257,7 +5264,9 @@ export default function AICompass() {
       </section>
       <section className="homepage-copy-section">
         <div className="homepage-copy-grid">
-          <div className="type-caption homepage-copy-heading">ABOUT</div>
+          <div className="homepage-section-heading homepage-copy-heading">
+            ABOUT
+          </div>
           <div>
             <p className="type-body-sm homepage-copy-body">
               As large language models (LLMs) become more visible, more
@@ -5285,7 +5294,9 @@ export default function AICompass() {
       </section>
       <section className="homepage-copy-section">
         <div className="homepage-copy-grid">
-          <div className="type-caption homepage-copy-heading">DISCLAIMER</div>
+          <div className="homepage-section-heading homepage-copy-heading">
+            DISCLAIMER
+          </div>
           <div>
             <p className="type-body-sm homepage-copy-body">
               AI Compass is an informal public opinion map, not a scientific
@@ -5337,7 +5348,7 @@ export default function AICompass() {
                 <span>AI Compass</span>
               </span>
               <span className="type-caption site-header-subtitle">
-                A map of AI belief × AI approval
+                SHOW YOUR STANCE ON ARTIFICIAL INTELLIGENCE
               </span>
             </span>
           </button>
@@ -5601,6 +5612,9 @@ export default function AICompass() {
                   </div>
                 )}
                 <section className="ai-section ai-compass-section">
+                  <div className="homepage-section-heading ai-section-label">
+                    USER RESPONSES
+                  </div>
                   <div className="ai-compass-frame">
                     <Compass
                       results={effectiveVisibleResults}
@@ -5662,12 +5676,7 @@ export default function AICompass() {
               >
                 Keith Herrmann
               </a>{" "}
-              •{" "}
-              <a
-                href="mailto:uncommoncrawl@gmail.com"
-              >
-                Contact
-              </a>
+              • <a href="mailto:uncommoncrawl@gmail.com">Contact</a>
             </div>
           </footer>
         )}
