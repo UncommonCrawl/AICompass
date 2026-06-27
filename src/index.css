@@ -539,7 +539,6 @@ h6 {
   grid-auto-rows: 1fr;
   gap: 0;
   margin-top: 0;
-  border-top: 1px solid var(--ai-border);
   background: transparent;
 }
 
@@ -565,20 +564,25 @@ h6 {
   border-right: 0;
 }
 
+.ai-type-card:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
 .ai-type-card:hover {
   background: var(--ai-surface-strong);
 }
 
 .ai-type-card.is-active {
-  background:
-    linear-gradient(
-      90deg,
-      var(--ai-accent) 0,
-      var(--ai-accent) 3px,
-      transparent 3px
-    ),
-    var(--ai-bg);
-  box-shadow: inset 0 0 0 1px var(--ai-accent);
+  background: var(--ai-bg);
+  z-index: 1;
+}
+
+.ai-type-card.is-active::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border: 1px solid var(--ai-accent);
+  pointer-events: none;
 }
 
 .ai-type-tag {
@@ -849,6 +853,10 @@ h6 {
   .ai-type-card {
     min-height: 220px;
     border-right: 0;
+  }
+
+  .ai-type-card:nth-last-child(2) {
+    border-bottom: 1px solid var(--ai-border);
   }
 
   .homepage-copy-grid {
