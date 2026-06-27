@@ -609,20 +609,6 @@ h6 {
   line-height: 1.5;
 }
 
-.homepage-copy-section {
-  width: 100%;
-  box-sizing: border-box;
-  margin: 0 auto;
-  padding: 64px var(--ai-shell-gutter);
-  border-top: 1px solid var(--ai-border);
-  text-align: left;
-}
-
-.homepage-copy-section + .homepage-copy-section {
-  padding-top: 0;
-  border-top: 0;
-}
-
 .homepage-section-heading {
   font-family: var(--font-mono);
   font-size: 0.6rem;
@@ -849,10 +835,6 @@ h6 {
 
   .ai-type-card:nth-last-child(2) {
     border-bottom: 1px solid var(--ai-border);
-  }
-
-  .homepage-copy-section {
-    padding: 48px var(--ai-shell-gutter);
   }
 
   .homepage-copy-body-stack {

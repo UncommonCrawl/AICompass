@@ -5262,14 +5262,13 @@ export default function AICompass() {
           })}
         </div>
       </section>
-      <section className="homepage-copy-section">
+      <section className="ai-section">
         <div className="homepage-section-heading ai-section-label">ABOUT</div>
         <div className="homepage-copy-body-stack">
           <p className="type-body-sm homepage-copy-body">
-            As large language models (LLMs) become more visible, more
-            contested, and more present in our daily lives, public opinion on AI
-            is no longer captured by a simple divide between optimism and
-            skepticism.
+            As large language models (LLMs) become more visible, more contested,
+            and more present in our daily lives, public opinion on AI is no
+            longer captured by a simple divide between optimism and skepticism.
           </p>
           <p className="type-body-sm homepage-copy-body">
             One can believe AI will be transformative while opposing the way it
@@ -5288,7 +5287,7 @@ export default function AICompass() {
           </p>
         </div>
       </section>
-      <section className="homepage-copy-section">
+      <section className="ai-section">
         <div className="homepage-section-heading ai-section-label">
           DISCLAIMER
         </div>
