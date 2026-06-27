@@ -49,6 +49,7 @@
 .ai-compass-public {
   --ai-shell-width: min(1180px, calc(100vw - 40px));
   --ai-shell-gutter: clamp(24px, 4vw, 48px);
+  --ai-cta-green: #007f5f;
   --ai-bg: #0a0a0a;
   --ai-surface: #111111;
   --ai-surface-strong: #1a1a1a;
@@ -88,8 +89,8 @@
   --ai-text: #0a0a0a;
   --ai-muted: #77776f;
   --ai-secondary: #4f4f49;
-  --ai-accent: #007f5f;
-  --ai-accent-dim: rgba(0, 127, 95, 0.12);
+  --ai-accent: var(--ai-cta-green);
+  --ai-accent-dim: color-mix(in oklab, var(--ai-cta-green) 12%, transparent);
   --compass-dot-faded: #d6d6d0;
 }
 
@@ -1015,6 +1016,15 @@ h6 {
   .site-header-title {
     font-size: 42px;
   }
+
+  .site-header-actions {
+    width: 100%;
+  }
+
+  .site-header .site-header-action-button {
+    --compass-action-width: auto;
+    flex: 1 1 auto;
+  }
 }
 
 @media (max-width: 780px) {
@@ -1224,14 +1234,47 @@ h6 {
 }
 
 .site-header .site-header-action-button {
-  --compass-action-bg: transparent;
-  --compass-action-color: var(--ai-text);
-  --compass-action-border: var(--ai-border);
-  --compass-action-width: auto;
-  --compass-action-height: 39px;
-  --compass-action-padding-inline: 20px;
+  --compass-action-bg: var(--ai-cta-green);
+  --compass-action-color: #ffffff;
+  --compass-action-border: var(--ai-cta-green);
+  --compass-action-width: 189px;
+  --compass-action-height: 60px;
+  --compass-action-padding-inline: 0px;
   flex: 0 0 auto;
   border-radius: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 51px;
+  overflow: hidden;
+  text-align: left;
+}
+
+.site-header .site-header-action-button:hover {
+  --compass-action-bg: var(--ai-cta-green);
+  --compass-action-color: #ffffff;
+  --compass-action-border: var(--ai-cta-green);
+}
+
+.site-header-action-label,
+.site-header-action-icon {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.site-header-action-label {
+  padding: 0 22px;
+  justify-content: flex-start;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: clip;
+}
+
+.site-header-action-icon {
+  justify-content: center;
+  border-left: 1px solid rgba(255, 255, 255, 0.38);
+  font-size: 1rem;
 }
 
 .theme-mode-toggle {

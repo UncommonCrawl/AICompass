@@ -5353,7 +5353,15 @@ export default function AICompass() {
                   resetQuizProgress();
                 }}
               >
-                {hasCompletedQuiz ? "YOUR ANSWERS" : "TAKE THE QUIZ"}
+                <span className="site-header-action-label">
+                  {hasCompletedQuiz ? "YOUR ANSWERS" : "TAKE THE QUIZ"}
+                </span>
+                <span
+                  className="type-caption site-header-action-icon"
+                  aria-hidden="true"
+                >
+                  &rarr;
+                </span>
               </button>
             )}
             <button
@@ -5579,7 +5587,13 @@ export default function AICompass() {
                   ) : (
                     <aside className="ai-result-hero ai-home-sidebar">
                       <div className="ai-result-identity">
-                        <h1 className="ai-result-name">Show Your Stance</h1>
+                        <h1 className="ai-result-name">
+                          <span className="ai-result-name-accent">
+                            Show Your Stance
+                          </span>
+                          <br />
+                          on AI
+                        </h1>
                         <div className="ai-home-sidebar-copy">
                           {aboutCopyParagraphs.map((copy) => (
                             <p key={copy} className="type-body-sm">
