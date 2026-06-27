@@ -5196,6 +5196,13 @@ export default function AICompass() {
     return () => clearTimeout(safety);
   }, [screen, submitting]);
 
+  const aboutCopyParagraphs = [
+    "As large language models (LLMs) become more visible, more contested, and more present in our daily lives, public opinion on AI is no longer captured by a simple divide between optimism and skepticism.",
+    "One can believe AI will be transformative while opposing the way it is being developed; others may doubt its most ambitious promises while still supporting practical adoption.",
+    "The project maps those views across two dimensions: confidence in AI's abilities and approval of AI's direction.",
+    "By separating belief in what AI can do from judgment about what should happen next, AI Compass creates a clearer picture of how individuals, communities, and demographics relate to one of the defining technologies of our time.",
+  ];
+
   const homepageBelowCompassContent = (
     <>
       {/* Keep homepage body content here so it appears in both home and results states. */}
@@ -5279,26 +5286,11 @@ export default function AICompass() {
       <section className="ai-section">
         <div className="homepage-section-heading ai-section-label">ABOUT</div>
         <div className="homepage-copy-body-stack">
-          <p className="type-body-sm homepage-copy-body">
-            As large language models (LLMs) become more visible, more contested,
-            and more present in our daily lives, public opinion on AI is no
-            longer captured by a simple divide between optimism and skepticism.
-          </p>
-          <p className="type-body-sm homepage-copy-body">
-            One can believe AI will be transformative while opposing the way it
-            is being developed; others may doubt its most ambitious promises
-            while still supporting practical adoption.
-          </p>
-          <p className="type-body-sm homepage-copy-body">
-            The project maps those views across two dimensions: confidence in
-            AI's abilities and approval of AI's direction.
-          </p>
-          <p className="type-body-sm homepage-copy-body">
-            By separating belief in what AI can do from judgment about what
-            should happen next, AI Compass creates a clearer picture of how
-            individuals, communities, and demographics relate to one of the
-            defining technologies of our time.
-          </p>
+          {aboutCopyParagraphs.map((copy) => (
+            <p key={copy} className="type-body-sm homepage-copy-body">
+              {copy}
+            </p>
+          ))}
         </div>
       </section>
       <section className="ai-section">
@@ -5527,8 +5519,8 @@ export default function AICompass() {
                   pointerEvents: effectiveHomeBodyReady ? "auto" : "none",
                 }}
               >
-                {showResultsStrip ? (
-                  <div className="ai-results-layout">
+                <div className="ai-results-layout">
+                  {showResultsStrip ? (
                     <section className="ai-result-hero">
                       <div className="ai-result-identity">
                         <div className="type-caption ai-result-eyebrow">
@@ -5605,48 +5597,21 @@ export default function AICompass() {
                         )}
                       </div>
                     </section>
-                    <div className="ai-results-compass-column">
-                      {(lockCountdownText ||
-                        (showFirestoreError && firestoreError)) && (
-                        <div
-                          className="type-body-sm app-error-message"
-                          style={{
-                            "--app-error-margin": "0 auto 12px",
-                          }}
-                        >
-                          {lockCountdownText
-                            ? `Resubmission opens in ${lockCountdownText}.`
-                            : firestoreError}
+                  ) : (
+                    <aside className="ai-result-hero ai-home-sidebar">
+                      <div className="ai-result-identity">
+                        <h1 className="ai-result-name">Show Your Stance</h1>
+                        <div className="ai-home-sidebar-copy">
+                          {aboutCopyParagraphs.map((copy) => (
+                            <p key={copy} className="type-body-sm">
+                              {copy}
+                            </p>
+                          ))}
                         </div>
-                      )}
-                      <section className="ai-section ai-compass-section">
-                        <div className="homepage-section-heading ai-section-label">
-                          USER RESPONSES
-                        </div>
-                        <div className="ai-compass-frame">
-                          <Compass
-                            results={effectiveVisibleResults}
-                            archivePoints={effectiveArchivePoints}
-                            userResult={userResult}
-                            activeQuadrant={activeQuadrant}
-                            selectedArchetype={selectedArchetype}
-                            disabledAges={disabledAges}
-                            disabledCountries={disabledCountries}
-                            disabledIndustries={disabledIndustries}
-                            onCanvasDraw={handleHomeCanvasDraw}
-                            dotCountSummary={dotCountSummary}
-                            showAverageMarker={showCompassView}
-                            showResultMarkers={showResultsStrip}
-                            isLoading={isCompassLoading}
-                            perfValves={devPerfValves}
-                            colorMode={colorMode}
-                          />
-                        </div>
-                      </section>
-                    </div>
-                  </div>
-                ) : (
-                  <>
+                      </div>
+                    </aside>
+                  )}
+                  <div className="ai-results-compass-column">
                     {(lockCountdownText ||
                       (showFirestoreError && firestoreError)) && (
                       <div
@@ -5684,8 +5649,8 @@ export default function AICompass() {
                         />
                       </div>
                     </section>
-                  </>
-                )}
+                  </div>
+                </div>
                 {!devPerfValves.noHomeBody && homepageBelowCompassContent}
               </div>
             </div>
