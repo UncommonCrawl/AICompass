@@ -5531,11 +5531,8 @@ export default function AICompass() {
                   <div className="ai-results-layout">
                     <section className="ai-result-hero">
                       <div className="ai-result-identity">
-                        <div className="type-caption ai-result-side-label">
-                          Your Position
-                        </div>
                         <div className="type-caption ai-result-eyebrow">
-                          You are mapped as
+                          You are
                         </div>
                         <h1 className="ai-result-name">
                           The

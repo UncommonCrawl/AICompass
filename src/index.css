@@ -445,7 +445,7 @@ h6 {
 }
 
 .ai-results-layout .ai-result-identity {
-  padding: 56px 28px 32px;
+  padding: 28px 28px 32px;
 }
 
 .ai-result-identity::before {
@@ -460,13 +460,18 @@ h6 {
 }
 
 .ai-results-layout .ai-result-identity::before {
-  top: 24px;
-  left: 24px;
+  top: 14px;
+  left: 14px;
+  pointer-events: none;
 }
 
 .ai-result-eyebrow {
   margin-bottom: 20px;
   color: var(--ai-muted);
+}
+
+.ai-results-layout .ai-result-eyebrow {
+  margin-bottom: 10px;
 }
 
 .ai-result-side-label {
@@ -480,10 +485,7 @@ h6 {
 }
 
 .ai-results-layout .ai-result-side-label {
-  position: static;
-  transform: none;
-  writing-mode: horizontal-tb;
-  margin-bottom: 24px;
+  display: none;
 }
 
 .ai-result-name {
@@ -858,7 +860,7 @@ h6 {
   }
 
   .ai-results-layout .ai-result-identity {
-    padding: 56px 28px 32px;
+    padding: 28px 28px 32px;
   }
 
   .ai-results-layout .ai-result-rail {
