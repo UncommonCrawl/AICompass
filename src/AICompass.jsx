@@ -4062,6 +4062,7 @@ export default function AICompass() {
     useState(() => readDevResultPersistenceEnabled());
   const [devRetakableDummyEnabled, setDevRetakableDummyEnabled] =
     useState(false);
+  const [devControlsOpen, setDevControlsOpen] = useState(false);
   const [devPerfValves, setDevPerfValves] = useState(DEV_PERF_VALVE_DEFAULTS);
   const [disabledAges, setDisabledAges] = useState([]);
   const [disabledCountries, setDisabledCountries] = useState([]);
@@ -5057,8 +5058,8 @@ export default function AICompass() {
       </button>
     </div>
   ) : null;
-  const devControlsStrip = import.meta.env.DEV ? (
-    <div className="dev-controls-strip">
+  const devControlsStrip = import.meta.env.DEV && devControlsOpen ? (
+    <div className="dev-controls-strip" id="dev-controls-strip">
       <div className="dev-controls-inner">
         {devPerfValvePanel}
         {!devPerfValves.noDevControls && (
@@ -5113,6 +5114,19 @@ export default function AICompass() {
         )}
       </div>
     </div>
+  ) : null;
+  const devControlsToggle = import.meta.env.DEV ? (
+    <button
+      type="button"
+      className={`dev-controls-toggle ${devControlsOpen ? "is-open" : ""}`}
+      aria-label={`${devControlsOpen ? "Hide" : "Show"} dev controls`}
+      aria-controls="dev-controls-strip"
+      aria-expanded={devControlsOpen}
+      title={`${devControlsOpen ? "Hide" : "Show"} dev controls`}
+      onClick={() => setDevControlsOpen((prev) => !prev)}
+    >
+      D
+    </button>
   ) : null;
   const ageFilterOptions = useMemo(
     () => [
@@ -5326,6 +5340,7 @@ export default function AICompass() {
         color: THEME.SiteText,
       }}
     >
+      {devControlsToggle}
       {devControlsStrip}
       {/* Header */}
       <div className="site-header">
@@ -5512,122 +5527,168 @@ export default function AICompass() {
                   pointerEvents: effectiveHomeBodyReady ? "auto" : "none",
                 }}
               >
-                {showResultsStrip && (
-                  <section className="ai-result-hero">
-                    <div className="ai-result-identity">
-                      <div className="type-caption ai-result-side-label">
-                        Your Position
-                      </div>
-                      <div className="type-caption ai-result-eyebrow">
-                        You are mapped as
-                      </div>
-                      <h1 className="ai-result-name">
-                        The
-                        <br />
-                        <span className="ai-result-name-accent">
-                          {resultArchetypeDisplayName}
-                        </span>
-                      </h1>
-                      <p className="ai-result-desc">{resultArchetypeDesc}</p>
-                    </div>
-                    <div className="ai-result-rail">
-                      <div className="ai-stats-row">
-                        <div className="ai-stat">
-                          <div className="type-caption ai-stat-label">
-                            Advancement
-                          </div>
-                          <div
-                            className={`ai-stat-value ${
-                              resultScores?.x >= 0
-                                ? "is-positive"
-                                : "is-negative"
-                            }`}
-                          >
-                            {resultAdvancementValue}
-                          </div>
+                {showResultsStrip ? (
+                  <div className="ai-results-layout">
+                    <section className="ai-result-hero">
+                      <div className="ai-result-identity">
+                        <div className="type-caption ai-result-side-label">
+                          Your Position
                         </div>
-                        <div className="ai-stat">
-                          <div className="type-caption ai-stat-label">
-                            LLM Belief
-                          </div>
-                          <div
-                            className={`ai-stat-value ${
-                              resultScores?.y >= 0
-                                ? "is-positive"
-                                : "is-negative"
-                            }`}
-                          >
-                            {resultBeliefValue}
-                          </div>
+                        <div className="type-caption ai-result-eyebrow">
+                          You are mapped as
                         </div>
+                        <h1 className="ai-result-name">
+                          The
+                          <br />
+                          <span className="ai-result-name-accent">
+                            {resultArchetypeDisplayName}
+                          </span>
+                        </h1>
+                        <p className="ai-result-desc">{resultArchetypeDesc}</p>
                       </div>
-                      {resultShareUrl && (
-                        <section className="ai-result-share">
-                          <div className="type-caption">Share your stance</div>
-                          <div className="result-share-link">
-                            <input
-                              id="result-share-link"
-                              className="type-body-sm result-share-link-input"
-                              readOnly
-                              aria-label="Share URL"
-                              value={resultShareUrl}
-                              onClick={(event) => {
-                                event.currentTarget.select();
-                                copyShareLink();
-                              }}
-                              onFocus={(event) => {
-                                event.currentTarget.select();
-                              }}
-                            />
+                      <div className="ai-result-rail">
+                        <div className="ai-stats-row">
+                          <div className="ai-stat">
+                            <div className="type-caption ai-stat-label">
+                              Advancement
+                            </div>
                             <div
-                              className="type-caption result-share-link-status"
-                              aria-live="polite"
+                              className={`ai-stat-value ${
+                                resultScores?.x >= 0
+                                  ? "is-positive"
+                                  : "is-negative"
+                              }`}
                             >
-                              {shareLinkCopied ? "Copied" : ""}
+                              {resultAdvancementValue}
                             </div>
                           </div>
-                        </section>
+                          <div className="ai-stat">
+                            <div className="type-caption ai-stat-label">
+                              LLM Belief
+                            </div>
+                            <div
+                              className={`ai-stat-value ${
+                                resultScores?.y >= 0
+                                  ? "is-positive"
+                                  : "is-negative"
+                              }`}
+                            >
+                              {resultBeliefValue}
+                            </div>
+                          </div>
+                        </div>
+                        {resultShareUrl && (
+                          <section className="ai-result-share">
+                            <div className="type-caption">
+                              Share your stance
+                            </div>
+                            <div className="result-share-link">
+                              <input
+                                id="result-share-link"
+                                className="type-body-sm result-share-link-input"
+                                readOnly
+                                aria-label="Share URL"
+                                value={resultShareUrl}
+                                onClick={(event) => {
+                                  event.currentTarget.select();
+                                  copyShareLink();
+                                }}
+                                onFocus={(event) => {
+                                  event.currentTarget.select();
+                                }}
+                              />
+                              <div
+                                className="type-caption result-share-link-status"
+                                aria-live="polite"
+                              >
+                                {shareLinkCopied ? "Copied" : ""}
+                              </div>
+                            </div>
+                          </section>
+                        )}
+                      </div>
+                    </section>
+                    <div className="ai-results-compass-column">
+                      {(lockCountdownText ||
+                        (showFirestoreError && firestoreError)) && (
+                        <div
+                          className="type-body-sm app-error-message"
+                          style={{
+                            "--app-error-margin": "0 auto 12px",
+                          }}
+                        >
+                          {lockCountdownText
+                            ? `Resubmission opens in ${lockCountdownText}.`
+                            : firestoreError}
+                        </div>
                       )}
+                      <section className="ai-section ai-compass-section">
+                        <div className="homepage-section-heading ai-section-label">
+                          USER RESPONSES
+                        </div>
+                        <div className="ai-compass-frame">
+                          <Compass
+                            results={effectiveVisibleResults}
+                            archivePoints={effectiveArchivePoints}
+                            userResult={userResult}
+                            activeQuadrant={activeQuadrant}
+                            selectedArchetype={selectedArchetype}
+                            disabledAges={disabledAges}
+                            disabledCountries={disabledCountries}
+                            disabledIndustries={disabledIndustries}
+                            onCanvasDraw={handleHomeCanvasDraw}
+                            dotCountSummary={dotCountSummary}
+                            showAverageMarker={showCompassView}
+                            showResultMarkers={showResultsStrip}
+                            isLoading={isCompassLoading}
+                            perfValves={devPerfValves}
+                            colorMode={colorMode}
+                          />
+                        </div>
+                      </section>
                     </div>
-                  </section>
+                  </div>
+                ) : (
+                  <>
+                    {(lockCountdownText ||
+                      (showFirestoreError && firestoreError)) && (
+                      <div
+                        className="type-body-sm app-error-message"
+                        style={{
+                          "--app-error-margin": "0 auto 12px",
+                        }}
+                      >
+                        {lockCountdownText
+                          ? `Resubmission opens in ${lockCountdownText}.`
+                          : firestoreError}
+                      </div>
+                    )}
+                    <section className="ai-section ai-compass-section">
+                      <div className="homepage-section-heading ai-section-label">
+                        USER RESPONSES
+                      </div>
+                      <div className="ai-compass-frame">
+                        <Compass
+                          results={effectiveVisibleResults}
+                          archivePoints={effectiveArchivePoints}
+                          userResult={userResult}
+                          activeQuadrant={activeQuadrant}
+                          selectedArchetype={selectedArchetype}
+                          disabledAges={disabledAges}
+                          disabledCountries={disabledCountries}
+                          disabledIndustries={disabledIndustries}
+                          onCanvasDraw={handleHomeCanvasDraw}
+                          dotCountSummary={dotCountSummary}
+                          showAverageMarker={showCompassView}
+                          showResultMarkers={showResultsStrip}
+                          isLoading={isCompassLoading}
+                          perfValves={devPerfValves}
+                          colorMode={colorMode}
+                        />
+                      </div>
+                    </section>
+                  </>
                 )}
-                {(lockCountdownText ||
-                  (showFirestoreError && firestoreError)) && (
-                  <div
-                    className="type-body-sm app-error-message"
-                    style={{
-                      "--app-error-margin": "0 auto 12px",
-                    }}
-                  >
-                    {lockCountdownText
-                      ? `Resubmission opens in ${lockCountdownText}.`
-                      : firestoreError}
-                  </div>
-                )}
-                <section className="ai-section ai-compass-section">
-                  <div className="homepage-section-heading ai-section-label">
-                    USER RESPONSES
-                  </div>
-                  <div className="ai-compass-frame">
-                    <Compass
-                      results={effectiveVisibleResults}
-                      archivePoints={effectiveArchivePoints}
-                      userResult={userResult}
-                      activeQuadrant={activeQuadrant}
-                      selectedArchetype={selectedArchetype}
-                      disabledAges={disabledAges}
-                      disabledCountries={disabledCountries}
-                      disabledIndustries={disabledIndustries}
-                      onCanvasDraw={handleHomeCanvasDraw}
-                      dotCountSummary={dotCountSummary}
-                      showAverageMarker={showCompassView}
-                      showResultMarkers={showResultsStrip}
-                      isLoading={isCompassLoading}
-                      perfValves={devPerfValves}
-                      colorMode={colorMode}
-                    />
-                  </div>
-                </section>
                 {!devPerfValves.noHomeBody && homepageBelowCompassContent}
               </div>
             </div>
