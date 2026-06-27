@@ -5263,56 +5263,50 @@ export default function AICompass() {
         </div>
       </section>
       <section className="homepage-copy-section">
-        <div className="homepage-copy-grid">
-          <div className="homepage-section-heading homepage-copy-heading">
-            ABOUT
-          </div>
-          <div>
-            <p className="type-body-sm homepage-copy-body">
-              As large language models (LLMs) become more visible, more
-              contested, and more present in our daily lives, public opinion on
-              AI is no longer captured by a simple divide between optimism and
-              skepticism.
-            </p>
-            <p className="type-body-sm homepage-copy-body">
-              One can believe AI will be transformative while opposing the way
-              it is being developed; others may doubt its most ambitious
-              promises while still supporting practical adoption.
-            </p>
-            <p className="type-body-sm homepage-copy-body">
-              The project maps those views across two dimensions: confidence in
-              AI's abilities and approval of AI's direction.
-            </p>
-            <p className="type-body-sm homepage-copy-body">
-              By separating belief in what AI can do from judgment about what
-              should happen next, AI Compass creates a clearer picture of how
-              individuals, communities, and demographics relate to one of the
-              defining technologies of our time.
-            </p>
-          </div>
+        <div className="homepage-section-heading ai-section-label">ABOUT</div>
+        <div className="homepage-copy-body-stack">
+          <p className="type-body-sm homepage-copy-body">
+            As large language models (LLMs) become more visible, more
+            contested, and more present in our daily lives, public opinion on AI
+            is no longer captured by a simple divide between optimism and
+            skepticism.
+          </p>
+          <p className="type-body-sm homepage-copy-body">
+            One can believe AI will be transformative while opposing the way it
+            is being developed; others may doubt its most ambitious promises
+            while still supporting practical adoption.
+          </p>
+          <p className="type-body-sm homepage-copy-body">
+            The project maps those views across two dimensions: confidence in
+            AI's abilities and approval of AI's direction.
+          </p>
+          <p className="type-body-sm homepage-copy-body">
+            By separating belief in what AI can do from judgment about what
+            should happen next, AI Compass creates a clearer picture of how
+            individuals, communities, and demographics relate to one of the
+            defining technologies of our time.
+          </p>
         </div>
       </section>
       <section className="homepage-copy-section">
-        <div className="homepage-copy-grid">
-          <div className="homepage-section-heading homepage-copy-heading">
-            DISCLAIMER
-          </div>
-          <div>
-            <p className="type-body-sm homepage-copy-body">
-              AI Compass is an informal public opinion map, not a scientific
-              survey or a representative study.
-            </p>
-            <p className="type-body-sm homepage-copy-body">
-              Results reflect the people who choose to take the quiz and share
-              their views. They should be read as a snapshot of participant
-              responses, not as a measurement of public opinion at large.
-            </p>
-            <p className="type-body-sm homepage-copy-body">
-              The compass is designed to separate two questions that often get
-              collapsed together: how capable people believe AI will become, and
-              how freely they think it should be developed.
-            </p>
-          </div>
+        <div className="homepage-section-heading ai-section-label">
+          DISCLAIMER
+        </div>
+        <div className="homepage-copy-body-stack">
+          <p className="type-body-sm homepage-copy-body">
+            AI Compass is an informal public opinion map, not a scientific
+            survey or a representative study.
+          </p>
+          <p className="type-body-sm homepage-copy-body">
+            Results reflect the people who choose to take the quiz and share
+            their views. They should be read as a snapshot of participant
+            responses, not as a measurement of public opinion at large.
+          </p>
+          <p className="type-body-sm homepage-copy-body">
+            The compass is designed to separate two questions that often get
+            collapsed together: how capable people believe AI will become, and
+            how freely they think it should be developed.
+          </p>
         </div>
       </section>
     </>
