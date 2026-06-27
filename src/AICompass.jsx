@@ -731,6 +731,13 @@ const TAB_STYLE_VARS = {
 const tabBorder = (color = TAB_STYLE_VARS.borderColor) =>
   `var(--tab-border-width) var(--tab-border-style) ${color}`;
 
+const FILTER_PREVIEW_CHAR_LIMIT = 16;
+
+function truncateFilterPreviewLabel(label) {
+  if (label.length <= FILTER_PREVIEW_CHAR_LIMIT) return label;
+  return `${label.slice(0, FILTER_PREVIEW_CHAR_LIMIT).trimEnd()}...`;
+}
+
 const ARCHETYPE_GRID_ORDER = [
   "topLeft",
   "topRight",
@@ -1927,14 +1934,13 @@ function MultiSelectFilter({
   const { menuPlacement, menuMaxHeight, updateMenuLayout } =
     useDropdownMenuLayout(open, rootRef);
   const enabledOptions = options.filter((opt) => !disabledSet.has(opt.value));
-  const previewLabel =
+  const rawPreviewLabel =
     enabledCount === options.length
       ? "All"
       : enabledCount === 0
         ? "N/A"
-        : enabledCount === 1
-          ? enabledOptions[0].label
-          : "Custom...";
+        : enabledOptions.map((option) => option.label).join(", ");
+  const previewLabel = truncateFilterPreviewLabel(rawPreviewLabel);
   const allEnabled = enabledCount === options.length;
   const selectedGlyph = "✓";
   const toggleOption = (value) =>
@@ -2017,25 +2023,9 @@ function MultiSelectFilter({
   return (
     <div
       ref={rootRef}
-      style={{
-        position: "relative",
-        border: tabBorder(),
-        borderRadius: TAB_STYLE_VARS.borderRadius,
-        background: TAB_STYLE_VARS.outerBackground,
-        padding: "8px 10px",
-      }}
+      className="filter-control-root"
+      style={{ position: "relative" }}
     >
-      <label
-        className="type-subheading"
-        style={{
-          color: "var(--color-ink)",
-          display: "flex",
-          justifyContent: "space-between",
-          marginBottom: 8,
-        }}
-      >
-        <span>{label}</span>
-      </label>
       <style>
         {`
           .filter-menu-scroll::-webkit-scrollbar {
@@ -2044,8 +2034,9 @@ function MultiSelectFilter({
         `}
       </style>
       <button
-        className="type-body-sm"
+        className="type-caption filter-dropdown-button"
         type="button"
+        aria-label={`${label}: ${previewLabel}`}
         onPointerDown={(e) => {
           if (open) e.stopPropagation();
         }}
@@ -2057,28 +2048,14 @@ function MultiSelectFilter({
           }
           setOpen(false);
         }}
-        style={{
-          width: "100%",
-          height: 34,
-          padding: "8px 10px",
-          background: TAB_STYLE_VARS.outerBackground,
-          border: tabBorder(),
-          color: "var(--color-ink)",
-          borderRadius: TAB_STYLE_VARS.borderRadius,
-          outline: "none",
-          boxSizing: "border-box",
-          cursor: "pointer",
-          textAlign: "left",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "flex-start",
-        }}
       >
-        <span>{previewLabel}</span>
+        <span className="filter-dropdown-title">{label}</span>
+        <span className="filter-dropdown-value">{previewLabel}</span>
       </button>
       {open && (
         <div
           ref={menuRef}
+          className="filter-dropdown-menu"
           style={{
             position: "absolute",
             left: 0,
@@ -2156,14 +2133,19 @@ function SingleSelectDropdown({
   placeholder,
   disabled = false,
   textColor = "var(--color-ink)",
+  variant = "stacked",
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
   const menuRef = useRef(null);
   const { menuPlacement, menuMaxHeight, updateMenuLayout } =
     useDropdownMenuLayout(open, rootRef);
-  const previewLabel =
+  const rawPreviewLabel =
     options.find((option) => option.value === value)?.label || placeholder;
+  const isFilterVariant = variant === "filter";
+  const previewLabel = isFilterVariant
+    ? truncateFilterPreviewLabel(rawPreviewLabel)
+    : rawPreviewLabel;
 
   useEffect(() => {
     if (!open) return;
@@ -2181,25 +2163,32 @@ function SingleSelectDropdown({
   return (
     <div
       ref={rootRef}
-      style={{
-        position: "relative",
-        border: tabBorder(),
-        borderRadius: TAB_STYLE_VARS.borderRadius,
-        background: TAB_STYLE_VARS.outerBackground,
-        padding: "8px 10px",
-      }}
+      className={isFilterVariant ? "filter-control-root" : undefined}
+      style={
+        isFilterVariant
+          ? { position: "relative" }
+          : {
+              position: "relative",
+              border: tabBorder(),
+              borderRadius: TAB_STYLE_VARS.borderRadius,
+              background: TAB_STYLE_VARS.outerBackground,
+              padding: "8px 10px",
+            }
+      }
     >
-      <label
-        className="type-subheading"
-        style={{
-          color: "var(--color-ink)",
-          display: "flex",
-          justifyContent: "space-between",
-          marginBottom: 8,
-        }}
-      >
-        <span>{label}</span>
-      </label>
+      {!isFilterVariant && (
+        <label
+          className="type-subheading"
+          style={{
+            color: "var(--color-ink)",
+            display: "flex",
+            justifyContent: "space-between",
+            marginBottom: 8,
+          }}
+        >
+          <span>{label}</span>
+        </label>
+      )}
       <style>
         {`
           .filter-menu-scroll::-webkit-scrollbar {
@@ -2208,9 +2197,14 @@ function SingleSelectDropdown({
         `}
       </style>
       <button
-        className="type-body-sm"
+        className={
+          isFilterVariant
+            ? "type-caption filter-dropdown-button"
+            : "type-body-sm"
+        }
         type="button"
         disabled={disabled}
+        aria-label={`${label}: ${previewLabel}`}
         onPointerDown={(e) => {
           if (disabled) return;
           if (open) e.stopPropagation();
@@ -2224,28 +2218,40 @@ function SingleSelectDropdown({
           }
           setOpen(false);
         }}
-        style={{
-          width: "100%",
-          height: 34,
-          padding: "8px 10px",
-          background: TAB_STYLE_VARS.outerBackground,
-          border: tabBorder(),
-          color: textColor,
-          borderRadius: TAB_STYLE_VARS.borderRadius,
-          outline: "none",
-          boxSizing: "border-box",
-          cursor: disabled ? "not-allowed" : "pointer",
-          textAlign: "left",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "flex-start",
-        }}
+        style={
+          isFilterVariant
+            ? { "--filter-value-color": textColor }
+            : {
+                width: "100%",
+                height: 34,
+                padding: "8px 10px",
+                background: TAB_STYLE_VARS.outerBackground,
+                border: tabBorder(),
+                color: textColor,
+                borderRadius: TAB_STYLE_VARS.borderRadius,
+                outline: "none",
+                boxSizing: "border-box",
+                cursor: disabled ? "not-allowed" : "pointer",
+                textAlign: "left",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "flex-start",
+              }
+        }
       >
-        <span>{previewLabel}</span>
+        {isFilterVariant ? (
+          <>
+            <span className="filter-dropdown-title">{label}</span>
+            <span className="filter-dropdown-value">{previewLabel}</span>
+          </>
+        ) : (
+          <span>{previewLabel}</span>
+        )}
       </button>
       {open && !disabled && (
         <div
           ref={menuRef}
+          className={isFilterVariant ? "filter-dropdown-menu" : undefined}
           style={{
             position: "absolute",
             left: 0,
@@ -5203,20 +5209,11 @@ export default function AICompass() {
     "By separating belief in what AI can do from judgment about what should happen next, AI Compass creates a clearer picture of how individuals, communities, and demographics relate to one of the defining technologies of our time.",
   ];
 
-  const homepageBelowCompassContent = (
-    <>
-      {/* Keep homepage body content here so it appears in both home and results states. */}
-      <section className="ai-section ai-filter-section">
-        <div className="homepage-section-heading ai-section-label">
-          Map Filters
-        </div>
-        <div
-          className="homepage-filter-grid"
-          style={{
-            display: "grid",
-            gap: 10,
-          }}
-        >
+  const homepageFilterContent = (
+    <section className="ai-section ai-filter-section ai-compass-filter-section">
+      <div className="homepage-filter-bar">
+        <div className="type-caption homepage-filter-heading">Viewing</div>
+        <div className="homepage-filter-grid">
           <MultiSelectFilter
             label="AGE"
             options={ageFilterOptions}
@@ -5235,14 +5232,17 @@ export default function AICompass() {
             onChange={setCountryFilterValue}
             options={countrySingleSelectOptions}
             placeholder="All"
+            variant="filter"
           />
         </div>
-      </section>
+      </div>
+    </section>
+  );
 
-      <section className="ai-section">
-        <div className="homepage-section-heading ai-section-label">
-          All Types
-        </div>
+  const homepageBelowCompassContent = (
+    <>
+      {/* Keep homepage body content here so it appears in both home and results states. */}
+      <section className="ai-section ai-types-section">
         <div className="ai-types-grid">
           {ARCHETYPE_GRID_ORDER.map((key, index) => {
             const val = QUADRANT_INFO[key];
@@ -5283,7 +5283,7 @@ export default function AICompass() {
           })}
         </div>
       </section>
-      <section className="ai-section">
+      <section className="ai-section ai-about-section">
         <div className="homepage-section-heading ai-section-label">ABOUT</div>
         <div className="homepage-copy-body-stack">
           {aboutCopyParagraphs.map((copy) => (
@@ -5291,27 +5291,6 @@ export default function AICompass() {
               {copy}
             </p>
           ))}
-        </div>
-      </section>
-      <section className="ai-section">
-        <div className="homepage-section-heading ai-section-label">
-          DISCLAIMER
-        </div>
-        <div className="homepage-copy-body-stack">
-          <p className="type-body-sm homepage-copy-body">
-            AI Compass is an informal public opinion map, not a scientific
-            survey or a representative study.
-          </p>
-          <p className="type-body-sm homepage-copy-body">
-            Results reflect the people who choose to take the quiz and share
-            their views. They should be read as a snapshot of participant
-            responses, not as a measurement of public opinion at large.
-          </p>
-          <p className="type-body-sm homepage-copy-body">
-            The compass is designed to separate two questions that often get
-            collapsed together: how capable people believe AI will become, and
-            how freely they think it should be developed.
-          </p>
         </div>
       </section>
     </>
@@ -5649,6 +5628,7 @@ export default function AICompass() {
                         />
                       </div>
                     </section>
+                    {!devPerfValves.noHomeBody && homepageFilterContent}
                   </div>
                 </div>
                 {!devPerfValves.noHomeBody && homepageBelowCompassContent}
