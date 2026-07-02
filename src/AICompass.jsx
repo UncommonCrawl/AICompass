@@ -3937,15 +3937,15 @@ function QuizPage({
               "See Results"
             )
           ) : answersLocked ? (
-            `Resubmission opens in ${resubmitCountdown}`
+            `RESUBMISSION OPENS IN ${resubmitCountdown}`
           ) : needsEditToResubmit ? (
             "SELECT 'EDIT ANSWERS' TO RESUBMIT"
           ) : !allAnswered ? (
             <span className="type-label">
-              {`Answer all ${orderedQuestions.length} questions to continue`}
+              {`ANSWER ALL ${orderedQuestions.length} QUESTIONS TO CONTINUE`}
             </span>
           ) : (
-            `Select ${missingDemographicText} to continue`
+            `SELECT ${missingDemographicText} TO CONTINUE`
           )}
         </button>
         {submitError && (
@@ -5169,11 +5169,19 @@ export default function AICompass() {
     return () => clearTimeout(safety);
   }, [screen, submitting]);
 
+  const stanceIntroParagraphs = [
+    "With every passing year, the debate over AI grows both more urgent and more contentious.",
+    "Yet these high-profile debates obscure a sea of individual opinions that have either not been voiced or not been listened to.",
+    "This website serves as a live, interactive visual of public opinion on AI, with the horizontal axis charting approval and the vertical axis charting belief in its capability.",
+    "Everyone deserves to let the world know where they stand.",
+  ];
+
   const aboutCopyParagraphs = [
-    "As large language models (LLMs) become more visible, more contested, and more present in our daily lives, public opinion on AI is no longer captured by a simple divide between optimism and skepticism.",
-    "One can believe AI will be transformative while opposing the way it is being developed; others may doubt its most ambitious promises while still supporting practical adoption.",
-    "The project maps those views across two dimensions: confidence in AI's abilities and approval of AI's direction.",
-    "By separating belief in what AI can do from judgment about what should happen next, AI Compass creates a clearer picture of how individuals, communities, and demographics relate to one of the defining technologies of our time.",
+    "As large language models (LLMs) become more visible, more contested, and more present in daily life, public opinion on AI is no longer captured by a simple divide between optimism and skepticism.",
+    "Someone can believe AI will become enormously powerful while opposing the speed or structure of its development. Someone else can doubt the most ambitious claims about AI while still supporting its practical use in schools, workplaces, medicine, or creative tools.",
+    "The project maps public opinion across two dimensions: confidence in AI's capabilities and approval of AI's current direction. The questions are designed to cover both sides of that divide, from beliefs about reasoning, automation, job displacement, model collapse, and self-improving systems to attitudes toward regulation, licensing, competition, open access, and public risk.",
+    "The optional demographic filters are included for the same reason. Age, country, and industry can meaningfully shape how people experience AI. A student, a software engineer, a teacher, a designer, a retiree, and a policymaker may all be responding to the same technology from very different positions. AI Compass is not a formal survey or scientific poll, but it is intended to make those differences more visible.",
+    "The goal is not to tell people what they should think about AI, but to give them a clearer way to place their own views, compare them with others, and see how belief in AI's potential differs from approval of the path it is currently taking.",
   ];
 
   const homepageFilterContent = (
@@ -5587,14 +5595,13 @@ export default function AICompass() {
                       <aside className="ai-result-hero ai-home-sidebar">
                         <div className="ai-result-identity">
                           <h1 className="ai-result-name">
+                            Show Your Stance on{" "}
                             <span className="ai-result-name-accent">
-                              Show Your Stance
+                              Artificial Intelligence
                             </span>
-                            <br />
-                            on AI
                           </h1>
                           <div className="ai-home-sidebar-copy">
-                            {aboutCopyParagraphs.map((copy) => (
+                            {stanceIntroParagraphs.map((copy) => (
                               <p key={copy} className="type-body-sm">
                                 {copy}
                               </p>
