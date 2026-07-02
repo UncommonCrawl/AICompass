@@ -1,7 +1,6 @@
 import { createHmac, randomUUID } from "node:crypto";
 import { Buffer } from "node:buffer";
 import { deflateSync } from "node:zlib";
-import { readFileSync } from "node:fs";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { onRequest } from "firebase-functions/v2/https";
@@ -37,29 +36,18 @@ const SHARE_TOKEN_Y_BITS = 15;
 const SHARE_TOKEN_Y_MASK_BITS = (1 << SHARE_TOKEN_Y_BITS) - 1;
 const SHARE_IMAGE_WIDTH = 1200;
 const SHARE_IMAGE_HEIGHT = 630;
-const SHARE_IMAGE_INSET_X = 90;
-const SHARE_IMAGE_INSET_Y = 58;
-const SHARE_IMAGE_GRID_WIDTH = 1020;
-const SHARE_IMAGE_GRID_HEIGHT = 420;
+const SHARE_IMAGE_INSET_X = 78;
+const SHARE_IMAGE_INSET_Y = 52;
+const SHARE_IMAGE_GRID_WIDTH = 1044;
+const SHARE_IMAGE_GRID_HEIGHT = 526;
 const SHARE_IMAGE_MARKER_SIZE = 24;
 const SHARE_IMAGE_COLORS = {
-  background: { r: 255, g: 255, b: 255, a: 255 },
-  line: { r: 184, g: 184, b: 184, a: 255 },
-  quadrant: { r: 235, g: 235, b: 235, a: 255 },
-  marker: { r: 0, g: 0, b: 0, a: 255 },
-  text: { r: 0, g: 0, b: 0, a: 255 },
+  background: { r: 0, g: 0, b: 0, a: 255 },
+  line: { r: 235, g: 235, b: 235, a: 255 },
+  quadrant: { r: 47, g: 47, b: 47, a: 255 },
+  marker: { r: 255, g: 255, b: 255, a: 255 },
 };
-const SHARE_TITLE = "Show your stance on AI";
-const SHARE_LABEL_IMAGES = {
-  topRight: readFileSync(
-    new URL("./share-labels/singulatarian.png", import.meta.url),
-  ),
-  topLeft: readFileSync(new URL("./share-labels/sentinel.png", import.meta.url)),
-  bottomRight: readFileSync(
-    new URL("./share-labels/synthesist.png", import.meta.url),
-  ),
-  bottomLeft: readFileSync(new URL("./share-labels/skeptic.png", import.meta.url)),
-};
+const SHARE_TITLE = "Here's my AI stance. Show yours.";
 
 function hashValue(secret, value) {
   return createHmac("sha256", secret).update(value).digest("hex");
@@ -207,7 +195,6 @@ async function createSharePreviewPng(scores) {
   const markerY =
     centerY - Math.max(-1, Math.min(1, scores.y)) * (gridHeight / 2) -
     SHARE_IMAGE_MARKER_SIZE / 2;
-  const labelImage = SHARE_LABEL_IMAGES[quadrant];
 
   fillPngRect(
     pixels,
@@ -299,10 +286,7 @@ async function createSharePreviewPng(scores) {
     createPngChunk("IEND"),
   ]);
 
-  return sharp(basePng)
-    .composite([{ input: labelImage, left: 0, top: 0 }])
-    .png()
-    .toBuffer();
+  return sharp(basePng).png().toBuffer();
 }
 
 function getClientIp(req) {
