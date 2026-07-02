@@ -4994,7 +4994,6 @@ export default function AICompass() {
     ? {}
     : questionAveragesById;
   const showCompassView = screen === "home" || screen === "results";
-  const showHomepageChrome = showCompassView;
   const showResultsStrip = showCompassView && hasCompletedQuiz;
   const handleHeaderLogoClick = useCallback(() => {
     setScreen("home");
@@ -5332,6 +5331,27 @@ export default function AICompass() {
         </div>
       </section>
     </>
+  );
+
+  const publicFooter = (
+    <footer className="ai-public-footer">
+      <p className="type-body-sm ai-public-footer-note">
+        AI Compass is an informal public opinion map, not a scientific survey.
+        Results reflect participants who chose to take the quiz and should be
+        read as a snapshot, not a measurement of public opinion at large.
+      </p>
+      <div className="type-caption ai-public-footer-credit">
+        Created by{" "}
+        <a
+          href="https://www.linkedin.com/in/keithherrmann/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Keith Herrmann
+        </a>{" "}
+        • <a href="mailto:uncommoncrawl@gmail.com">Contact</a>
+      </div>
+    </footer>
   );
 
   return (
@@ -5694,6 +5714,7 @@ export default function AICompass() {
                   </div>
                 </div>
                 {!devPerfValves.noHomeBody && homepageBelowCompassContent}
+                {publicFooter}
               </div>
             </div>
           )}
@@ -5715,29 +5736,8 @@ export default function AICompass() {
               />
             </div>
           )}
+          {screen === "quiz" && publicFooter}
         </div>
-
-        {showHomepageChrome && (
-          <footer className="ai-public-footer">
-            <p className="type-body-sm ai-public-footer-note">
-              AI Compass is an informal public opinion map, not a scientific
-              survey. Results reflect participants who chose to take the quiz
-              and should be read as a snapshot, not a measurement of public
-              opinion at large.
-            </p>
-            <div className="type-caption ai-public-footer-credit">
-              Created by{" "}
-              <a
-                href="https://www.linkedin.com/in/keithherrmann/"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Keith Herrmann
-              </a>{" "}
-              • <a href="mailto:uncommoncrawl@gmail.com">Contact</a>
-            </div>
-          </footer>
-        )}
       </div>
 
       {submitting && (
