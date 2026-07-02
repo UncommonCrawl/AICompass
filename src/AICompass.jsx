@@ -3978,9 +3978,7 @@ export default function AICompass() {
     () => readInitialPersistedResultState(),
     [],
   );
-  const [screen, setScreen] = useState(
-    initialQuizDraft ? "quiz" : initialPersistedResultState.screen,
-  ); // home, quiz, results
+  const [screen, setScreen] = useState("home"); // home, quiz, results
   const [scores, setScores] = useState(initialPersistedResultState.scores);
   const [quizProgress, setQuizProgress] = useState({
     answered: 0,
