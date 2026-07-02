@@ -2355,6 +2355,7 @@ function Compass({
   showAverageMarker = false,
   showResultMarkers = false,
   isLoading = false,
+  animateLoadReveal = true,
   perfValves = DEV_PERF_VALVE_DEFAULTS,
   colorMode = "dark",
 }) {
@@ -2392,7 +2393,10 @@ function Compass({
   const pad = axisLabelGap + axisLabelFontSize + 2;
   const compassFadeStyle = {
     opacity: isLoading ? 0 : 1,
-    animation: isLoading ? "none" : "compassLayerFadeIn 500ms ease 500ms both",
+    animation:
+      isLoading || !animateLoadReveal
+        ? "none"
+        : "compassLayerFadeIn 500ms ease 500ms both",
   };
 
   useEffect(() => {
@@ -4107,6 +4111,7 @@ export default function AICompass() {
   const [hasInitialResultsSnapshot, setHasInitialResultsSnapshot] =
     useState(false);
   const [homeCanvasDrawn, setHomeCanvasDrawn] = useState(false);
+  const [compassLoadRevealArmed, setCompassLoadRevealArmed] = useState(true);
   const [submissionLockRetryAt, setSubmissionLockRetryAt] = useState(0);
   const [lockCountdownNow, setLockCountdownNow] = useState(() => Date.now());
   const lockCountdownText = useMemo(() => {
@@ -5013,6 +5018,13 @@ export default function AICompass() {
   );
   const homeBodyReady = hasInitialResultsSnapshot && homeCanvasDrawn;
   const isCompassLoading = !devPerfValves.noLoadingFade && !homeBodyReady;
+  useEffect(() => {
+    if (!homeBodyReady || !compassLoadRevealArmed) return;
+    const timer = window.setTimeout(() => {
+      setCompassLoadRevealArmed(false);
+    }, 650);
+    return () => window.clearTimeout(timer);
+  }, [homeBodyReady, compassLoadRevealArmed]);
   const effectiveHomeBodyReady = true;
   const toggleDevPerfValve = (key) => {
     setDevPerfValves((prev) => ({
@@ -5358,10 +5370,14 @@ export default function AICompass() {
             </span>
           </button>
           <div className="site-header-actions">
-            {(screen === "home" || showResultsStrip) && (
+            {(screen === "home" || screen === "quiz" || showResultsStrip) && (
               <button
                 className="type-caption compass-action-button site-header-action-button"
                 onClick={() => {
+                  if (screen === "quiz") {
+                    setScreen("home");
+                    return;
+                  }
                   if (hasCompletedQuiz) {
                     handleReviewAnswers();
                     return;
@@ -5380,13 +5396,11 @@ export default function AICompass() {
                 }}
               >
                 <span className="site-header-action-label">
-                  {hasCompletedQuiz ? "YOUR ANSWERS" : "TAKE THE QUIZ"}
-                </span>
-                <span
-                  className="type-caption site-header-action-icon"
-                  aria-hidden="true"
-                >
-                  &rarr;
+                  {screen === "quiz"
+                    ? "VIEW COMPASS"
+                    : hasCompletedQuiz
+                      ? "YOUR ANSWERS"
+                      : "TAKE THE QUIZ"}
                 </span>
               </button>
             )}
@@ -5669,6 +5683,7 @@ export default function AICompass() {
                             showAverageMarker={showCompassView}
                             showResultMarkers={showResultsStrip}
                             isLoading={isCompassLoading}
+                            animateLoadReveal={compassLoadRevealArmed}
                             perfValves={devPerfValves}
                             colorMode={colorMode}
                           />

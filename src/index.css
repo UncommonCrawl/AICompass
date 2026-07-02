@@ -1321,8 +1321,6 @@ h6 {
   --compass-action-padding-inline: 0px;
   flex: 0 0 auto;
   border-radius: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 51px;
   overflow: hidden;
   text-align: left;
 }
@@ -1333,8 +1331,7 @@ h6 {
   --compass-action-border: var(--ai-cta-green);
 }
 
-.site-header-action-label,
-.site-header-action-icon {
+.site-header-action-label {
   min-width: 0;
   min-height: 0;
   height: 100%;
@@ -1348,12 +1345,6 @@ h6 {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: clip;
-}
-
-.site-header-action-icon {
-  justify-content: center;
-  border-left: 1px solid rgba(255, 255, 255, 0.38);
-  font-size: 1rem;
 }
 
 .theme-mode-toggle {
