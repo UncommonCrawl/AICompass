@@ -5236,7 +5236,11 @@ export default function AICompass() {
                   handleArchetypeCardKeyDown(event, key, val.name)
                 }
               >
-                <div className="type-caption ai-type-tag">
+                <div
+                  className={`type-caption ai-type-tag ${
+                    isResultArchetype ? "is-result" : ""
+                  }`}
+                >
                   Type {String(index + 1).padStart(2, "0")}
                   {isResultArchetype ? " / Your Result" : ""}
                 </div>

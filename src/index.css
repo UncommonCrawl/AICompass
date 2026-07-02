@@ -826,7 +826,8 @@ h6 {
   color: var(--ai-muted);
 }
 
-.ai-type-card.is-active .ai-type-tag {
+.ai-type-card.is-active .ai-type-tag,
+.ai-type-tag.is-result {
   color: var(--ai-accent);
 }
 
