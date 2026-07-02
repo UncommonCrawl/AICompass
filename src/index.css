@@ -811,13 +811,12 @@ h6 {
 
 .ai-type-card.is-active {
   background: var(--ai-bg);
-  z-index: 1;
 }
 
 .ai-type-card.is-active::after {
   content: "";
   position: absolute;
-  inset: -1px;
+  inset: 0;
   border: 1px solid var(--ai-accent);
   pointer-events: none;
 }

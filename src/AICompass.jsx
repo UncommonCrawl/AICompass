@@ -5214,10 +5214,9 @@ export default function AICompass() {
           {ARCHETYPE_GRID_ORDER.map((key, index) => {
             const val = QUADRANT_INFO[key];
             const isSelected = selectedArchetype === val.name;
-            const isActive =
-              activeQuadrant === key ||
-              isSelected ||
-              (showResultsStrip && resultArchetypeName === val.name);
+            const isResultArchetype =
+              showResultsStrip && resultArchetypeName === val.name;
+            const isActive = activeQuadrant === key || isSelected;
             return (
               <div
                 key={key}
@@ -5239,9 +5238,7 @@ export default function AICompass() {
               >
                 <div className="type-caption ai-type-tag">
                   Type {String(index + 1).padStart(2, "0")}
-                  {showResultsStrip && resultArchetypeName === val.name
-                    ? " / Your Result"
-                    : ""}
+                  {isResultArchetype ? " / Your Result" : ""}
                 </div>
                 <div className="ai-type-name">{val.name}</div>
                 <div className="type-body-sm ai-type-desc">{val.desc}</div>
