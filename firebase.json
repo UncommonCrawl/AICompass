@@ -16,6 +16,18 @@
       "**/.*",
       "**/node_modules/**"
     ],
+    "redirects": [
+      {
+        "source": "/admin",
+        "destination": "/",
+        "type": 301
+      },
+      {
+        "source": "/admin/",
+        "destination": "/",
+        "type": 301
+      }
+    ],
     "rewrites": [
       {
         "source": "/s/**",

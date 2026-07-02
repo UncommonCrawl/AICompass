@@ -27,6 +27,7 @@ const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || "")
 const RECENT_LIMIT = 50;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const THIRTY_DAY_CUTOFF = Date.now() - 30 * DAY_MS;
+const DASHBOARD_TITLE = "AI Compass Dashboard";
 
 function getAuthErrorMessage(authError) {
   const code = authError?.code || "";
@@ -170,6 +171,33 @@ function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const previousTitle = document.title;
+    let robotsMeta = document.querySelector('meta[name="robots"]');
+    const createdRobotsMeta = !robotsMeta;
+    const previousRobotsContent = robotsMeta?.getAttribute("content");
+
+    if (!robotsMeta) {
+      robotsMeta = document.createElement("meta");
+      robotsMeta.setAttribute("name", "robots");
+      document.head.appendChild(robotsMeta);
+    }
+
+    document.title = DASHBOARD_TITLE;
+    robotsMeta.setAttribute("content", "noindex, nofollow");
+
+    return () => {
+      document.title = previousTitle;
+      if (createdRobotsMeta) {
+        robotsMeta.remove();
+      } else if (previousRobotsContent) {
+        robotsMeta.setAttribute("content", previousRobotsContent);
+      } else {
+        robotsMeta.removeAttribute("content");
+      }
+    };
+  }, []);
 
   useEffect(() => {
     return onAuthStateChanged(auth, (user) => {
@@ -319,8 +347,8 @@ function AdminDashboard() {
   if (!isConfigured) {
     return (
       <main className="admin-page admin-auth-card">
-        <h1>AI Compass Admin</h1>
-        <p>Admin access is not configured for this build.</p>
+        <h1>{DASHBOARD_TITLE}</h1>
+        <p>Dashboard access is not configured for this build.</p>
         <p className="admin-muted">
           Set VITE_ADMIN_EMAILS to a comma-separated list of allowed Google
           account emails.
@@ -340,7 +368,7 @@ function AdminDashboard() {
   if (!authUser) {
     return (
       <main className="admin-page admin-auth-card">
-        <h1>AI Compass Admin</h1>
+        <h1>{DASHBOARD_TITLE}</h1>
         <p>Sign in to view private submission data.</p>
         {error && <div className="admin-error">{error}</div>}
         <button type="button" onClick={handleSignIn} disabled={signingIn}>
@@ -353,7 +381,7 @@ function AdminDashboard() {
   if (!isAuthorized) {
     return (
       <main className="admin-page admin-auth-card">
-        <h1>AI Compass Admin</h1>
+        <h1>{DASHBOARD_TITLE}</h1>
         <p>Not authorized.</p>
         <p className="admin-muted">{authUser.email}</p>
         <button type="button" onClick={() => signOut(auth)}>
@@ -367,7 +395,7 @@ function AdminDashboard() {
     <main className="admin-page">
       <header className="admin-header">
         <div>
-          <h1>AI Compass Admin</h1>
+          <h1>{DASHBOARD_TITLE}</h1>
           <p className="admin-muted">
             Signed in as {authUser.email}
           </p>
