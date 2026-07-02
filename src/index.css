@@ -374,9 +374,6 @@ h6 {
   margin: 0;
   box-sizing: border-box;
   padding: 0 0 48px;
-  border-top: 1px solid var(--ai-border);
-  border-left: 1px solid var(--ai-border);
-  border-right: 1px solid var(--ai-border);
   background: var(--ai-bg);
   display: flex;
   flex: 1 1 auto;
@@ -924,8 +921,6 @@ h6 {
   margin: 0;
   padding: 24px var(--ai-shell-gutter);
   border-top: 1px solid var(--ai-border);
-  border-left: 1px solid var(--ai-border);
-  border-right: 1px solid var(--ai-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1252,8 +1247,7 @@ h6 {
   flex-direction: column;
   justify-content: center;
   gap: 14px;
-  border-left: 1px solid var(--ai-border);
-  border-right: 1px solid var(--ai-border);
+  border-bottom: 1px solid var(--ai-border);
   background: var(--ai-bg);
   margin: 0;
 }
