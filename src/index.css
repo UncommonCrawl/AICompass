@@ -47,7 +47,7 @@
 }
 
 .ai-compass-public {
-  --ai-shell-width: min(1180px, calc(100vw - 40px));
+  --ai-shell-width: 100%;
   --ai-shell-gutter: clamp(24px, 4vw, 48px);
   --ai-cta-green: #007f5f;
   --ai-bg: #0a0a0a;
@@ -75,7 +75,8 @@
   --tab-radius: 0;
   --radius-base: 0;
   --compass-dot-faded: #2f2f2f;
-  min-height: 100vh;
+  height: 100svh;
+  min-height: 100svh;
   position: relative;
   background: var(--ai-bg);
   color: var(--ai-text);
@@ -370,18 +371,22 @@ h6 {
 
 .ai-public-content {
   width: var(--ai-shell-width);
-  margin: 0 auto;
+  margin: 0;
   box-sizing: border-box;
   padding: 0 0 48px;
   border-top: 1px solid var(--ai-border);
   border-left: 1px solid var(--ai-border);
   border-right: 1px solid var(--ai-border);
   background: var(--ai-bg);
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
 }
 
 .ai-public-content-inner {
   width: 100%;
   margin: 0 auto;
+  min-height: 0;
 }
 
 .ai-section {
@@ -648,6 +653,14 @@ h6 {
   margin: 32px 60px;
 }
 
+.ai-compass-plot {
+  position: relative;
+  width: 100%;
+  min-height: 0;
+  height: calc((100vw - 96px) * 0.58);
+  margin: 0 auto;
+}
+
 .ai-compass-section {
   padding-top: 32px;
   padding-bottom: 0;
@@ -908,7 +921,7 @@ h6 {
 
 .ai-public-footer {
   width: var(--ai-shell-width);
-  margin: 0 auto;
+  margin: 0;
   padding: 24px var(--ai-shell-gutter);
   border-top: 1px solid var(--ai-border);
   border-left: 1px solid var(--ai-border);
@@ -944,6 +957,67 @@ h6 {
 .ai-quiz-shell textarea,
 .ai-quiz-shell button {
   font-family: inherit;
+}
+
+@media (min-width: 981px) {
+  .ai-compass-content-flow {
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex: 0 0 100%;
+    flex-direction: column;
+  }
+
+  .ai-compass-module-shell {
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex: 0 0 100%;
+    flex-direction: column;
+  }
+
+  .ai-public-content.has-compass-module {
+    height: 100%;
+    min-height: 0;
+    padding-bottom: 0;
+  }
+
+  .ai-public-content-inner:not(.ai-quiz-shell) {
+    height: 100%;
+    display: flex;
+    flex: 0 0 100%;
+    flex-direction: column;
+  }
+
+  .ai-results-layout {
+    flex: 1 1 auto;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .ai-results-compass-column {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .ai-results-layout .ai-compass-section {
+    min-height: 0;
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+  }
+
+  .ai-results-layout .ai-compass-frame {
+    min-height: 0;
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+  }
+
+  .ai-results-layout .ai-compass-plot {
+    height: 100%;
+  }
 }
 
 @media (max-width: 1280px) {
@@ -1164,6 +1238,8 @@ h6 {
 
 .site-header {
   width: var(--ai-shell-width);
+  position: sticky;
+  top: 0;
   flex: 0 0 auto;
   z-index: 20;
   box-sizing: border-box;
@@ -1176,7 +1252,7 @@ h6 {
   border-left: 1px solid var(--ai-border);
   border-right: 1px solid var(--ai-border);
   background: var(--ai-bg);
-  margin: 0 auto;
+  margin: 0;
 }
 
 .site-header-main {

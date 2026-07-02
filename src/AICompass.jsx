@@ -2363,7 +2363,6 @@ function Compass({
   const xAxisLetterSpacingEm = 0.1;
   const yAxisLetterSpacingEm = 0.02;
   const pad = axisLabelGap + axisLabelFontSize + 2;
-  const compassHeight = "clamp(300px, calc((100vw - 96px) * 0.58), 560px)";
   const compassFadeStyle = {
     opacity: isLoading ? 0 : 1,
     animation: isLoading ? "none" : "compassLayerFadeIn 500ms ease 500ms both",
@@ -2864,14 +2863,11 @@ function Compass({
 
   return (
     <div
+      className="ai-compass-plot"
       ref={plotRef}
       onMouseMove={handlePlotMouseMove}
       onMouseLeave={handlePlotMouseLeave}
       style={{
-        position: "relative",
-        width: "100%",
-        height: compassHeight,
-        margin: "0 auto",
         cursor: !isLoading && hoveredPoint?.enabled ? "pointer" : "default",
       }}
     >
@@ -5306,7 +5302,7 @@ export default function AICompass() {
       }`}
       style={{
         position: "relative",
-        minHeight: "100vh",
+        minHeight: "100svh",
         display: "flex",
         flexDirection: "column",
         WebkitOverflowScrolling: "touch",
@@ -5500,152 +5496,159 @@ export default function AICompass() {
       </div>
 
       <div className="ai-page-shell">
-        <div className="ai-public-content">
+        <div
+          className={`ai-public-content ${
+            showCompassView ? "has-compass-module" : ""
+          }`}
+        >
           {/* Home + Results Screen */}
           {showCompassView && (
             <div className="ai-public-content-inner">
               <div
+                className="ai-compass-content-flow"
                 style={{
                   pointerEvents: effectiveHomeBodyReady ? "auto" : "none",
                 }}
               >
-                <div className="ai-results-layout">
-                  {showResultsStrip ? (
-                    <section className="ai-result-hero">
-                      <div className="ai-result-identity">
-                        <div className="type-caption ai-result-eyebrow">
-                          You are
-                        </div>
-                        <h1 className="ai-result-name">
-                          The
-                          <br />
-                          <span className="ai-result-name-accent">
-                            {resultArchetypeDisplayName}
-                          </span>
-                        </h1>
-                        <p className="ai-result-desc">{resultArchetypeDesc}</p>
-                      </div>
-                      <div className="ai-result-rail">
-                        <div className="ai-stats-row">
-                          <div className="ai-stat">
-                            <div className="type-caption ai-stat-label">
-                              Advancement
-                            </div>
-                            <div
-                              className={`ai-stat-value ${
-                                resultScores?.x >= 0
-                                  ? "is-positive"
-                                  : "is-negative"
-                              }`}
-                            >
-                              {resultAdvancementValue}
-                            </div>
+                <div className="ai-compass-module-shell">
+                  <div className="ai-results-layout">
+                    {showResultsStrip ? (
+                      <section className="ai-result-hero">
+                        <div className="ai-result-identity">
+                          <div className="type-caption ai-result-eyebrow">
+                            You are
                           </div>
-                          <div className="ai-stat">
-                            <div className="type-caption ai-stat-label">
-                              LLM Belief
-                            </div>
-                            <div
-                              className={`ai-stat-value ${
-                                resultScores?.y >= 0
-                                  ? "is-positive"
-                                  : "is-negative"
-                              }`}
-                            >
-                              {resultBeliefValue}
-                            </div>
-                          </div>
+                          <h1 className="ai-result-name">
+                            The
+                            <br />
+                            <span className="ai-result-name-accent">
+                              {resultArchetypeDisplayName}
+                            </span>
+                          </h1>
+                          <p className="ai-result-desc">{resultArchetypeDesc}</p>
                         </div>
-                        {resultShareUrl && (
-                          <section className="ai-result-share">
-                            <div className="type-caption">
-                              Share your stance
-                            </div>
-                            <div className="result-share-link">
-                              <input
-                                id="result-share-link"
-                                className="type-body-sm result-share-link-input"
-                                readOnly
-                                aria-label="Share URL"
-                                value={resultShareUrl}
-                                onClick={(event) => {
-                                  event.currentTarget.select();
-                                  copyShareLink();
-                                }}
-                                onFocus={(event) => {
-                                  event.currentTarget.select();
-                                }}
-                              />
+                        <div className="ai-result-rail">
+                          <div className="ai-stats-row">
+                            <div className="ai-stat">
+                              <div className="type-caption ai-stat-label">
+                                Advancement
+                              </div>
                               <div
-                                className="type-caption result-share-link-status"
-                                aria-live="polite"
+                                className={`ai-stat-value ${
+                                  resultScores?.x >= 0
+                                    ? "is-positive"
+                                    : "is-negative"
+                                }`}
                               >
-                                {shareLinkCopied ? "Copied" : ""}
+                                {resultAdvancementValue}
                               </div>
                             </div>
-                          </section>
-                        )}
-                      </div>
-                    </section>
-                  ) : (
-                    <aside className="ai-result-hero ai-home-sidebar">
-                      <div className="ai-result-identity">
-                        <h1 className="ai-result-name">
-                          <span className="ai-result-name-accent">
-                            Show Your Stance
-                          </span>
-                          <br />
-                          on AI
-                        </h1>
-                        <div className="ai-home-sidebar-copy">
-                          {aboutCopyParagraphs.map((copy) => (
-                            <p key={copy} className="type-body-sm">
-                              {copy}
-                            </p>
-                          ))}
+                            <div className="ai-stat">
+                              <div className="type-caption ai-stat-label">
+                                LLM Belief
+                              </div>
+                              <div
+                                className={`ai-stat-value ${
+                                  resultScores?.y >= 0
+                                    ? "is-positive"
+                                    : "is-negative"
+                                }`}
+                              >
+                                {resultBeliefValue}
+                              </div>
+                            </div>
+                          </div>
+                          {resultShareUrl && (
+                            <section className="ai-result-share">
+                              <div className="type-caption">
+                                Share your stance
+                              </div>
+                              <div className="result-share-link">
+                                <input
+                                  id="result-share-link"
+                                  className="type-body-sm result-share-link-input"
+                                  readOnly
+                                  aria-label="Share URL"
+                                  value={resultShareUrl}
+                                  onClick={(event) => {
+                                    event.currentTarget.select();
+                                    copyShareLink();
+                                  }}
+                                  onFocus={(event) => {
+                                    event.currentTarget.select();
+                                  }}
+                                />
+                                <div
+                                  className="type-caption result-share-link-status"
+                                  aria-live="polite"
+                                >
+                                  {shareLinkCopied ? "Copied" : ""}
+                                </div>
+                              </div>
+                            </section>
+                          )}
                         </div>
-                      </div>
-                    </aside>
-                  )}
-                  <div className="ai-results-compass-column">
-                    {(lockCountdownText ||
-                      (showFirestoreError && firestoreError)) && (
-                      <div
-                        className="type-body-sm app-error-message"
-                        style={{
-                          "--app-error-margin": "0 auto 12px",
-                        }}
-                      >
-                        {lockCountdownText
-                          ? `Resubmission opens in ${lockCountdownText}.`
-                          : firestoreError}
-                      </div>
+                      </section>
+                    ) : (
+                      <aside className="ai-result-hero ai-home-sidebar">
+                        <div className="ai-result-identity">
+                          <h1 className="ai-result-name">
+                            <span className="ai-result-name-accent">
+                              Show Your Stance
+                            </span>
+                            <br />
+                            on AI
+                          </h1>
+                          <div className="ai-home-sidebar-copy">
+                            {aboutCopyParagraphs.map((copy) => (
+                              <p key={copy} className="type-body-sm">
+                                {copy}
+                              </p>
+                            ))}
+                          </div>
+                        </div>
+                      </aside>
                     )}
-                    <section className="ai-section ai-compass-section">
-                      <div className="homepage-section-heading ai-section-label">
-                        USER RESPONSES
-                      </div>
-                      <div className="ai-compass-frame">
-                        <Compass
-                          results={effectiveVisibleResults}
-                          archivePoints={effectiveArchivePoints}
-                          userResult={userResult}
-                          activeQuadrant={activeQuadrant}
-                          selectedArchetype={selectedArchetype}
-                          disabledAges={disabledAges}
-                          disabledCountries={disabledCountries}
-                          disabledIndustries={disabledIndustries}
-                          onCanvasDraw={handleHomeCanvasDraw}
-                          dotCountSummary={dotCountSummary}
-                          showAverageMarker={showCompassView}
-                          showResultMarkers={showResultsStrip}
-                          isLoading={isCompassLoading}
-                          perfValves={devPerfValves}
-                          colorMode={colorMode}
-                        />
-                      </div>
-                    </section>
-                    {!devPerfValves.noHomeBody && homepageFilterContent}
+                    <div className="ai-results-compass-column">
+                      {(lockCountdownText ||
+                        (showFirestoreError && firestoreError)) && (
+                        <div
+                          className="type-body-sm app-error-message"
+                          style={{
+                            "--app-error-margin": "0 auto 12px",
+                          }}
+                        >
+                          {lockCountdownText
+                            ? `Resubmission opens in ${lockCountdownText}.`
+                            : firestoreError}
+                        </div>
+                      )}
+                      <section className="ai-section ai-compass-section">
+                        <div className="homepage-section-heading ai-section-label">
+                          USER RESPONSES
+                        </div>
+                        <div className="ai-compass-frame">
+                          <Compass
+                            results={effectiveVisibleResults}
+                            archivePoints={effectiveArchivePoints}
+                            userResult={userResult}
+                            activeQuadrant={activeQuadrant}
+                            selectedArchetype={selectedArchetype}
+                            disabledAges={disabledAges}
+                            disabledCountries={disabledCountries}
+                            disabledIndustries={disabledIndustries}
+                            onCanvasDraw={handleHomeCanvasDraw}
+                            dotCountSummary={dotCountSummary}
+                            showAverageMarker={showCompassView}
+                            showResultMarkers={showResultsStrip}
+                            isLoading={isCompassLoading}
+                            perfValves={devPerfValves}
+                            colorMode={colorMode}
+                          />
+                        </div>
+                      </section>
+                      {!devPerfValves.noHomeBody && homepageFilterContent}
+                    </div>
                   </div>
                 </div>
                 {!devPerfValves.noHomeBody && homepageBelowCompassContent}
