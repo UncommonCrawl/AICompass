@@ -4920,8 +4920,11 @@ export default function AICompass() {
   const effectiveQuestionAveragesById = devPerfValves.noFirestore
     ? {}
     : questionAveragesById;
+  const isQuizScreen = screen === "quiz";
+  const shouldMountCompassView =
+    screen === "home" || screen === "results" || isQuizScreen;
   const showCompassView = screen === "home" || screen === "results";
-  const showResultsStrip = showCompassView && hasCompletedQuiz;
+  const showResultsStrip = shouldMountCompassView && hasCompletedQuiz;
   const handleHeaderLogoClick = useCallback(() => {
     setScreen("home");
   }, []);
@@ -5496,16 +5499,21 @@ export default function AICompass() {
       <div className="ai-page-shell">
         <div
           className={`ai-public-content ${
-            showCompassView ? "has-compass-module" : ""
-          }`}
+            shouldMountCompassView ? "has-compass-module" : ""
+          } ${isQuizScreen ? "is-quiz-overlay-active" : ""}`}
         >
           {/* Home + Results Screen */}
-          {showCompassView && (
-            <div className="ai-public-content-inner">
+          {shouldMountCompassView && (
+            <div
+              className="ai-public-content-inner ai-compass-underlay"
+              aria-hidden={isQuizScreen ? "true" : undefined}
+              inert={isQuizScreen ? "" : undefined}
+            >
               <div
                 className="ai-compass-content-flow"
                 style={{
-                  pointerEvents: effectiveHomeBodyReady ? "auto" : "none",
+                  pointerEvents:
+                    !isQuizScreen && effectiveHomeBodyReady ? "auto" : "none",
                 }}
               >
                 <div className="ai-compass-module-shell">
@@ -5658,24 +5666,26 @@ export default function AICompass() {
           )}
 
           {/* Quiz Screen */}
-          {screen === "quiz" && (
-            <div className="ai-public-content-inner ai-quiz-shell">
-              <QuizPage
-                onComplete={handleQuizComplete}
-                onProgressChange={setQuizProgress}
-                initialSubmission={latestLocalSubmission}
-                initialDraft={quizDraft}
-                onDraftChange={handleQuizDraftChange}
-                editAnswersEnabled={quizEditAnswersEnabled}
-                editAnswersUnlocked={quizEditAnswersUnlocked}
-                resetAnswersRequest={quizResetAnswersRequest}
-                questionAveragesById={effectiveQuestionAveragesById}
-                submitError={submitError}
-                colorMode={colorMode}
-              />
+          {isQuizScreen && (
+            <div className="ai-quiz-overlay">
+              <div className="ai-public-content-inner ai-quiz-shell">
+                <QuizPage
+                  onComplete={handleQuizComplete}
+                  onProgressChange={setQuizProgress}
+                  initialSubmission={latestLocalSubmission}
+                  initialDraft={quizDraft}
+                  onDraftChange={handleQuizDraftChange}
+                  editAnswersEnabled={quizEditAnswersEnabled}
+                  editAnswersUnlocked={quizEditAnswersUnlocked}
+                  resetAnswersRequest={quizResetAnswersRequest}
+                  questionAveragesById={effectiveQuestionAveragesById}
+                  submitError={submitError}
+                  colorMode={colorMode}
+                />
+              </div>
+              {publicFooter}
             </div>
           )}
-          {screen === "quiz" && publicFooter}
         </div>
       </div>
 

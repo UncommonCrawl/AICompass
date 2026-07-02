@@ -380,10 +380,33 @@ h6 {
   flex-direction: column;
 }
 
+.ai-public-content.is-quiz-overlay-active {
+  position: relative;
+  padding-bottom: 0;
+}
+
 .ai-public-content-inner {
   width: 100%;
   margin: 0 auto;
   min-height: 0;
+}
+
+.ai-public-content.is-quiz-overlay-active .ai-compass-underlay {
+  visibility: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+
+.ai-quiz-overlay {
+  width: 100%;
+  background: var(--ai-bg);
+}
+
+.ai-public-content.is-quiz-overlay-active .ai-quiz-overlay {
+  position: absolute;
+  inset: 0 auto auto 0;
+  z-index: 2;
+  min-height: 100%;
 }
 
 .ai-section {
