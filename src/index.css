@@ -678,6 +678,7 @@ h6 {
   width: 100%;
   min-height: 0;
   height: calc((100vw - 96px) * 0.58);
+  aspect-ratio: 960 / 520;
   margin: 0 auto;
 }
 
@@ -1034,7 +1035,7 @@ h6 {
   }
 
   .ai-results-layout .ai-compass-plot {
-    height: 100%;
+    height: auto;
   }
 }
 
