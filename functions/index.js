@@ -47,7 +47,7 @@ const SHARE_IMAGE_COLORS = {
   quadrant: { r: 47, g: 47, b: 47, a: 255 },
   marker: { r: 255, g: 255, b: 255, a: 255 },
 };
-const SHARE_TITLE = "Here's my AI stance. Show yours.";
+const SHARE_TITLE = "Here's my stance on AI. What's yours?";
 
 function hashValue(secret, value) {
   return createHmac("sha256", secret).update(value).digest("hex");
