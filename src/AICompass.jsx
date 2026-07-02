@@ -163,6 +163,7 @@ const RESPONSE_SLIDER_TRACK_SIZE_PX = 6;
 const RESPONSE_SLIDER_THUMB_SIZE_PX = 18;
 const RESPONSE_SLIDER_THUMB_RADIUS_PX = RESPONSE_SLIDER_THUMB_SIZE_PX / 2;
 const RESPONSE_SLIDER_LABEL_MARGIN_PX = 4;
+const RESPONSE_SLIDER_YOU_LABEL_OFFSET_PX = 1;
 
 const QUESTION_SCHEMA = QUESTIONS.map((question) => ({
   id: question.id,
@@ -367,10 +368,12 @@ const DROPDOWN_MENU_MAX_HEIGHT = 200;
 const INTERACTIVE_DOT_LIMIT = 1000;
 const FIRESTORE_IN_FILTER_LIMIT = 30;
 const DOT_COUNT_LABEL_MIN_GAP_PX = 20;
-const COMPASS_DOT_COLOR = "#f5f5f2";
+const COMPASS_DOT_COLOR = "#dcdcdc";
 const COMPASS_DOT_FADED_COLOR = "#2f2f2f";
 const LIGHT_MODE_COMPASS_DOT_COLOR = "#0a0a0a";
 const LIGHT_MODE_COMPASS_DOT_FADED_COLOR = "#d6d6d0";
+const LOCKED_SLIDER_ICON_COLOR = "#dcdcdc";
+const LIGHT_MODE_LOCKED_SLIDER_ICON_COLOR = "#151515";
 const COMPASS_SELECTED_RING_COLOR = "var(--ai-accent)";
 const DEFAULT_USER_DOT_COLOR = "#00e5a0";
 const LIGHT_MODE_USER_DOT_COLOR = "#007f5f";
@@ -1554,78 +1557,6 @@ function clampLabelText(value, maxChars) {
   const trimmed = value.trim();
   if (trimmed.length <= maxChars) return trimmed;
   return trimmed.slice(0, maxChars);
-}
-
-function resolveCssColorVar(name, fallback) {
-  if (typeof window === "undefined" || typeof document === "undefined") {
-    return fallback;
-  }
-  const value = window
-    .getComputedStyle(document.documentElement)
-    .getPropertyValue(name)
-    .trim();
-  return value || fallback;
-}
-
-function parseColorToRgb(color) {
-  if (typeof color !== "string") return null;
-  const raw = color.trim();
-  const shortHex = raw.match(/^#([0-9a-f]{3})$/i);
-  if (shortHex) {
-    const [r, g, b] = shortHex[1].split("").map((c) => parseInt(c + c, 16));
-    return { r, g, b };
-  }
-  const longHex = raw.match(/^#([0-9a-f]{6})$/i);
-  if (longHex) {
-    return {
-      r: parseInt(longHex[1].slice(0, 2), 16),
-      g: parseInt(longHex[1].slice(2, 4), 16),
-      b: parseInt(longHex[1].slice(4, 6), 16),
-    };
-  }
-  const rgb = raw.match(
-    /^rgba?\(\s*([0-9]+(?:\.[0-9]+)?)\s*,\s*([0-9]+(?:\.[0-9]+)?)\s*,\s*([0-9]+(?:\.[0-9]+)?)/i,
-  );
-  if (!rgb) return null;
-  return {
-    r: Math.max(0, Math.min(255, Number(rgb[1]))),
-    g: Math.max(0, Math.min(255, Number(rgb[2]))),
-    b: Math.max(0, Math.min(255, Number(rgb[3]))),
-  };
-}
-
-function createFadedUserDotColor(baseColor) {
-  const rgb = parseColorToRgb(baseColor);
-  if (!rgb) return "rgba(139, 209, 165, 1)";
-  const mixRatioWithWhite = 0.5;
-  const alpha = 1;
-  const r = Math.round(
-    rgb.r * (1 - mixRatioWithWhite) + 255 * mixRatioWithWhite,
-  );
-  const g = Math.round(
-    rgb.g * (1 - mixRatioWithWhite) + 255 * mixRatioWithWhite,
-  );
-  const b = Math.round(
-    rgb.b * (1 - mixRatioWithWhite) + 255 * mixRatioWithWhite,
-  );
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-function createWhitenedGreenFromColor(baseColor) {
-  const rgb = parseColorToRgb(baseColor);
-  if (!rgb) return "rgba(174, 223, 191, 1)";
-  const mixRatioWithWhite = 0.28;
-  const alpha = 1;
-  const r = Math.round(
-    rgb.r * (1 - mixRatioWithWhite) + 255 * mixRatioWithWhite,
-  );
-  const g = Math.round(
-    rgb.g * (1 - mixRatioWithWhite) + 255 * mixRatioWithWhite,
-  );
-  const b = Math.round(
-    rgb.b * (1 - mixRatioWithWhite) + 255 * mixRatioWithWhite,
-  );
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 function readInitialPersistedResultState() {
@@ -3296,6 +3227,7 @@ function QuizPage({
   resetAnswersRequest = 0,
   questionAveragesById = {},
   submitError = "",
+  colorMode = "dark",
 }) {
   const orderedQuestions = QUESTIONS;
   const initialFormState = useMemo(
@@ -3441,14 +3373,10 @@ function QuizPage({
     boxSizing: "border-box",
   };
   const lockedFieldTextColor = inputsLocked ? GRAY : "var(--color-ink)";
-  const userDotColor = useMemo(
-    () => resolveCssColorVar("--user-button", DEFAULT_USER_DOT_COLOR),
-    [],
-  );
-  const labelSliderIconColor = useMemo(
-    () => createWhitenedGreenFromColor(createFadedUserDotColor(userDotColor)),
-    [userDotColor],
-  );
+  const labelSliderIconColor =
+    colorMode === "light"
+      ? LIGHT_MODE_LOCKED_SLIDER_ICON_COLOR
+      : LOCKED_SLIDER_ICON_COLOR;
   const fieldLabelStyle = {
     color: "var(--color-ink)",
     display: "flex",
@@ -3705,6 +3633,7 @@ function QuizPage({
           ),
         );
         const sliderThumbCenterLeft = `calc(${RESPONSE_SLIDER_THUMB_SIZE_PX / 2}px + (${sliderThumbPercent} * (100% - ${RESPONSE_SLIDER_THUMB_SIZE_PX}px) / 100))`;
+        const sliderYouLabelLeft = `calc(${sliderThumbCenterLeft} + ${RESPONSE_SLIDER_YOU_LABEL_OFFSET_PX}px)`;
         const hasAnsweredValue = answerValue !== undefined;
         const showSliderYouLabel = isLabelSlidersState && hasAnsweredValue;
         const avgValue = Number(questionAveragesById[q.id]);
@@ -3780,7 +3709,7 @@ function QuizPage({
                     className={`type-caption-small response-slider-user-label ${
                       showSliderYouLabel ? "is-visible" : ""
                     }`}
-                    style={{ left: sliderThumbCenterLeft }}
+                    style={{ left: sliderYouLabelLeft }}
                   >
                     YOU
                   </span>
@@ -5101,63 +5030,64 @@ export default function AICompass() {
       </button>
     </div>
   ) : null;
-  const devControlsStrip = import.meta.env.DEV && devControlsOpen ? (
-    <div className="dev-controls-strip" id="dev-controls-strip">
-      <div className="dev-controls-inner">
-        {devPerfValvePanel}
-        {!devPerfValves.noDevControls && (
-          <div className="dev-controls-row">
-            <button
-              className="type-body-sm dev-control-button"
-              onClick={handleDevShortcutSubmit}
-            >
-              Dev shortcut: random dot
-            </button>
-            <button
-              className="type-body-sm dev-control-button"
-              onClick={handleClearDevDots}
-              disabled={clearingDevDots}
-            >
-              {clearingDevDots ? "Clearing dev dots..." : "Reset dev dots"}
-            </button>
-            <button
-              className="type-body-sm dev-control-button"
-              onClick={() => setDevDotDisplayEnabled((prev) => !prev)}
-            >
-              Dev dots: {devDotDisplayEnabled ? "Shown" : "Hidden"}
-            </button>
-            <button
-              className="type-body-sm dev-control-button"
-              onClick={() => setDevDotCountEnabled((prev) => !prev)}
-            >
-              Dev dot count: {devDotCountEnabled ? "Included" : "Excluded"}
-            </button>
-            <button
-              className="type-body-sm dev-control-button"
-              onClick={handleToggleDevResultPersistence}
-            >
-              Result persistence + dummy user:{" "}
-              {devResultPersistenceEnabled ? "On" : "Off"}
-            </button>
-            <button
-              className="type-body-sm dev-control-button"
-              onClick={handleToggleDummyRetakable}
-              disabled={!devResultPersistenceEnabled}
-            >
-              Dummy user + retakable quiz:{" "}
-              {devRetakableDummyEnabled ? "On" : "Off"}
-            </button>
-            <button
-              className="type-body-sm dev-control-button"
-              onClick={handleShowDevErrors}
-            >
-              SHOW ERRORS
-            </button>
-          </div>
-        )}
+  const devControlsStrip =
+    import.meta.env.DEV && devControlsOpen ? (
+      <div className="dev-controls-strip" id="dev-controls-strip">
+        <div className="dev-controls-inner">
+          {devPerfValvePanel}
+          {!devPerfValves.noDevControls && (
+            <div className="dev-controls-row">
+              <button
+                className="type-body-sm dev-control-button"
+                onClick={handleDevShortcutSubmit}
+              >
+                Dev shortcut: random dot
+              </button>
+              <button
+                className="type-body-sm dev-control-button"
+                onClick={handleClearDevDots}
+                disabled={clearingDevDots}
+              >
+                {clearingDevDots ? "Clearing dev dots..." : "Reset dev dots"}
+              </button>
+              <button
+                className="type-body-sm dev-control-button"
+                onClick={() => setDevDotDisplayEnabled((prev) => !prev)}
+              >
+                Dev dots: {devDotDisplayEnabled ? "Shown" : "Hidden"}
+              </button>
+              <button
+                className="type-body-sm dev-control-button"
+                onClick={() => setDevDotCountEnabled((prev) => !prev)}
+              >
+                Dev dot count: {devDotCountEnabled ? "Included" : "Excluded"}
+              </button>
+              <button
+                className="type-body-sm dev-control-button"
+                onClick={handleToggleDevResultPersistence}
+              >
+                Result persistence + dummy user:{" "}
+                {devResultPersistenceEnabled ? "On" : "Off"}
+              </button>
+              <button
+                className="type-body-sm dev-control-button"
+                onClick={handleToggleDummyRetakable}
+                disabled={!devResultPersistenceEnabled}
+              >
+                Dummy user + retakable quiz:{" "}
+                {devRetakableDummyEnabled ? "On" : "Off"}
+              </button>
+              <button
+                className="type-body-sm dev-control-button"
+                onClick={handleShowDevErrors}
+              >
+                SHOW ERRORS
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  ) : null;
+    ) : null;
   const devControlsToggle = import.meta.env.DEV ? (
     <button
       type="button"
@@ -5586,7 +5516,9 @@ export default function AICompass() {
                               {resultArchetypeDisplayName}
                             </span>
                           </h1>
-                          <p className="ai-result-desc">{resultArchetypeDesc}</p>
+                          <p className="ai-result-desc">
+                            {resultArchetypeDesc}
+                          </p>
                         </div>
                         <div className="ai-result-rail">
                           <div className="ai-stats-row">
@@ -5733,6 +5665,7 @@ export default function AICompass() {
                 resetAnswersRequest={quizResetAnswersRequest}
                 questionAveragesById={effectiveQuestionAveragesById}
                 submitError={submitError}
+                colorMode={colorMode}
               />
             </div>
           )}
