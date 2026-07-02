@@ -731,11 +731,12 @@ const TAB_STYLE_VARS = {
 const tabBorder = (color = TAB_STYLE_VARS.borderColor) =>
   `var(--tab-border-width) var(--tab-border-style) ${color}`;
 
-const FILTER_PREVIEW_CHAR_LIMIT = 16;
+const FILTER_PREVIEW_FULL_CHAR_LIMIT = 9;
+const FILTER_PREVIEW_TRUNCATED_CHAR_LIMIT = 6;
 
 function truncateFilterPreviewLabel(label) {
-  if (label.length <= FILTER_PREVIEW_CHAR_LIMIT) return label;
-  return `${label.slice(0, FILTER_PREVIEW_CHAR_LIMIT).trimEnd()}...`;
+  if (label.length <= FILTER_PREVIEW_FULL_CHAR_LIMIT) return label;
+  return `${label.slice(0, FILTER_PREVIEW_TRUNCATED_CHAR_LIMIT).trimEnd()}...`;
 }
 
 const ARCHETYPE_GRID_ORDER = [
@@ -1939,7 +1940,9 @@ function MultiSelectFilter({
       ? "All"
       : enabledCount === 0
         ? "N/A"
-        : enabledOptions.map((option) => option.label).join(", ");
+        : enabledCount === 1
+          ? enabledOptions[0].label
+          : "MULTIPLE";
   const previewLabel = truncateFilterPreviewLabel(rawPreviewLabel);
   const allEnabled = enabledCount === options.length;
   const selectedGlyph = "✓";
