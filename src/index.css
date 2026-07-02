@@ -1237,6 +1237,9 @@ h6 {
 }
 
 .site-header {
+  --site-header-action-size: 60px;
+  --site-header-theme-moon-color: #2f2f2f;
+  --site-header-theme-sun-color: #f5f5f2;
   width: var(--ai-shell-width);
   position: sticky;
   top: 0;
@@ -1314,7 +1317,7 @@ h6 {
   --compass-action-color: #ffffff;
   --compass-action-border: var(--ai-cta-green);
   --compass-action-width: 189px;
-  --compass-action-height: 60px;
+  --compass-action-height: var(--site-header-action-size);
   --compass-action-padding-inline: 0px;
   flex: 0 0 auto;
   border-radius: 0;
@@ -1354,8 +1357,9 @@ h6 {
 }
 
 .theme-mode-toggle {
-  width: 39px;
-  height: 39px;
+  box-sizing: border-box;
+  width: var(--site-header-action-size);
+  height: var(--site-header-action-size);
   padding: 0;
   border: 1px solid var(--ai-border);
   background: transparent;
@@ -1364,6 +1368,29 @@ h6 {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+}
+
+.theme-mode-toggle-icon {
+  width: 22px;
+  height: 22px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.35;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.theme-mode-toggle-icon-moon {
+  color: var(--site-header-theme-moon-color);
+}
+
+.theme-mode-toggle-icon-sun {
+  color: var(--site-header-theme-sun-color);
+}
+
+.theme-mode-toggle-icon circle {
+  fill: none;
 }
 
 .theme-mode-toggle:hover {

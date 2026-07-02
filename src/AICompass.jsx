@@ -390,6 +390,33 @@ const SHARE_TOKEN_Y_MASK = 0x36d7;
 const SHARE_TOKEN_Y_BITS = 15n;
 const SHARE_TOKEN_Y_MASK_BITS = (1n << SHARE_TOKEN_Y_BITS) - 1n;
 
+function MoonIcon() {
+  return (
+    <svg
+      className="theme-mode-toggle-icon theme-mode-toggle-icon-moon"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M20.2 15.3A8.4 8.4 0 0 1 8.7 3.8 8.9 8.9 0 1 0 20.2 15.3Z" />
+    </svg>
+  );
+}
+
+function SunIcon() {
+  return (
+    <svg
+      className="theme-mode-toggle-icon theme-mode-toggle-icon-sun"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2.8v2.4M12 18.8v2.4M21.2 12h-2.4M5.2 12H2.8M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7M18.5 18.5l-1.7-1.7M7.2 7.2 5.5 5.5" />
+    </svg>
+  );
+}
+
 const DEV_WEIGHT_TARGET_TOTAL = 100;
 const DEV_DEFAULT_STD_DEV = 0.4;
 const DEV_IT_SOFTWARE_CLUSTER = { x: -0.05, y: 0.12, stdDev: 0.7 };
@@ -5378,7 +5405,7 @@ export default function AICompass() {
                 )
               }
             >
-              ☾
+              {colorMode === "light" ? <MoonIcon /> : <SunIcon />}
             </button>
           </div>
         </div>
