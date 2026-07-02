@@ -5311,89 +5311,90 @@ export default function AICompass() {
     >
       {devControlsToggle}
       {devControlsStrip}
-      {/* Header */}
-      <div className="site-header">
-        <div className="site-header-main">
-          <button
-            className="site-header-logo"
-            onClick={handleHeaderLogoClick}
-            aria-label="AI Compass"
-          >
-            <span className="site-header-wordmark">
-              <span className="site-header-title">
-                <span className="site-header-title-accent">The</span>
-                <span>AI Compass</span>
-              </span>
-              <span className="type-caption site-header-subtitle">
-                SHOW YOUR STANCE ON ARTIFICIAL INTELLIGENCE
-              </span>
-            </span>
-          </button>
-          <div className="site-header-actions">
-            {(screen === "home" || screen === "quiz" || showResultsStrip) && (
-              <button
-                className="type-caption compass-action-button site-header-action-button"
-                onClick={() => {
-                  if (screen === "quiz") {
-                    setScreen("home");
-                    return;
-                  }
-                  if (hasCompletedQuiz) {
-                    handleReviewAnswers();
-                    return;
-                  }
-                  const visitorSource = readVisitorSource();
-                  recordCompassEvent("quiz_start", {
-                    has_completed_quiz: hasCompletedQuiz,
-                    source: visitorSource.source,
-                    referrer: visitorSource.referrer,
-                  });
-                  setScreen("quiz");
-                  setScores(null);
-                  setQuizEditAnswersEnabled(false);
-                  setQuizEditAnswersUnlocked(false);
-                  resetQuizProgress();
-                }}
-              >
-                <span className="site-header-action-label">
-                  {screen === "quiz"
-                    ? "VIEW COMPASS"
-                    : hasCompletedQuiz
-                      ? "YOUR ANSWERS"
-                      : "TAKE THE QUIZ"}
-                </span>
-              </button>
-            )}
+      <div
+        className={`site-header-sticky-region ${
+          screen === "quiz" ? "has-quiz-progress" : ""
+        }`}
+      >
+        {/* Header */}
+        <div className="site-header">
+          <div className="site-header-main">
             <button
-              className="type-caption theme-mode-toggle"
-              type="button"
-              aria-label={
-                colorMode === "light"
-                  ? "Switch to dark mode"
-                  : "Switch to light mode"
-              }
-              aria-pressed={colorMode === "light"}
-              onClick={() =>
-                setColorMode((current) =>
-                  current === "light" ? "dark" : "light",
-                )
-              }
+              className="site-header-logo"
+              onClick={handleHeaderLogoClick}
+              aria-label="AI Compass"
             >
-              {colorMode === "light" ? <MoonIcon /> : <SunIcon />}
+              <span className="site-header-wordmark">
+                <span className="site-header-title">
+                  <span className="site-header-title-accent">The</span>
+                  <span>AI Compass</span>
+                </span>
+                <span className="type-caption site-header-subtitle">
+                  SHOW YOUR STANCE ON ARTIFICIAL INTELLIGENCE
+                </span>
+              </span>
             </button>
+            <div className="site-header-actions">
+              {(screen === "home" || screen === "quiz" || showResultsStrip) && (
+                <button
+                  className="type-caption compass-action-button site-header-action-button"
+                  onClick={() => {
+                    if (screen === "quiz") {
+                      setScreen("home");
+                      return;
+                    }
+                    if (hasCompletedQuiz) {
+                      handleReviewAnswers();
+                      return;
+                    }
+                    const visitorSource = readVisitorSource();
+                    recordCompassEvent("quiz_start", {
+                      has_completed_quiz: hasCompletedQuiz,
+                      source: visitorSource.source,
+                      referrer: visitorSource.referrer,
+                    });
+                    setScreen("quiz");
+                    setScores(null);
+                    setQuizEditAnswersEnabled(false);
+                    setQuizEditAnswersUnlocked(false);
+                    resetQuizProgress();
+                  }}
+                >
+                  <span className="site-header-action-label">
+                    {screen === "quiz"
+                      ? "VIEW COMPASS"
+                      : hasCompletedQuiz
+                        ? "YOUR ANSWERS"
+                        : "TAKE THE QUIZ"}
+                  </span>
+                </button>
+              )}
+              <button
+                className="type-caption theme-mode-toggle"
+                type="button"
+                aria-label={
+                  colorMode === "light"
+                    ? "Switch to dark mode"
+                    : "Switch to light mode"
+                }
+                aria-pressed={colorMode === "light"}
+                onClick={() =>
+                  setColorMode((current) =>
+                    current === "light" ? "dark" : "light",
+                  )
+                }
+              >
+                {colorMode === "light" ? <MoonIcon /> : <SunIcon />}
+              </button>
+            </div>
           </div>
         </div>
         {screen === "quiz" && (
-          <div
-            className="site-header-quiz-progress"
-            style={{
-              height: HEADER_ACTION_HEIGHT,
-            }}
-          >
+          <div className="site-header-quiz-progress">
             <div
+              className="site-header-quiz-progress-inner"
               style={{
-                width: "100%",
-                height: "100%",
+                height: HEADER_ACTION_HEIGHT,
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "center",

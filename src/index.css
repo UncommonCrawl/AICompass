@@ -1254,7 +1254,7 @@ h6 {
   }
 }
 
-.site-header {
+.site-header-sticky-region {
   --site-header-action-size: 60px;
   --site-header-theme-moon-color: #2f2f2f;
   --site-header-theme-sun-color: #f5f5f2;
@@ -1263,6 +1263,12 @@ h6 {
   top: 0;
   flex: 0 0 auto;
   z-index: 20;
+  box-sizing: border-box;
+  background: var(--ai-bg);
+}
+
+.site-header {
+  width: 100%;
   box-sizing: border-box;
   min-height: auto;
   padding: 14px var(--ai-shell-gutter);
@@ -1273,6 +1279,10 @@ h6 {
   border-bottom: 1px solid var(--ai-border);
   background: var(--ai-bg);
   margin: 0;
+}
+
+.site-header-sticky-region.has-quiz-progress .site-header {
+  border-bottom-color: transparent;
 }
 
 .site-header-main {
@@ -1407,6 +1417,14 @@ h6 {
 }
 
 .site-header-quiz-progress {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0 var(--ai-shell-gutter) 14px;
+  border-bottom: 1px solid var(--ai-border);
+  background: var(--ai-bg);
+}
+
+.site-header-quiz-progress-inner {
   width: min(100%, 640px);
   margin: 0 auto;
 }
