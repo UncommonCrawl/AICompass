@@ -49,16 +49,19 @@
 .ai-compass-public {
   --ai-shell-width: 100%;
   --ai-shell-gutter: clamp(24px, 4vw, 48px);
-  --ai-cta-green: #007f5f;
+  --ai-green-bright: var(--color-green-bright);
+  --ai-green-deep: var(--color-green-deep);
+  --ai-cta-green: var(--ai-green-deep);
   --ai-bg: #151515;
   --ai-surface: #111111;
   --ai-surface-strong: #1a1a1a;
   --ai-border: #2a2a2a;
   --ai-text: #f5f5f2;
-  --ai-muted: #6b6b6b;
-  --ai-secondary: #a0a0a0;
-  --ai-accent: #00e5a0;
-  --ai-accent-dim: rgba(0, 229, 160, 0.12);
+  --ai-muted: #545454;
+  --ai-secondary: #bdbdbd;
+  --ai-accent: var(--ai-green-bright);
+  --ai-accent-dim: color-mix(in oklab, var(--ai-accent) 12%, transparent);
+  --ai-compass-rule: var(--ai-muted);
   --color-ink: var(--ai-text);
   --color-muted: var(--ai-secondary);
   --color-paper: var(--ai-bg);
@@ -92,6 +95,7 @@
   --ai-secondary: #4f4f49;
   --ai-accent: var(--ai-cta-green);
   --ai-accent-dim: color-mix(in oklab, var(--ai-cta-green) 12%, transparent);
+  --ai-compass-rule: #a1a1a1;
   --compass-dot-faded: #d6d6d0;
 }
 
@@ -345,6 +349,14 @@ h6 {
 .ai-compass-public .type-label,
 .ai-compass-public .type-subheading {
   letter-spacing: 0.18em;
+}
+
+.compass-rule {
+  stroke: var(--ai-compass-rule);
+}
+
+.compass-axis-label {
+  fill: var(--ai-compass-rule);
 }
 
 @keyframes compassLayerFadeIn {
@@ -708,20 +720,9 @@ h6 {
 }
 
 .homepage-filter-bar {
-  display: grid;
-  grid-template-columns: 160px minmax(0, 1fr);
   width: 100%;
   border-top: 1px solid var(--ai-border);
   background: var(--ai-bg);
-}
-
-.homepage-filter-heading {
-  min-height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--ai-text);
-  color: var(--ai-bg);
 }
 
 .homepage-filter-grid {
@@ -735,6 +736,10 @@ h6 {
   min-width: 0;
   background: var(--ai-bg);
   border-left: 1px solid var(--ai-border);
+}
+
+.homepage-filter-grid > .filter-control-root:first-child {
+  border-left: 0;
 }
 
 .filter-dropdown-button {
@@ -1123,14 +1128,6 @@ h6 {
 @media (max-width: 780px) {
   .homepage-filter-grid {
     grid-template-columns: 1fr;
-  }
-
-  .homepage-filter-bar {
-    grid-template-columns: 1fr;
-  }
-
-  .homepage-filter-heading {
-    min-height: 48px;
   }
 
   .filter-control-root {

@@ -375,8 +375,8 @@ const LIGHT_MODE_COMPASS_DOT_FADED_COLOR = "#d6d6d0";
 const LOCKED_SLIDER_ICON_COLOR = "#dcdcdc";
 const LIGHT_MODE_LOCKED_SLIDER_ICON_COLOR = "#151515";
 const COMPASS_SELECTED_RING_COLOR = "var(--ai-accent)";
-const DEFAULT_USER_DOT_COLOR = "#00e5a0";
-const LIGHT_MODE_USER_DOT_COLOR = "#007f5f";
+const DEFAULT_USER_DOT_COLOR_TOKEN = "--color-green-bright";
+const LIGHT_MODE_USER_DOT_COLOR_TOKEN = "--color-green-deep";
 const COMPASS_DOT_BITMAP_DPR = 2;
 const COMPASS_DOT_GEOMETRY = {
   radius: 2,
@@ -385,6 +385,12 @@ const COMPASS_DOT_GEOMETRY = {
   hoverRingRadius: 8,
   hoverRingPulseRadius: 8,
 };
+
+function readCssToken(tokenName) {
+  return getComputedStyle(document.documentElement)
+    .getPropertyValue(tokenName)
+    .trim();
+}
 const SHARE_BASE_URL = "https://theaicompass.io/s";
 const SHARE_TOKEN_SCALE = 10000;
 const SHARE_TOKEN_MAX_QUANTIZED = SHARE_TOKEN_SCALE * 2;
@@ -2308,9 +2314,9 @@ function Compass({
   const [dotBitmapUrl, setDotBitmapUrl] = useState("");
   const [dotCountLabelFits, setDotCountLabelFits] = useState(false);
   const isLightMode = colorMode === "light";
-  const userDotColor = isLightMode
-    ? LIGHT_MODE_USER_DOT_COLOR
-    : DEFAULT_USER_DOT_COLOR;
+  const userDotColor = readCssToken(
+    isLightMode ? LIGHT_MODE_USER_DOT_COLOR_TOKEN : DEFAULT_USER_DOT_COLOR_TOKEN,
+  );
   const compassDotColor = isLightMode
     ? LIGHT_MODE_COMPASS_DOT_COLOR
     : COMPASS_DOT_COLOR;
@@ -2374,7 +2380,6 @@ function Compass({
   ];
   const axisLabelTextStyle = {
     textAnchor: "middle",
-    fill: "var(--ai-muted)",
   };
   const axisLabels = [
     {
@@ -2862,37 +2867,37 @@ function Compass({
 
             {/* Axes */}
             <line
+              className="compass-rule"
               x1={cx}
               y1={pad}
               x2={cx}
               y2={dims.h - pad}
-              stroke={GRAY}
               strokeWidth={1}
             />
             <line
+              className="compass-rule"
               x1={pad}
               y1={cy}
               x2={dims.w - pad}
               y2={cy}
-              stroke={GRAY}
               strokeWidth={1}
             />
 
             {/* Border */}
             <rect
+              className="compass-rule"
               x={pad}
               y={pad}
               width={xRange * 2}
               height={yRange * 2}
               fill="none"
-              stroke={GRAY}
               strokeWidth={1}
             />
 
             {/* Axis labels */}
             {axisLabels.map(({ key, axis, x, y, text, transform }) => (
               <text
-                className="type-caption"
+                className="type-caption compass-axis-label"
                 key={key}
                 ref={key === "bottom" ? bottomAxisLabelRef : null}
                 x={x}
@@ -5188,7 +5193,6 @@ export default function AICompass() {
   const homepageFilterContent = (
     <section className="ai-section ai-filter-section ai-compass-filter-section">
       <div className="homepage-filter-bar">
-        <div className="type-caption homepage-filter-heading">Viewing</div>
         <div className="homepage-filter-grid">
           <MultiSelectFilter
             label="AGE"

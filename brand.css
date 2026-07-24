@@ -55,11 +55,13 @@
   --letter-spacing-button: 0.08em;
 
   /* Core colors (light) */
+  --color-green-bright: #00e5a0;
+  --color-green-deep: #007f5f;
   --color-ink: #000000;
   --color-muted: color-mix(in oklab, var(--color-ink) 72%, transparent);
   --color-paper: #ffffff;
   --color-surface: #ffffff;
-  --user-button: #00e5a0;
+  --user-button: var(--color-green-bright);
   --color-border: color-mix(in oklab, var(--color-ink) 14%, transparent);
   --grid-line: color-mix(in oklab, var(--color-ink) 10%, transparent);
 
@@ -123,7 +125,7 @@
   --color-muted: color-mix(in oklab, var(--color-ink) 70%, transparent);
   --color-paper: #0d0d10;
   --color-surface: #131318;
-  --user-button: #17a34a;
+  --user-button: var(--color-green-bright);
   --color-border: color-mix(in oklab, var(--color-ink) 16%, transparent);
   --grid-line: color-mix(in oklab, var(--color-ink) 10%, transparent);
 }
