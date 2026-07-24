@@ -2031,8 +2031,7 @@ function MultiSelectFilter({
             background: TAB_STYLE_VARS.menuBackground,
             border: tabBorder(),
             borderRadius: TAB_STYLE_VARS.borderRadius,
-            boxShadow:
-              "0 8px 20px color-mix(in oklab, var(--color-ink) 8%, transparent)",
+            boxShadow: "var(--shadow-popover)",
             padding: 8,
             zIndex: 30,
           }}
@@ -2227,8 +2226,7 @@ function SingleSelectDropdown({
             background: TAB_STYLE_VARS.menuBackground,
             border: tabBorder(),
             borderRadius: TAB_STYLE_VARS.borderRadius,
-            boxShadow:
-              "0 8px 20px color-mix(in oklab, var(--color-ink) 8%, transparent)",
+            boxShadow: "var(--shadow-popover)",
             padding: 8,
             zIndex: 30,
           }}

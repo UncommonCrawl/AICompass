@@ -9,8 +9,9 @@
   --accent-border: color-mix(in oklab, var(--color-ink) 35%, transparent);
   --social-bg: color-mix(in oklab, var(--color-ink) 8%, transparent);
   --shadow:
-    color-mix(in oklab, var(--color-ink) 12%, transparent) 0 10px 15px -3px,
-    color-mix(in oklab, var(--color-ink) 8%, transparent) 0 4px 6px -2px;
+    color-mix(in oklab, #000 12%, transparent) 0 10px 15px -3px,
+    color-mix(in oklab, #000 8%, transparent) 0 4px 6px -2px;
+  --shadow-popover: 0 8px 20px color-mix(in oklab, #000 8%, transparent);
 
   --tab-bg-outer: color-mix(in oklab, var(--color-ink) 2%, transparent);
   --tab-bg-form: color-mix(in oklab, var(--color-ink) 2%, transparent);
