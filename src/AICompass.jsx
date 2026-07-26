@@ -2321,11 +2321,11 @@ function Compass({
   const compassDotFadedColor = isLightMode
     ? LIGHT_MODE_COMPASS_DOT_FADED_COLOR
     : COMPASS_DOT_FADED_COLOR;
-  const axisLabelGap = 10;
+  const axisLabelGap = 6;
   const axisLabelFontSize = 10;
   const xAxisLetterSpacingEm = 0.1;
   const yAxisLetterSpacingEm = 0.02;
-  const pad = axisLabelGap + axisLabelFontSize + 2;
+  const pad = axisLabelGap + axisLabelFontSize + axisLabelGap;
   const compassFadeStyle = {
     opacity: isLoading ? 0 : 1,
     animation:
@@ -2384,31 +2384,35 @@ function Compass({
       key: "top",
       axis: "y",
       x: cx,
-      y: pad - axisLabelGap,
+      y: axisLabelGap,
       text: "HIGH BELIEF IN LLM POTENTIAL",
+      dominantBaseline: "text-before-edge",
     },
     {
       key: "bottom",
       axis: "y",
       x: cx,
-      y: dims.h - pad + axisLabelGap + axisLabelFontSize,
+      y: dims.h - axisLabelGap,
       text: "LOW BELIEF IN LLM POTENTIAL",
+      dominantBaseline: "text-after-edge",
     },
     {
       key: "left",
       axis: "x",
-      x: pad - axisLabelGap,
+      x: axisLabelGap,
       y: cy,
       text: "RESTRICT ADVANCEMENT",
-      transform: `rotate(-90,${pad - axisLabelGap},${cy})`,
+      transform: `rotate(-90,${axisLabelGap},${cy})`,
+      dominantBaseline: "text-before-edge",
     },
     {
       key: "right",
       axis: "x",
-      x: dims.w - pad + axisLabelGap,
+      x: dims.w - axisLabelGap,
       y: cy,
       text: "ACCELERATE ADVANCEMENT",
-      transform: `rotate(90,${dims.w - pad + axisLabelGap},${cy})`,
+      transform: `rotate(90,${dims.w - axisLabelGap},${cy})`,
+      dominantBaseline: "text-before-edge",
     },
   ];
   const compassLabelTextStyle = {
@@ -2893,7 +2897,8 @@ function Compass({
             />
 
             {/* Axis labels */}
-            {axisLabels.map(({ key, axis, x, y, text, transform }) => (
+            {axisLabels.map(
+              ({ key, axis, x, y, text, transform, dominantBaseline }) => (
               <text
                 className="type-caption compass-axis-label"
                 key={key}
@@ -2905,12 +2910,14 @@ function Compass({
                   letterSpacing: `${
                     axis === "y" ? yAxisLetterSpacingEm : xAxisLetterSpacingEm
                   }em`,
+                  ...(dominantBaseline ? { dominantBaseline } : {}),
                 }}
                 {...axisLabelTextStyle}
               >
                 {text}
               </text>
-            ))}
+              ),
+            )}
 
             {dotCountText && (
               <text
@@ -4034,6 +4041,7 @@ export default function AICompass() {
   const [disabledCountries, setDisabledCountries] = useState([]);
   const [disabledIndustries, setDisabledIndustries] = useState([]);
   const [selectedArchetype, setSelectedArchetype] = useState("");
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const localDeviceId = useMemo(
     () => getOrCreateStorageId("local", DEVICE_ID_STORAGE_KEY),
     [],
@@ -5189,9 +5197,25 @@ export default function AICompass() {
   ];
 
   const homepageFilterContent = (
-    <section className="ai-section ai-filter-section ai-compass-filter-section">
+    <section
+      className={`ai-section ai-filter-section ai-compass-filter-section ${
+        mobileFiltersOpen ? "mobile-filters-open" : ""
+      }`}
+    >
       <div className="homepage-filter-bar">
-        <div className="homepage-filter-grid">
+        <button
+          className="type-caption filter-dropdown-button mobile-filter-toggle"
+          type="button"
+          aria-expanded={mobileFiltersOpen}
+          aria-controls="homepage-filter-grid"
+          onClick={() => setMobileFiltersOpen((open) => !open)}
+        >
+          <span className="filter-dropdown-title">FILTERS</span>
+          <span className="filter-dropdown-value">
+            {mobileFiltersOpen ? "HIDE" : "SHOW"}
+          </span>
+        </button>
+        <div id="homepage-filter-grid" className="homepage-filter-grid">
           <MultiSelectFilter
             label="AGE"
             options={ageFilterOptions}
@@ -5520,7 +5544,11 @@ export default function AICompass() {
                 }}
               >
                 <div className="ai-compass-module-shell">
-                  <div className="ai-results-layout">
+                  <div
+                    className={`ai-results-layout ${
+                      showResultsStrip ? "is-results-layout" : "is-home-layout"
+                    }`}
+                  >
                     {showResultsStrip ? (
                       <section className="ai-result-hero">
                         <div className="ai-result-identity">
