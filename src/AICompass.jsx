@@ -2393,8 +2393,6 @@ function Compass({
     cy = dims.h / 2;
   const xRange = cx - pad;
   const yRange = cy - pad;
-  const zoomChartWidth = dims.w - pad * 2;
-  const zoomChartHeight = dims.h - pad * 2;
 
   const clampCompassTransform = useCallback(
     (scale, x, y) => {
@@ -2404,39 +2402,11 @@ function Compass({
       );
       return {
         scale: nextScale,
-        x: (() => {
-          if (nextScale === COMPASS_MIN_ZOOM) return 0;
-          const marginIgnoringMin =
-            dims.w - pad - zoomChartWidth * nextScale;
-          const marginIgnoringMax = -pad;
-          const marginTransition = Math.min(
-            1,
-            (nextScale - COMPASS_MIN_ZOOM) / 0.25,
-          );
-          const min =
-            dims.w * (1 - nextScale) * (1 - marginTransition) +
-            marginIgnoringMin * marginTransition;
-          const max = marginIgnoringMax * marginTransition;
-          return min <= max ? Math.min(max, Math.max(min, x)) : 0;
-        })(),
-        y: (() => {
-          if (nextScale === COMPASS_MIN_ZOOM) return 0;
-          const marginIgnoringMin =
-            dims.h - pad - zoomChartHeight * nextScale;
-          const marginIgnoringMax = -pad;
-          const marginTransition = Math.min(
-            1,
-            (nextScale - COMPASS_MIN_ZOOM) / 0.25,
-          );
-          const min =
-            dims.h * (1 - nextScale) * (1 - marginTransition) +
-            marginIgnoringMin * marginTransition;
-          const max = marginIgnoringMax * marginTransition;
-          return min <= max ? Math.min(max, Math.max(min, y)) : 0;
-        })(),
+        x: Math.min(0, Math.max(dims.w * (1 - nextScale), x)),
+        y: Math.min(0, Math.max(dims.h * (1 - nextScale), y)),
       };
     },
-    [dims.w, dims.h, pad, zoomChartWidth, zoomChartHeight],
+    [dims.w, dims.h],
   );
 
   const updateCompassZoom = useCallback(
@@ -2465,30 +2435,20 @@ function Compass({
     },
     [clampCompassTransform, compassZoom, isTouchCompassViewport],
   );
-  const zoomTransform = `translate(${pad + effectiveCompassZoom.x} ${pad + effectiveCompassZoom.y}) scale(${effectiveCompassZoom.scale}) translate(${-pad} ${-pad})`;
+  const zoomTransform = `translate(${effectiveCompassZoom.x} ${effectiveCompassZoom.y}) scale(${effectiveCompassZoom.scale})`;
   const toViewport = useCallback(
     (x, y) => ({
-      x:
-        pad +
-        effectiveCompassZoom.x +
-        (x - pad) * effectiveCompassZoom.scale,
-      y:
-        pad +
-        effectiveCompassZoom.y +
-        (y - pad) * effectiveCompassZoom.scale,
+      x: x * effectiveCompassZoom.scale + effectiveCompassZoom.x,
+      y: y * effectiveCompassZoom.scale + effectiveCompassZoom.y,
     }),
-    [effectiveCompassZoom, pad],
+    [effectiveCompassZoom],
   );
   const fromViewport = useCallback(
     (x, y) => ({
-      x:
-        pad +
-        (x - pad - effectiveCompassZoom.x) / effectiveCompassZoom.scale,
-      y:
-        pad +
-        (y - pad - effectiveCompassZoom.y) / effectiveCompassZoom.scale,
+      x: (x - effectiveCompassZoom.x) / effectiveCompassZoom.scale,
+      y: (y - effectiveCompassZoom.y) / effectiveCompassZoom.scale,
     }),
-    [effectiveCompassZoom, pad],
+    [effectiveCompassZoom],
   );
 
   const toSvg = (xVal, yVal) => ({
@@ -3061,8 +3021,8 @@ function Compass({
       );
       updateCompassZoom(
         scale,
-        pinch.midpoint.x - pad - (gesture.contentAnchor.x - pad) * scale,
-        pinch.midpoint.y - pad - (gesture.contentAnchor.y - pad) * scale,
+        pinch.midpoint.x - gesture.contentAnchor.x * scale,
+        pinch.midpoint.y - gesture.contentAnchor.y * scale,
       );
       return;
     }
@@ -3207,6 +3167,45 @@ function Compass({
               strokeWidth={1}
             />
 
+            {/* Axis labels */}
+            {axisLabels.map(
+              ({ key, axis, x, y, text, transform, dominantBaseline }) => (
+                <text
+                  className="type-caption compass-axis-label"
+                  key={key}
+                  ref={key === "bottom" ? bottomAxisLabelRef : null}
+                  x={x}
+                  y={y}
+                  transform={transform}
+                  style={{
+                    letterSpacing: `${
+                      axis === "y"
+                        ? yAxisLetterSpacingEm
+                        : xAxisLetterSpacingEm
+                    }em`,
+                    ...(dominantBaseline ? { dominantBaseline } : {}),
+                  }}
+                  {...axisLabelTextStyle}
+                >
+                  {text}
+                </text>
+              ),
+            )}
+
+            {dotCountText && (
+              <text
+                ref={dotCountLabelRef}
+                className="type-caption"
+                x={dims.w - pad}
+                y={dims.h - pad + axisLabelGap + axisLabelFontSize}
+                textAnchor="end"
+                fill="var(--color-ink)"
+                visibility={dotCountLabelFits ? "visible" : "hidden"}
+              >
+                {dotCountText}
+              </text>
+            )}
+
             {/* Quadrant labels */}
             {compassLabelPositions.map(({ key, x, y }) => (
               <text
@@ -3275,44 +3274,6 @@ function Compass({
             ...compassFadeStyle,
           }}
         >
-          <g style={compassFadeStyle}>
-            {axisLabels.map(
-              ({ key, axis, x, y, text, transform, dominantBaseline }) => (
-                <text
-                  className="type-caption compass-axis-label"
-                  key={key}
-                  ref={key === "bottom" ? bottomAxisLabelRef : null}
-                  x={x}
-                  y={y}
-                  transform={transform}
-                  style={{
-                    letterSpacing: `${
-                      axis === "y"
-                        ? yAxisLetterSpacingEm
-                        : xAxisLetterSpacingEm
-                    }em`,
-                    ...(dominantBaseline ? { dominantBaseline } : {}),
-                  }}
-                  {...axisLabelTextStyle}
-                >
-                  {text}
-                </text>
-              ),
-            )}
-            {dotCountText && (
-              <text
-                ref={dotCountLabelRef}
-                className="type-caption"
-                x={dims.w - pad}
-                y={dims.h - pad + axisLabelGap + axisLabelFontSize}
-                textAnchor="end"
-                fill="var(--color-ink)"
-                visibility={dotCountLabelFits ? "visible" : "hidden"}
-              >
-                {dotCountText}
-              </text>
-            )}
-          </g>
           <g transform={zoomTransform}>
           {showResultMarkers && userMarkerPoint && userMarkerIsEnabled && (
             <>
