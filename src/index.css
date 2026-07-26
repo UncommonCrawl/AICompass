@@ -50,6 +50,8 @@
 .ai-compass-public {
   --ai-shell-width: 100%;
   --ai-shell-gutter: clamp(24px, 4vw, 48px);
+  --site-header-title-font-size: clamp(34px, 4.6vw, 52px);
+  --site-header-title-text-height: calc(var(--site-header-title-font-size) * 0.9);
   --ai-green-bright: var(--color-green-bright);
   --ai-green-deep: var(--color-green-deep);
   --ai-cta-green: var(--ai-green-deep);
@@ -531,7 +533,7 @@ h6 {
   margin: 0 0 32px;
   color: var(--ai-text);
   font-family: var(--font-display);
-  font-size: 104px;
+  font-size: min(104px, calc(var(--site-header-title-text-height) * 0.8));
   font-weight: var(--font-weight-bold);
   line-height: 0.92;
   letter-spacing: 0;
@@ -539,7 +541,7 @@ h6 {
 
 .ai-results-layout .ai-result-name {
   margin-bottom: 20px;
-  font-size: 44px;
+  font-size: min(44px, calc(var(--site-header-title-text-height) * 0.8));
 }
 
 .ai-home-sidebar .ai-result-identity::before {
@@ -548,7 +550,7 @@ h6 {
 
 .ai-home-sidebar .ai-result-name {
   color: var(--ai-text);
-  font-size: 42px;
+  font-size: min(42px, calc(var(--site-header-title-text-height) * 0.8));
   line-height: 0.95;
 }
 
@@ -1151,7 +1153,7 @@ h6 {
   }
 
   .ai-result-name {
-    font-size: 48px;
+    font-size: min(48px, calc(var(--site-header-title-text-height) * 0.8));
   }
 
   .ai-stats-row {
@@ -1298,7 +1300,7 @@ h6 {
   gap: 0.18em;
   color: var(--ai-text);
   font-family: var(--font-display);
-  font-size: clamp(34px, 4.6vw, 52px);
+  font-size: var(--site-header-title-font-size);
   line-height: 0.9;
   font-weight: var(--font-weight-bold);
   letter-spacing: 0;
@@ -1317,6 +1319,20 @@ h6 {
 }
 
 @media (max-width: 980px) {
+  .ai-compass-public {
+    --site-header-title-target-width: calc(
+      (100vw - (var(--ai-shell-gutter) * 2)) * 0.8
+    );
+    --site-header-title-font-size: clamp(
+      34px,
+      calc(var(--site-header-title-target-width) / 6.95),
+      82px
+    );
+    --site-header-title-text-height: calc(
+      var(--site-header-title-font-size) * 0.9
+    );
+  }
+
   .site-header {
     --site-header-title-target-width: calc(
       (100vw - (var(--ai-shell-gutter) * 2)) * 0.8
