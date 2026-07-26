@@ -5,6 +5,7 @@ import {
   useRef,
   useMemo,
   useCallback,
+  useSyncExternalStore,
 } from "react";
 import {
   collection,
@@ -378,6 +379,10 @@ const COMPASS_SELECTED_RING_COLOR = "var(--ai-accent)";
 const DEFAULT_USER_DOT_COLOR_TOKEN = "--color-green-bright";
 const LIGHT_MODE_USER_DOT_COLOR_TOKEN = "--color-green-deep";
 const COMPASS_DOT_BITMAP_DPR = 2;
+const COMPASS_MIN_ZOOM = 1;
+const COMPASS_MAX_ZOOM = 5;
+const COMPASS_TOUCH_DRAG_THRESHOLD_PX = 8;
+const COMPASS_TOUCH_VIEWPORT_QUERY = "(max-width: 1024px)";
 const COMPASS_DOT_GEOMETRY = {
   radius: 2,
   size: 4,
@@ -385,6 +390,20 @@ const COMPASS_DOT_GEOMETRY = {
   hoverRingRadius: 8,
   hoverRingPulseRadius: 8,
 };
+
+function subscribeToCompassTouchViewport(callback) {
+  const mediaQuery = window.matchMedia(COMPASS_TOUCH_VIEWPORT_QUERY);
+  mediaQuery.addEventListener("change", callback);
+  return () => mediaQuery.removeEventListener("change", callback);
+}
+
+function getCompassTouchViewportSnapshot() {
+  return window.matchMedia(COMPASS_TOUCH_VIEWPORT_QUERY).matches;
+}
+
+function getCompassTouchViewportServerSnapshot() {
+  return false;
+}
 
 function readCssToken(tokenName) {
   return getComputedStyle(document.documentElement)
@@ -2303,6 +2322,7 @@ function Compass({
   const pinnedDotIdRef = useRef(null);
   const hoverFrameRef = useRef(0);
   const pendingPointerRef = useRef(null);
+  const touchGestureRef = useRef({ mode: "idle" });
   const dotBitmapUrlRef = useRef("");
   const dotBitmapGenerationRef = useRef(0);
   const [dims, setDims] = useState({ w: 960, h: 520 });
@@ -2311,6 +2331,16 @@ function Compass({
   const [devFps, setDevFps] = useState(0);
   const [dotBitmapUrl, setDotBitmapUrl] = useState("");
   const [dotCountLabelFits, setDotCountLabelFits] = useState(false);
+  const isTouchCompassViewport = useSyncExternalStore(
+    subscribeToCompassTouchViewport,
+    getCompassTouchViewportSnapshot,
+    getCompassTouchViewportServerSnapshot,
+  );
+  const [compassZoom, setCompassZoom] = useState({
+    scale: COMPASS_MIN_ZOOM,
+    x: 0,
+    y: 0,
+  });
   const isLightMode = colorMode === "light";
   const userDotColor = readCssToken(
     isLightMode ? LIGHT_MODE_USER_DOT_COLOR_TOKEN : DEFAULT_USER_DOT_COLOR_TOKEN,
@@ -2363,6 +2393,103 @@ function Compass({
     cy = dims.h / 2;
   const xRange = cx - pad;
   const yRange = cy - pad;
+  const zoomChartWidth = dims.w - pad * 2;
+  const zoomChartHeight = dims.h - pad * 2;
+
+  const clampCompassTransform = useCallback(
+    (scale, x, y) => {
+      const nextScale = Math.min(
+        COMPASS_MAX_ZOOM,
+        Math.max(COMPASS_MIN_ZOOM, scale),
+      );
+      return {
+        scale: nextScale,
+        x: (() => {
+          if (nextScale === COMPASS_MIN_ZOOM) return 0;
+          const marginIgnoringMin =
+            dims.w - pad - zoomChartWidth * nextScale;
+          const marginIgnoringMax = -pad;
+          const marginTransition = Math.min(
+            1,
+            (nextScale - COMPASS_MIN_ZOOM) / 0.25,
+          );
+          const min =
+            dims.w * (1 - nextScale) * (1 - marginTransition) +
+            marginIgnoringMin * marginTransition;
+          const max = marginIgnoringMax * marginTransition;
+          return min <= max ? Math.min(max, Math.max(min, x)) : 0;
+        })(),
+        y: (() => {
+          if (nextScale === COMPASS_MIN_ZOOM) return 0;
+          const marginIgnoringMin =
+            dims.h - pad - zoomChartHeight * nextScale;
+          const marginIgnoringMax = -pad;
+          const marginTransition = Math.min(
+            1,
+            (nextScale - COMPASS_MIN_ZOOM) / 0.25,
+          );
+          const min =
+            dims.h * (1 - nextScale) * (1 - marginTransition) +
+            marginIgnoringMin * marginTransition;
+          const max = marginIgnoringMax * marginTransition;
+          return min <= max ? Math.min(max, Math.max(min, y)) : 0;
+        })(),
+      };
+    },
+    [dims.w, dims.h, pad, zoomChartWidth, zoomChartHeight],
+  );
+
+  const updateCompassZoom = useCallback(
+    (scale, x, y) => {
+      const next = clampCompassTransform(scale, x, y);
+      setCompassZoom((current) =>
+        current.scale === next.scale && current.x === next.x && current.y === next.y
+          ? current
+          : next,
+      );
+      return next;
+    },
+    [clampCompassTransform],
+  );
+
+  const effectiveCompassZoom = useMemo(
+    () => {
+      if (!isTouchCompassViewport) {
+        return { scale: COMPASS_MIN_ZOOM, x: 0, y: 0 };
+      }
+      return clampCompassTransform(
+        compassZoom.scale,
+        compassZoom.x,
+        compassZoom.y,
+      );
+    },
+    [clampCompassTransform, compassZoom, isTouchCompassViewport],
+  );
+  const zoomTransform = `translate(${pad + effectiveCompassZoom.x} ${pad + effectiveCompassZoom.y}) scale(${effectiveCompassZoom.scale}) translate(${-pad} ${-pad})`;
+  const toViewport = useCallback(
+    (x, y) => ({
+      x:
+        pad +
+        effectiveCompassZoom.x +
+        (x - pad) * effectiveCompassZoom.scale,
+      y:
+        pad +
+        effectiveCompassZoom.y +
+        (y - pad) * effectiveCompassZoom.scale,
+    }),
+    [effectiveCompassZoom, pad],
+  );
+  const fromViewport = useCallback(
+    (x, y) => ({
+      x:
+        pad +
+        (x - pad - effectiveCompassZoom.x) / effectiveCompassZoom.scale,
+      y:
+        pad +
+        (y - pad - effectiveCompassZoom.y) / effectiveCompassZoom.scale,
+    }),
+    [effectiveCompassZoom, pad],
+  );
 
   const toSvg = (xVal, yVal) => ({
     sx: cx + xVal * xRange,
@@ -2614,12 +2741,19 @@ function Compass({
       1,
       Math.round(COMPASS_DOT_GEOMETRY.size * dotBitmapDpr),
     );
-    const markerOffset = markerSize / 2;
-    const getMarkerRect = (sx, sy) => ({
-      x: Math.round(sx * dotBitmapDpr - markerOffset),
-      y: Math.round(sy * dotBitmapDpr - markerOffset),
-      size: markerSize,
-    });
+    const getMarkerRect = (sx, sy) => {
+      const viewportPoint = toViewport(sx, sy);
+      const scaledMarkerSize = Math.max(
+        1,
+        Math.round(markerSize * effectiveCompassZoom.scale),
+      );
+      const scaledMarkerOffset = scaledMarkerSize / 2;
+      return {
+        x: Math.round(viewportPoint.x * dotBitmapDpr - scaledMarkerOffset),
+        y: Math.round(viewportPoint.y * dotBitmapDpr - scaledMarkerOffset),
+        size: scaledMarkerSize,
+      };
+    };
 
     const drawDot = (point, color) => {
       const rect = getMarkerRect(point.sx, point.sy);
@@ -2686,6 +2820,8 @@ function Compass({
     yRange,
     dotBitmapDpr,
     shouldRenderDotBitmap,
+    effectiveCompassZoom.scale,
+    toViewport,
   ]);
 
   useEffect(
@@ -2739,8 +2875,11 @@ function Compass({
         return null;
       }
 
-      const pointerX = ((clientX - rect.left) / rect.width) * dims.w;
-      const pointerY = ((clientY - rect.top) / rect.height) * dims.h;
+      const viewportX = ((clientX - rect.left) / rect.width) * dims.w;
+      const viewportY = ((clientY - rect.top) / rect.height) * dims.h;
+      const pointer = fromViewport(viewportX, viewportY);
+      const pointerX = pointer.x;
+      const pointerY = pointer.y;
 
       let bestMatch = null;
       let bestDistanceSq = Infinity;
@@ -2758,7 +2897,27 @@ function Compass({
 
       return bestMatch;
     },
-    [dims.w, dims.h, plotPoints],
+    [dims.w, dims.h, plotPoints, fromViewport],
+  );
+
+  const setPinnedPointFromPointer = useCallback(
+    (clientX, clientY) => {
+      if (isLoading) return;
+      const hitPoint = findEnabledPointFromPointer(clientX, clientY);
+      const nextPinnedDotId =
+        hitPoint && pinnedDotIdRef.current !== hitPoint.id ? hitPoint.id : null;
+
+      if (pinnedDotIdRef.current !== nextPinnedDotId) {
+        pinnedDotIdRef.current = nextPinnedDotId;
+        setPinnedDotId(nextPinnedDotId);
+      }
+
+      if (!nextPinnedDotId && hoveredDotIdRef.current !== null) {
+        hoveredDotIdRef.current = null;
+        setHoveredDotId(null);
+      }
+    },
+    [findEnabledPointFromPointer, isLoading],
   );
 
   const updateHoveredPointFromPointer = (clientX, clientY) => {
@@ -2779,32 +2938,16 @@ function Compass({
 
   useEffect(() => {
     const handleDocumentPointerDown = (event) => {
-      if (isLoading) return;
+      if (event.pointerType === "touch" && isTouchCompassViewport) return;
       if (tooltipRef.current?.contains(event.target)) return;
-
-      const hitPoint = findEnabledPointFromPointer(
-        event.clientX,
-        event.clientY,
-      );
-      const nextPinnedDotId =
-        hitPoint && pinnedDotIdRef.current !== hitPoint.id ? hitPoint.id : null;
-
-      if (pinnedDotIdRef.current !== nextPinnedDotId) {
-        pinnedDotIdRef.current = nextPinnedDotId;
-        setPinnedDotId(nextPinnedDotId);
-      }
-
-      if (!nextPinnedDotId && hoveredDotIdRef.current !== null) {
-        hoveredDotIdRef.current = null;
-        setHoveredDotId(null);
-      }
+      setPinnedPointFromPointer(event.clientX, event.clientY);
     };
 
     document.addEventListener("pointerdown", handleDocumentPointerDown);
     return () => {
       document.removeEventListener("pointerdown", handleDocumentPointerDown);
     };
-  }, [isLoading, findEnabledPointFromPointer]);
+  }, [isTouchCompassViewport, setPinnedPointFromPointer]);
 
   const handlePlotMouseMove = (event) => {
     if (isLoading) return;
@@ -2830,14 +2973,182 @@ function Compass({
     clearHoveredPoint();
   };
 
+  const getTouchViewportPoint = (touch) => {
+    const plotElement = plotRef.current;
+    if (!plotElement) return null;
+    const rect = plotElement.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    return {
+      x: ((touch.clientX - rect.left) / rect.width) * dims.w,
+      y: ((touch.clientY - rect.top) / rect.height) * dims.h,
+      clientX: touch.clientX,
+      clientY: touch.clientY,
+    };
+  };
+
+  const getPinchDetails = (touches) => {
+    if (touches.length < 2) return null;
+    const first = getTouchViewportPoint(touches[0]);
+    const second = getTouchViewportPoint(touches[1]);
+    if (!first || !second) return null;
+    const midpoint = {
+      x: (first.x + second.x) / 2,
+      y: (first.y + second.y) / 2,
+    };
+    return {
+      midpoint,
+      distance: Math.hypot(second.x - first.x, second.y - first.y),
+    };
+  };
+
+  const handlePlotTouchStart = (event) => {
+    if (isLoading || !isTouchCompassViewport) return;
+    event.preventDefault();
+    const pinch = getPinchDetails(event.touches);
+    if (pinch) {
+      event.preventDefault();
+      touchGestureRef.current = {
+        mode: "pinch",
+        startDistance: Math.max(1, pinch.distance),
+        startScale: effectiveCompassZoom.scale,
+        contentAnchor: fromViewport(pinch.midpoint.x, pinch.midpoint.y),
+      };
+      return;
+    }
+
+    const touch = event.touches[0];
+    const point = touch ? getTouchViewportPoint(touch) : null;
+    if (!point) return;
+    if (effectiveCompassZoom.scale > COMPASS_MIN_ZOOM) {
+      event.preventDefault();
+      touchGestureRef.current = {
+        mode: "pan",
+        startPoint: point,
+        startX: effectiveCompassZoom.x,
+        startY: effectiveCompassZoom.y,
+      };
+      return;
+    }
+    touchGestureRef.current = {
+      mode: "page-scroll",
+      startPoint: point,
+      lastPoint: point,
+      moved: false,
+    };
+  };
+
+  const handlePlotTouchMove = (event) => {
+    if (isLoading || !isTouchCompassViewport) return;
+    const pinch = getPinchDetails(event.touches);
+    if (pinch) {
+      event.preventDefault();
+      let gesture = touchGestureRef.current;
+      if (gesture.mode !== "pinch") {
+        gesture = {
+          mode: "pinch",
+          startDistance: Math.max(1, pinch.distance),
+          startScale: effectiveCompassZoom.scale,
+          contentAnchor: fromViewport(pinch.midpoint.x, pinch.midpoint.y),
+        };
+        touchGestureRef.current = gesture;
+      }
+      const scale = Math.min(
+        COMPASS_MAX_ZOOM,
+        Math.max(
+          COMPASS_MIN_ZOOM,
+          gesture.startScale * (pinch.distance / gesture.startDistance),
+        ),
+      );
+      updateCompassZoom(
+        scale,
+        pinch.midpoint.x - pad - (gesture.contentAnchor.x - pad) * scale,
+        pinch.midpoint.y - pad - (gesture.contentAnchor.y - pad) * scale,
+      );
+      return;
+    }
+
+    const touch = event.touches[0];
+    const point = touch ? getTouchViewportPoint(touch) : null;
+    if (!point) return;
+    let gesture = touchGestureRef.current;
+    if (effectiveCompassZoom.scale > COMPASS_MIN_ZOOM) {
+      event.preventDefault();
+      if (gesture.mode !== "pan") {
+        gesture = {
+          mode: "pan",
+          startPoint: point,
+          startX: effectiveCompassZoom.x,
+          startY: effectiveCompassZoom.y,
+        };
+        touchGestureRef.current = gesture;
+      }
+      updateCompassZoom(
+        effectiveCompassZoom.scale,
+        gesture.startX + point.x - gesture.startPoint.x,
+        gesture.startY + point.y - gesture.startPoint.y,
+      );
+      return;
+    }
+
+    if (
+      gesture.mode === "page-scroll" &&
+      Math.hypot(
+        point.x - gesture.startPoint.x,
+        point.y - gesture.startPoint.y,
+      ) > COMPASS_TOUCH_DRAG_THRESHOLD_PX
+    ) {
+      gesture.moved = true;
+    }
+    if (gesture.mode === "page-scroll" && gesture.moved) {
+      event.preventDefault();
+      window.scrollBy({ top: gesture.lastPoint.y - point.y });
+      gesture.lastPoint = point;
+    }
+  };
+
+  const handlePlotTouchEnd = (event) => {
+    if (!isTouchCompassViewport) return;
+    const gesture = touchGestureRef.current;
+    if (event.touches.length === 0) {
+      if (gesture.mode === "page-scroll" && !gesture.moved) {
+        const touch = event.changedTouches[0];
+        if (touch) setPinnedPointFromPointer(touch.clientX, touch.clientY);
+      }
+      touchGestureRef.current = { mode: "idle" };
+      return;
+    }
+
+    if (
+      event.touches.length === 1 &&
+      effectiveCompassZoom.scale > COMPASS_MIN_ZOOM
+    ) {
+      const point = getTouchViewportPoint(event.touches[0]);
+      if (point) {
+        touchGestureRef.current = {
+          mode: "pan",
+          startPoint: point,
+          startX: effectiveCompassZoom.x,
+          startY: effectiveCompassZoom.y,
+        };
+      }
+    }
+  };
+
   return (
     <div
       className="ai-compass-plot"
       ref={plotRef}
       onMouseMove={handlePlotMouseMove}
       onMouseLeave={handlePlotMouseLeave}
+      onTouchStart={handlePlotTouchStart}
+      onTouchMove={handlePlotTouchMove}
+      onTouchEnd={handlePlotTouchEnd}
+      onTouchCancel={handlePlotTouchEnd}
       style={{
         cursor: !isLoading && hoveredPoint?.enabled ? "pointer" : "default",
+        touchAction: isTouchCompassViewport
+          ? "none"
+          : undefined,
       }}
     >
       {!perfValves.noSvg && (
@@ -2853,7 +3164,7 @@ function Compass({
             zIndex: 1,
           }}
         >
-          <g style={compassFadeStyle}>
+          <g style={compassFadeStyle} transform={zoomTransform}>
             {/* Quadrant fills */}
             {quadrantFillRects.map(({ key, x, y }) => (
               <rect
@@ -2895,43 +3206,6 @@ function Compass({
               fill="none"
               strokeWidth={1}
             />
-
-            {/* Axis labels */}
-            {axisLabels.map(
-              ({ key, axis, x, y, text, transform, dominantBaseline }) => (
-              <text
-                className="type-caption compass-axis-label"
-                key={key}
-                ref={key === "bottom" ? bottomAxisLabelRef : null}
-                x={x}
-                y={y}
-                transform={transform}
-                style={{
-                  letterSpacing: `${
-                    axis === "y" ? yAxisLetterSpacingEm : xAxisLetterSpacingEm
-                  }em`,
-                  ...(dominantBaseline ? { dominantBaseline } : {}),
-                }}
-                {...axisLabelTextStyle}
-              >
-                {text}
-              </text>
-              ),
-            )}
-
-            {dotCountText && (
-              <text
-                ref={dotCountLabelRef}
-                className="type-caption"
-                x={dims.w - pad}
-                y={dims.h - pad + axisLabelGap + axisLabelFontSize}
-                textAnchor="end"
-                fill="var(--color-ink)"
-                visibility={dotCountLabelFits ? "visible" : "hidden"}
-              >
-                {dotCountText}
-              </text>
-            )}
 
             {/* Quadrant labels */}
             {compassLabelPositions.map(({ key, x, y }) => (
@@ -3001,6 +3275,45 @@ function Compass({
             ...compassFadeStyle,
           }}
         >
+          <g style={compassFadeStyle}>
+            {axisLabels.map(
+              ({ key, axis, x, y, text, transform, dominantBaseline }) => (
+                <text
+                  className="type-caption compass-axis-label"
+                  key={key}
+                  ref={key === "bottom" ? bottomAxisLabelRef : null}
+                  x={x}
+                  y={y}
+                  transform={transform}
+                  style={{
+                    letterSpacing: `${
+                      axis === "y"
+                        ? yAxisLetterSpacingEm
+                        : xAxisLetterSpacingEm
+                    }em`,
+                    ...(dominantBaseline ? { dominantBaseline } : {}),
+                  }}
+                  {...axisLabelTextStyle}
+                >
+                  {text}
+                </text>
+              ),
+            )}
+            {dotCountText && (
+              <text
+                ref={dotCountLabelRef}
+                className="type-caption"
+                x={dims.w - pad}
+                y={dims.h - pad + axisLabelGap + axisLabelFontSize}
+                textAnchor="end"
+                fill="var(--color-ink)"
+                visibility={dotCountLabelFits ? "visible" : "hidden"}
+              >
+                {dotCountText}
+              </text>
+            )}
+          </g>
+          <g transform={zoomTransform}>
           {showResultMarkers && userMarkerPoint && userMarkerIsEnabled && (
             <>
               <rect
@@ -3107,6 +3420,7 @@ function Compass({
                 />
               </rect>
             ))}
+          </g>
         </svg>
       )}
 
@@ -3114,8 +3428,9 @@ function Compass({
       {tooltipDot &&
         (() => {
           const { sx, sy } = toSvg(tooltipDot.x, tooltipDot.y);
-          const isRight = sx > cx;
-          const isBottom = sy > cy;
+          const viewportPoint = toViewport(sx, sy);
+          const isRight = viewportPoint.x > cx;
+          const isBottom = viewportPoint.y > cy;
           const clampedHoverNotes = clampLabelText(
             tooltipDot.notes,
             NOTES_CHAR_LIMIT,
@@ -3123,16 +3438,60 @@ function Compass({
           const noteText = clampedHoverNotes;
           const hasNotes = noteText.length > 0;
           const tooltipTextNudgeYPx = -2;
+          const tooltipInset = 12;
+          const tooltipHorizontalStyle = isRight
+            ? {
+                right: `${Math.max(
+                  tooltipInset,
+                  dims.w - viewportPoint.x + tooltipInset,
+                )}px`,
+                maxWidth: `${Math.max(
+                  0,
+                  viewportPoint.x - tooltipInset * 2,
+                )}px`,
+              }
+            : {
+                left: `${Math.max(
+                  tooltipInset,
+                  viewportPoint.x + tooltipInset,
+                )}px`,
+                maxWidth: `${Math.max(
+                  0,
+                  dims.w - viewportPoint.x - tooltipInset * 2,
+                )}px`,
+              };
+          const tooltipVerticalPosition = isBottom
+            ? Math.max(
+                tooltipInset,
+                dims.h - viewportPoint.y + tooltipInset - 4,
+              )
+            : Math.max(tooltipInset, viewportPoint.y + tooltipInset - 4);
+          const tooltipVerticalStyle = isBottom
+            ? {
+                bottom: `${tooltipVerticalPosition}px`,
+                maxHeight: `${Math.max(
+                  0,
+                  dims.h - tooltipVerticalPosition - tooltipInset,
+                )}px`,
+              }
+            : {
+                top: `${tooltipVerticalPosition}px`,
+                maxHeight: `${Math.max(
+                  0,
+                  dims.h - tooltipVerticalPosition - tooltipInset,
+                )}px`,
+              };
           const tooltipStyle = {
             position: "absolute",
-            left: `${(sx / dims.w) * 100}%`,
-            top: `${(sy / dims.h) * 100}%`,
-            transform: `translate(${isRight ? "calc(-100% - 12px)" : "12px"}, ${isBottom ? "calc(-100% - 8px)" : "8px"})`,
+            ...tooltipHorizontalStyle,
+            ...tooltipVerticalStyle,
             background: THEME.SiteText,
             border: `1px solid ${THEME.SiteBorder}`,
             borderRadius: "var(--radius-base)",
             padding: hasNotes ? "12px 16px" : "14px 16px 11px",
             minWidth: 180,
+            boxSizing: "border-box",
+            overflowY: "auto",
             cursor: "auto",
             zIndex: 20,
           };

@@ -1364,9 +1364,7 @@ h6 {
     --site-header-title-text-height: calc(
       var(--site-header-title-font-size) * 0.9
     );
-    --site-header-action-size: calc(
-      var(--site-header-title-text-height) * 1.2
-    );
+    --site-header-action-size: var(--site-header-title-text-height);
   }
 
   .site-header-main {
@@ -1413,6 +1411,11 @@ h6 {
   --compass-action-width: 189px;
   --compass-action-height: var(--site-header-action-size);
   --compass-action-padding-inline: 0px;
+  --compass-action-label-font-size: clamp(
+    10px,
+    calc(var(--compass-action-height) * 0.18),
+    14px
+  );
   flex: 0 0 auto;
   border-radius: 0;
   overflow: hidden;
@@ -1431,6 +1434,7 @@ h6 {
   height: 100%;
   display: flex;
   align-items: center;
+  font-size: var(--compass-action-label-font-size);
 }
 
 .site-header-action-label {
