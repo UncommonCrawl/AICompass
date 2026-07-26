@@ -5897,7 +5897,7 @@ export default function AICompass() {
                           <div className="ai-stats-row">
                             <div className="ai-stat">
                               <div className="type-caption ai-stat-label">
-                                Advancement
+                                Support
                               </div>
                               <div
                                 className={`ai-stat-value ${
@@ -5911,7 +5911,7 @@ export default function AICompass() {
                             </div>
                             <div className="ai-stat">
                               <div className="type-caption ai-stat-label">
-                                LLM Belief
+                                Capability
                               </div>
                               <div
                                 className={`ai-stat-value ${
