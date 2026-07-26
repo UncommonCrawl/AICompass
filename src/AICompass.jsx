@@ -383,6 +383,8 @@ const COMPASS_MIN_ZOOM = 1;
 const COMPASS_MAX_ZOOM = 5;
 const COMPASS_TOUCH_DRAG_THRESHOLD_PX = 8;
 const COMPASS_TOUCH_VIEWPORT_QUERY = "(max-width: 1024px)";
+const COMPASS_DOMAIN_BUFFER_DESKTOP_PX = 32;
+const COMPASS_DOMAIN_BUFFER_TOUCH_PX = 16;
 const COMPASS_DOT_GEOMETRY = {
   radius: 2,
   size: 4,
@@ -2356,6 +2358,11 @@ function Compass({
   const xAxisLetterSpacingEm = 0.1;
   const yAxisLetterSpacingEm = 0.02;
   const pad = axisLabelGap + axisLabelFontSize + axisLabelGap;
+  // Keep the former frame margin inside the SVG so pinch zoom includes it.
+  const compassDomainBuffer = isTouchCompassViewport
+    ? COMPASS_DOMAIN_BUFFER_TOUCH_PX
+    : COMPASS_DOMAIN_BUFFER_DESKTOP_PX;
+  const domainInset = compassDomainBuffer + pad;
   const compassFadeStyle = {
     opacity: isLoading ? 0 : 1,
     animation:
@@ -2391,8 +2398,8 @@ function Compass({
 
   const cx = dims.w / 2,
     cy = dims.h / 2;
-  const xRange = cx - pad;
-  const yRange = cy - pad;
+  const xRange = cx - domainInset;
+  const yRange = cy - domainInset;
 
   const clampCompassTransform = useCallback(
     (scale, x, y) => {
@@ -2458,10 +2465,10 @@ function Compass({
 
   const quadFill = "var(--ai-accent-dim)";
   const quadrantFillRects = [
-    { key: "topRight", x: cx, y: pad },
-    { key: "topLeft", x: pad, y: pad },
+    { key: "topRight", x: cx, y: domainInset },
+    { key: "topLeft", x: domainInset, y: domainInset },
     { key: "bottomRight", x: cx, y: cy },
-    { key: "bottomLeft", x: pad, y: cy },
+    { key: "bottomLeft", x: domainInset, y: cy },
   ];
   const axisLabelTextStyle = {
     textAnchor: "middle",
@@ -2471,7 +2478,7 @@ function Compass({
       key: "top",
       axis: "y",
       x: cx,
-      y: axisLabelGap,
+      y: compassDomainBuffer + axisLabelGap,
       text: "HIGH BELIEF IN LLM POTENTIAL",
       dominantBaseline: "text-before-edge",
     },
@@ -2479,26 +2486,26 @@ function Compass({
       key: "bottom",
       axis: "y",
       x: cx,
-      y: dims.h - axisLabelGap,
+      y: dims.h - compassDomainBuffer - axisLabelGap,
       text: "LOW BELIEF IN LLM POTENTIAL",
       dominantBaseline: "text-after-edge",
     },
     {
       key: "left",
       axis: "x",
-      x: axisLabelGap,
+      x: compassDomainBuffer + axisLabelGap,
       y: cy,
       text: "RESTRICT ADVANCEMENT",
-      transform: `rotate(-90,${axisLabelGap},${cy})`,
+      transform: `rotate(-90,${compassDomainBuffer + axisLabelGap},${cy})`,
       dominantBaseline: "text-before-edge",
     },
     {
       key: "right",
       axis: "x",
-      x: dims.w - axisLabelGap,
+      x: dims.w - compassDomainBuffer - axisLabelGap,
       y: cy,
       text: "ACCELERATE ADVANCEMENT",
-      transform: `rotate(90,${dims.w - axisLabelGap},${cy})`,
+      transform: `rotate(90,${dims.w - compassDomainBuffer - axisLabelGap},${cy})`,
       dominantBaseline: "text-before-edge",
     },
   ];
@@ -2517,9 +2524,9 @@ function Compass({
     return `${validCount}/${totalCount} (${formatDotCountPercentage(validCount, totalCount)}%)${latestText}`;
   }, [dotCountSummary]);
   const compassLabelPositions = [
-    { key: "topLeft", x: pad + xRange / 2, y: pad + yRange / 2 },
-    { key: "topRight", x: cx + xRange / 2, y: pad + yRange / 2 },
-    { key: "bottomLeft", x: pad + xRange / 2, y: cy + yRange / 2 },
+    { key: "topLeft", x: domainInset + xRange / 2, y: domainInset + yRange / 2 },
+    { key: "topRight", x: cx + xRange / 2, y: domainInset + yRange / 2 },
+    { key: "bottomLeft", x: domainInset + xRange / 2, y: cy + yRange / 2 },
     { key: "bottomRight", x: cx + xRange / 2, y: cy + yRange / 2 },
   ];
   const disabledAgeSet = useMemo(() => new Set(disabledAges), [disabledAges]);
@@ -3142,16 +3149,16 @@ function Compass({
             <line
               className="compass-rule"
               x1={cx}
-              y1={pad}
+              y1={domainInset}
               x2={cx}
-              y2={dims.h - pad}
+              y2={dims.h - domainInset}
               strokeWidth={1}
             />
             <line
               className="compass-rule"
-              x1={pad}
+              x1={domainInset}
               y1={cy}
-              x2={dims.w - pad}
+              x2={dims.w - domainInset}
               y2={cy}
               strokeWidth={1}
             />
@@ -3159,8 +3166,8 @@ function Compass({
             {/* Border */}
             <rect
               className="compass-rule"
-              x={pad}
-              y={pad}
+              x={domainInset}
+              y={domainInset}
               width={xRange * 2}
               height={yRange * 2}
               fill="none"
@@ -3196,8 +3203,8 @@ function Compass({
               <text
                 ref={dotCountLabelRef}
                 className="type-caption"
-                x={dims.w - pad}
-                y={dims.h - pad + axisLabelGap + axisLabelFontSize}
+                x={dims.w - domainInset}
+                y={dims.h - domainInset + axisLabelGap + axisLabelFontSize}
                 textAnchor="end"
                 fill="var(--color-ink)"
                 visibility={dotCountLabelFits ? "visible" : "hidden"}

@@ -685,7 +685,7 @@ h6 {
 
 .ai-compass-frame {
   position: relative;
-  margin: 32px 60px;
+  margin: 0;
 }
 
 .ai-compass-plot {
@@ -707,7 +707,7 @@ h6 {
 }
 
 .ai-results-layout .ai-compass-section {
-  padding: 32px;
+  padding: 0;
 }
 
 .ai-results-layout .ai-compass-frame {
@@ -1201,11 +1201,11 @@ h6 {
   }
 
   .ai-compass-frame {
-    margin: 24px 16px;
+    margin: 0;
   }
 
   .ai-results-layout .ai-compass-section {
-    padding: 16px;
+    padding: 0;
   }
 
   .ai-compass-filter-section {
