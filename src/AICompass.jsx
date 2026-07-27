@@ -3808,7 +3808,13 @@ function QuizPage({
   }, [hasSavedAnswers]);
 
   return (
-    <div style={{ maxWidth: 640, margin: "0 auto" }}>
+    <div
+      style={{
+        width: "min(640px, calc(100% - 40px))",
+        margin: "0 auto",
+        boxSizing: "border-box",
+      }}
+    >
       <style>{`
         .response-slider-wrap {
           --slider-thumb-color: ${THEME.SiteText};

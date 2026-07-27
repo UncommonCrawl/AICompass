@@ -1515,6 +1515,16 @@ h6 {
   margin: 0 auto;
 }
 
+@media (max-width: 780px) {
+  .site-header-sticky-region.has-quiz-progress .site-header {
+    border-bottom-color: var(--ai-border);
+  }
+
+  .site-header-quiz-progress {
+    display: none;
+  }
+}
+
 .compass-action-button {
   --compass-action-bg: transparent;
   --compass-action-color: var(--ai-text);
