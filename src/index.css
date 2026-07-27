@@ -1344,7 +1344,7 @@ h6 {
     --site-header-title-font-size: clamp(
       34px,
       calc(var(--site-header-title-target-width) / 6.95),
-      82px
+      52px
     );
     --site-header-title-text-height: calc(
       var(--site-header-title-font-size) * 0.9
@@ -1358,7 +1358,7 @@ h6 {
     --site-header-title-font-size: clamp(
       34px,
       calc(var(--site-header-title-target-width) / 6.95),
-      82px
+      52px
     );
     --site-header-title-text-height: calc(
       var(--site-header-title-font-size) * 0.9
