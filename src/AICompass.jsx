@@ -199,6 +199,7 @@ const SESSION_ID_STORAGE_KEY = "ai_compass_session_id_v1";
 const LAST_RESULT_STORAGE_KEY = "ai_compass_last_result_v1";
 const LAST_SUBMISSION_STORAGE_KEY = "ai_compass_last_submission_v1";
 const QUIZ_DRAFT_STORAGE_KEY = "ai_compass_quiz_draft_v1";
+const COLOR_MODE_STORAGE_KEY = "ai_compass_color_mode_v1";
 const DEV_DOT_DISPLAY_ENABLED_STORAGE_KEY =
   "ai_compass_dev_dot_display_enabled_v1";
 const DEV_DOT_COUNT_ENABLED_STORAGE_KEY = "ai_compass_dev_dot_count_enabled_v1";
@@ -1503,6 +1504,13 @@ function readJsonFromLocalStorage(key) {
   }
 }
 
+function readColorModePreference() {
+  const persistedMode = readLocalStorageItem(COLOR_MODE_STORAGE_KEY);
+  return persistedMode === "dark" || persistedMode === "light"
+    ? persistedMode
+    : "light";
+}
+
 function readDevResultPersistenceEnabled() {
   if (!import.meta.env.DEV) return true;
   const raw = readLocalStorageItem(DEV_RESULT_PERSISTENCE_ENABLED_STORAGE_KEY);
@@ -1516,7 +1524,7 @@ function readDevDotDisplayEnabled() {
   const raw = readLocalStorageItem(DEV_DOT_DISPLAY_ENABLED_STORAGE_KEY);
   if (raw === "0") return false;
   if (raw === "1") return true;
-  return true;
+  return false;
 }
 
 function readDevDotCountEnabled() {
@@ -4352,7 +4360,7 @@ export default function AICompass() {
   const [showFirestoreError, setShowFirestoreError] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [colorMode, setColorMode] = useState("light");
+  const [colorMode, setColorMode] = useState(() => readColorModePreference());
   const [clearingDevDots, setClearingDevDots] = useState(false);
   const [devDotDisplayEnabled, setDevDotDisplayEnabled] = useState(() =>
     readDevDotDisplayEnabled(),
@@ -4411,6 +4419,10 @@ export default function AICompass() {
       devDotDisplayEnabled ? "1" : "0",
     );
   }, [devDotDisplayEnabled]);
+
+  useEffect(() => {
+    writeLocalStorageItem(COLOR_MODE_STORAGE_KEY, colorMode);
+  }, [colorMode]);
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;
