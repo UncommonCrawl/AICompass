@@ -2346,7 +2346,9 @@ function Compass({
   });
   const isLightMode = colorMode === "light";
   const userDotColor = readCssToken(
-    isLightMode ? LIGHT_MODE_USER_DOT_COLOR_TOKEN : DEFAULT_USER_DOT_COLOR_TOKEN,
+    isLightMode
+      ? LIGHT_MODE_USER_DOT_COLOR_TOKEN
+      : DEFAULT_USER_DOT_COLOR_TOKEN,
   );
   const compassDotColor = isLightMode
     ? LIGHT_MODE_COMPASS_DOT_COLOR
@@ -2421,7 +2423,9 @@ function Compass({
     (scale, x, y) => {
       const next = clampCompassTransform(scale, x, y);
       setCompassZoom((current) =>
-        current.scale === next.scale && current.x === next.x && current.y === next.y
+        current.scale === next.scale &&
+        current.x === next.x &&
+        current.y === next.y
           ? current
           : next,
       );
@@ -2430,19 +2434,16 @@ function Compass({
     [clampCompassTransform],
   );
 
-  const effectiveCompassZoom = useMemo(
-    () => {
-      if (!isTouchCompassViewport) {
-        return { scale: COMPASS_MIN_ZOOM, x: 0, y: 0 };
-      }
-      return clampCompassTransform(
-        compassZoom.scale,
-        compassZoom.x,
-        compassZoom.y,
-      );
-    },
-    [clampCompassTransform, compassZoom, isTouchCompassViewport],
-  );
+  const effectiveCompassZoom = useMemo(() => {
+    if (!isTouchCompassViewport) {
+      return { scale: COMPASS_MIN_ZOOM, x: 0, y: 0 };
+    }
+    return clampCompassTransform(
+      compassZoom.scale,
+      compassZoom.x,
+      compassZoom.y,
+    );
+  }, [clampCompassTransform, compassZoom, isTouchCompassViewport]);
   const zoomTransform = `translate(${effectiveCompassZoom.x} ${effectiveCompassZoom.y}) scale(${effectiveCompassZoom.scale})`;
   const toViewport = useCallback(
     (x, y) => ({
@@ -2525,7 +2526,11 @@ function Compass({
     return `${validCount}/${totalCount} (${formatDotCountPercentage(validCount, totalCount)}%)${latestText}`;
   }, [dotCountSummary]);
   const compassLabelPositions = [
-    { key: "topLeft", x: domainInset + xRange / 2, y: domainInset + yRange / 2 },
+    {
+      key: "topLeft",
+      x: domainInset + xRange / 2,
+      y: domainInset + yRange / 2,
+    },
     { key: "topRight", x: cx + xRange / 2, y: domainInset + yRange / 2 },
     { key: "bottomLeft", x: domainInset + xRange / 2, y: cy + yRange / 2 },
     { key: "bottomRight", x: cx + xRange / 2, y: cy + yRange / 2 },
@@ -3114,9 +3119,7 @@ function Compass({
       onTouchCancel={handlePlotTouchEnd}
       style={{
         cursor: !isLoading && hoveredPoint?.enabled ? "pointer" : "default",
-        touchAction: isTouchCompassViewport
-          ? "none"
-          : undefined,
+        touchAction: isTouchCompassViewport ? "none" : undefined,
       }}
     >
       {!perfValves.noSvg && (
@@ -3187,9 +3190,7 @@ function Compass({
                   transform={transform}
                   style={{
                     letterSpacing: `${
-                      axis === "y"
-                        ? yAxisLetterSpacingEm
-                        : xAxisLetterSpacingEm
+                      axis === "y" ? yAxisLetterSpacingEm : xAxisLetterSpacingEm
                     }em`,
                     ...(dominantBaseline ? { dominantBaseline } : {}),
                   }}
@@ -3283,112 +3284,112 @@ function Compass({
           }}
         >
           <g transform={zoomTransform}>
-          {showResultMarkers && userMarkerPoint && userMarkerIsEnabled && (
-            <>
-              <rect
-                x={userMarkerPoint.sx - COMPASS_DOT_GEOMETRY.radius}
-                y={userMarkerPoint.sy - COMPASS_DOT_GEOMETRY.radius}
-                width={COMPASS_DOT_GEOMETRY.size}
-                height={COMPASS_DOT_GEOMETRY.size}
-                fill={userDotColor}
-              />
-              <text
-                className="type-caption color-ink"
-                x={userMarkerPoint.sx}
-                y={userMarkerPoint.sy - COMPASS_DOT_GEOMETRY.radius - 4}
-                fill="currentColor"
-                textAnchor="middle"
-                style={markerLabelTextStyle}
-                {...markerLabelOutlineProps}
-              >
-                YOU
-              </text>
-            </>
-          )}
-          {showAverageMarker && globalAveragePoint && (
-            <>
-              <rect
-                x={globalAveragePoint.sx - COMPASS_DOT_GEOMETRY.radius}
-                y={globalAveragePoint.sy - COMPASS_DOT_GEOMETRY.radius}
-                width={COMPASS_DOT_GEOMETRY.size}
-                height={COMPASS_DOT_GEOMETRY.size}
-                fill={GRAY}
-              />
-              <text
-                className="type-caption color-muted"
-                x={globalAveragePoint.sx}
-                y={globalAveragePoint.sy - COMPASS_DOT_GEOMETRY.radius - 4}
-                fill="currentColor"
-                textAnchor="middle"
-                style={markerLabelTextStyle}
-                {...markerLabelOutlineProps}
-              >
-                AVG
-              </text>
-            </>
-          )}
-          {[pinnedPoint]
-            .filter((point) => point && point.enabled)
-            .map((point) => (
-              <rect
-                key={`selected-${point.id}`}
-                x={point.sx - COMPASS_DOT_GEOMETRY.hoverRingPulseRadius}
-                y={point.sy - COMPASS_DOT_GEOMETRY.hoverRingPulseRadius}
-                width={COMPASS_DOT_GEOMETRY.hoverRingPulseRadius * 2}
-                height={COMPASS_DOT_GEOMETRY.hoverRingPulseRadius * 2}
-                fill="none"
-                stroke={COMPASS_SELECTED_RING_COLOR}
-                strokeWidth={1.5}
-                opacity={0.5}
-              />
-            ))}
-          {[hoveredPoint]
-            .filter((point) => point && point.enabled)
-            .filter((point) => point.id !== pinnedPoint?.id)
-            .map((point) => (
-              <rect
-                key={`pulse-${point.id}`}
-                x={point.sx - COMPASS_DOT_GEOMETRY.hoverRingRadius}
-                y={point.sy - COMPASS_DOT_GEOMETRY.hoverRingRadius}
-                width={COMPASS_DOT_GEOMETRY.hoverRingRadius * 2}
-                height={COMPASS_DOT_GEOMETRY.hoverRingRadius * 2}
-                fill="none"
-                stroke={point.color}
-                strokeWidth={1.5}
-                opacity={0.6}
-              >
-                <animate
-                  attributeName="x"
-                  values={`${point.sx - COMPASS_DOT_GEOMETRY.hoverRingRadius};${point.sx - COMPASS_DOT_GEOMETRY.hoverRingPulseRadius};${point.sx - COMPASS_DOT_GEOMETRY.hoverRingRadius}`}
-                  dur="2s"
-                  repeatCount="indefinite"
+            {showResultMarkers && userMarkerPoint && userMarkerIsEnabled && (
+              <>
+                <rect
+                  x={userMarkerPoint.sx - COMPASS_DOT_GEOMETRY.radius}
+                  y={userMarkerPoint.sy - COMPASS_DOT_GEOMETRY.radius}
+                  width={COMPASS_DOT_GEOMETRY.size}
+                  height={COMPASS_DOT_GEOMETRY.size}
+                  fill={userDotColor}
                 />
-                <animate
-                  attributeName="y"
-                  values={`${point.sy - COMPASS_DOT_GEOMETRY.hoverRingRadius};${point.sy - COMPASS_DOT_GEOMETRY.hoverRingPulseRadius};${point.sy - COMPASS_DOT_GEOMETRY.hoverRingRadius}`}
-                  dur="2s"
-                  repeatCount="indefinite"
+                <text
+                  className="type-caption color-ink"
+                  x={userMarkerPoint.sx}
+                  y={userMarkerPoint.sy - COMPASS_DOT_GEOMETRY.radius - 4}
+                  fill="currentColor"
+                  textAnchor="middle"
+                  style={markerLabelTextStyle}
+                  {...markerLabelOutlineProps}
+                >
+                  YOU
+                </text>
+              </>
+            )}
+            {showAverageMarker && globalAveragePoint && (
+              <>
+                <rect
+                  x={globalAveragePoint.sx - COMPASS_DOT_GEOMETRY.radius}
+                  y={globalAveragePoint.sy - COMPASS_DOT_GEOMETRY.radius}
+                  width={COMPASS_DOT_GEOMETRY.size}
+                  height={COMPASS_DOT_GEOMETRY.size}
+                  fill={GRAY}
                 />
-                <animate
-                  attributeName="width"
-                  values={`${COMPASS_DOT_GEOMETRY.hoverRingRadius * 2};${COMPASS_DOT_GEOMETRY.hoverRingPulseRadius * 2};${COMPASS_DOT_GEOMETRY.hoverRingRadius * 2}`}
-                  dur="2s"
-                  repeatCount="indefinite"
+                <text
+                  className="type-caption color-muted"
+                  x={globalAveragePoint.sx}
+                  y={globalAveragePoint.sy - COMPASS_DOT_GEOMETRY.radius - 4}
+                  fill="currentColor"
+                  textAnchor="middle"
+                  style={markerLabelTextStyle}
+                  {...markerLabelOutlineProps}
+                >
+                  AVG
+                </text>
+              </>
+            )}
+            {[pinnedPoint]
+              .filter((point) => point && point.enabled)
+              .map((point) => (
+                <rect
+                  key={`selected-${point.id}`}
+                  x={point.sx - COMPASS_DOT_GEOMETRY.hoverRingPulseRadius}
+                  y={point.sy - COMPASS_DOT_GEOMETRY.hoverRingPulseRadius}
+                  width={COMPASS_DOT_GEOMETRY.hoverRingPulseRadius * 2}
+                  height={COMPASS_DOT_GEOMETRY.hoverRingPulseRadius * 2}
+                  fill="none"
+                  stroke={COMPASS_SELECTED_RING_COLOR}
+                  strokeWidth={1.5}
+                  opacity={0.5}
                 />
-                <animate
-                  attributeName="height"
-                  values={`${COMPASS_DOT_GEOMETRY.hoverRingRadius * 2};${COMPASS_DOT_GEOMETRY.hoverRingPulseRadius * 2};${COMPASS_DOT_GEOMETRY.hoverRingRadius * 2}`}
-                  dur="2s"
-                  repeatCount="indefinite"
-                />
-                <animate
-                  attributeName="opacity"
-                  values="0.6;0.2;0.6"
-                  dur="2s"
-                  repeatCount="indefinite"
-                />
-              </rect>
-            ))}
+              ))}
+            {[hoveredPoint]
+              .filter((point) => point && point.enabled)
+              .filter((point) => point.id !== pinnedPoint?.id)
+              .map((point) => (
+                <rect
+                  key={`pulse-${point.id}`}
+                  x={point.sx - COMPASS_DOT_GEOMETRY.hoverRingRadius}
+                  y={point.sy - COMPASS_DOT_GEOMETRY.hoverRingRadius}
+                  width={COMPASS_DOT_GEOMETRY.hoverRingRadius * 2}
+                  height={COMPASS_DOT_GEOMETRY.hoverRingRadius * 2}
+                  fill="none"
+                  stroke={point.color}
+                  strokeWidth={1.5}
+                  opacity={0.6}
+                >
+                  <animate
+                    attributeName="x"
+                    values={`${point.sx - COMPASS_DOT_GEOMETRY.hoverRingRadius};${point.sx - COMPASS_DOT_GEOMETRY.hoverRingPulseRadius};${point.sx - COMPASS_DOT_GEOMETRY.hoverRingRadius}`}
+                    dur="2s"
+                    repeatCount="indefinite"
+                  />
+                  <animate
+                    attributeName="y"
+                    values={`${point.sy - COMPASS_DOT_GEOMETRY.hoverRingRadius};${point.sy - COMPASS_DOT_GEOMETRY.hoverRingPulseRadius};${point.sy - COMPASS_DOT_GEOMETRY.hoverRingRadius}`}
+                    dur="2s"
+                    repeatCount="indefinite"
+                  />
+                  <animate
+                    attributeName="width"
+                    values={`${COMPASS_DOT_GEOMETRY.hoverRingRadius * 2};${COMPASS_DOT_GEOMETRY.hoverRingPulseRadius * 2};${COMPASS_DOT_GEOMETRY.hoverRingRadius * 2}`}
+                    dur="2s"
+                    repeatCount="indefinite"
+                  />
+                  <animate
+                    attributeName="height"
+                    values={`${COMPASS_DOT_GEOMETRY.hoverRingRadius * 2};${COMPASS_DOT_GEOMETRY.hoverRingPulseRadius * 2};${COMPASS_DOT_GEOMETRY.hoverRingRadius * 2}`}
+                    dur="2s"
+                    repeatCount="indefinite"
+                  />
+                  <animate
+                    attributeName="opacity"
+                    values="0.6;0.2;0.6"
+                    dur="2s"
+                    repeatCount="indefinite"
+                  />
+                </rect>
+              ))}
           </g>
         </svg>
       )}
@@ -5510,18 +5511,24 @@ export default function AICompass() {
   }, [screen, submitting]);
 
   const stanceIntroParagraphs = [
-    "With every passing year, the debate over AI grows both more urgent and more contentious.",
-    "Yet these high-profile debates obscure a sea of individual opinions that have either not been voiced or not been listened to.",
-    "This website serves as a live, interactive visual of public opinion on AI, with the horizontal axis charting approval and the vertical axis charting belief in its capability.",
-    "Everyone deserves to let the world know where they stand.",
+    {
+      copy: "With every passing year, the debate over AI has grown both more urgent and more contentious. Yet high-level discourse threatens to obscure a range of individual opinions that have gone either unspoken or unheard.",
+    },
+    {
+      copy: "The AI Compass serves as a live, interactive visual of public opinion on AI, with the horizontal axis charting approval and the vertical axis charting belief in its capability.",
+    },
+    {
+      copy: "We encourage you to add your own position and commentary.",
+      boldCopy: "Everyone deserves to let the world know where they stand.",
+    },
   ];
 
   const aboutCopyParagraphs = [
-    "As large language models (LLMs) become more visible, more contested, and more present in daily life, public opinion on AI is no longer captured by a simple divide between optimism and skepticism.",
-    "Someone can believe AI will become enormously powerful while opposing the speed or structure of its development. Someone else can doubt the most ambitious claims about AI while still supporting its practical use in schools, workplaces, medicine, or creative tools.",
-    "The project maps public opinion across two dimensions: confidence in AI's capabilities and approval of AI's current direction. The questions are designed to cover both sides of that divide, from beliefs about reasoning, automation, job displacement, model collapse, and self-improving systems to attitudes toward regulation, licensing, competition, open access, and public risk.",
-    "The optional demographic filters are included for the same reason. Age, country, and industry can meaningfully shape how people experience AI. A student, a software engineer, a teacher, a designer, a retiree, and a policymaker may all be responding to the same technology from very different positions. AI Compass is not a formal survey or scientific poll, but it is intended to make those differences more visible.",
-    "The goal is not to tell people what they should think about AI, but to give them a clearer way to place their own views, compare them with others, and see how belief in AI's potential differs from approval of the path it is currently taking.",
+    "As large language models (LLMs) become more visible, more contested, and more present in daily life, the range of public opinion on AI risks being flattened, misinterpreted, or ignored altogether.",
+    "This project maps public opinion across two dimensions: confidence in AI's capabilities and approval of AI's current direction. The questions are designed to cover the many debates this technology has surfaced, from job displacement concerns to data center buildouts to the capability of an artificial system to improve itself.",
+    "The two axes and open commentary field serve to surface views that pro/anti labels fail to capture. Someone can believe AI will become enormously powerful while opposing the pace of its development. Someone else can doubt the most ambitious claims about AI while still supporting its practical use in schools, workplaces, medicine, or creative tools.",
+    "Demographic filters allow users to examine how stances differ or align across generations, countries, and industries. While the AI Compass is not a formal survey or scientific poll, it is intended to lend basic visibility to this diversity of thought.",
+    "In a landscape where nuanced opinions are flattened into binary stances and algorithmic divides shield us from contrary stances, we hope to showcase the breadth of the world’s opinions on artificial intelligence for everyone to both view and contribute to.",
   ];
 
   const homepageFilterContent = (
@@ -5966,9 +5973,15 @@ export default function AICompass() {
                             </span>
                           </h1>
                           <div className="ai-home-sidebar-copy">
-                            {stanceIntroParagraphs.map((copy) => (
+                            {stanceIntroParagraphs.map(({ copy, boldCopy }) => (
                               <p key={copy} className="type-body-sm">
                                 {copy}
+                                {boldCopy ? (
+                                  <>
+                                    {" "}
+                                    <strong>{boldCopy}</strong>
+                                  </>
+                                ) : null}
                               </p>
                             ))}
                           </div>
