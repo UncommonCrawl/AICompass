@@ -42,7 +42,7 @@ const SHARE_IMAGE_GRID_WIDTH = 1044;
 const SHARE_IMAGE_GRID_HEIGHT = 526;
 const SHARE_IMAGE_MARKER_SIZE = 24;
 const SHARE_IMAGE_COLORS = {
-  background: { r: 0, g: 0, b: 0, a: 255 },
+  background: { r: 21, g: 21, b: 21, a: 255 },
   line: { r: 235, g: 235, b: 235, a: 255 },
   quadrant: { r: 47, g: 47, b: 47, a: 255 },
   marker: { r: 255, g: 255, b: 255, a: 255 },
