@@ -1,6 +1,7 @@
 import { createHmac, randomUUID } from "node:crypto";
 import { Buffer } from "node:buffer";
 import { deflateSync } from "node:zlib";
+import { readFileSync } from "node:fs";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { onRequest } from "firebase-functions/v2/https";
@@ -36,10 +37,10 @@ const SHARE_TOKEN_Y_BITS = 15;
 const SHARE_TOKEN_Y_MASK_BITS = (1 << SHARE_TOKEN_Y_BITS) - 1;
 const SHARE_IMAGE_WIDTH = 1200;
 const SHARE_IMAGE_HEIGHT = 630;
-const SHARE_IMAGE_INSET_X = 78;
-const SHARE_IMAGE_INSET_Y = 52;
-const SHARE_IMAGE_GRID_WIDTH = 1044;
-const SHARE_IMAGE_GRID_HEIGHT = 526;
+const SHARE_IMAGE_INSET_X = 90;
+const SHARE_IMAGE_INSET_Y = 58;
+const SHARE_IMAGE_GRID_WIDTH = 1020;
+const SHARE_IMAGE_GRID_HEIGHT = 420;
 const SHARE_IMAGE_MARKER_SIZE = 24;
 const SHARE_IMAGE_COLORS = {
   background: { r: 21, g: 21, b: 21, a: 255 },
@@ -48,6 +49,17 @@ const SHARE_IMAGE_COLORS = {
   marker: { r: 255, g: 255, b: 255, a: 255 },
 };
 const SHARE_TITLE = "Here's my stance on AI. What's yours?";
+const SHARE_LABEL_IMAGES = {
+  topRight: readFileSync(
+    new URL("./share-labels/singulatarian.png", import.meta.url),
+  ),
+  topLeft: readFileSync(new URL("./share-labels/sentinel.png", import.meta.url)),
+  bottomRight: readFileSync(
+    new URL("./share-labels/synthesist.png", import.meta.url),
+  ),
+  bottomLeft: readFileSync(new URL("./share-labels/skeptic.png", import.meta.url)),
+};
+const shareLabelImageCache = new Map();
 
 function hashValue(secret, value) {
   return createHmac("sha256", secret).update(value).digest("hex");
@@ -106,14 +118,6 @@ function getShareQuadrantKey(x, y) {
   return "bottomLeft";
 }
 
-function getShareArchetypeName(x, y) {
-  const quadrant = getShareQuadrantKey(x, y);
-  if (quadrant === "topRight") return "Singulatarian";
-  if (quadrant === "topLeft") return "Sentinel";
-  if (quadrant === "bottomRight") return "Synthesist";
-  return "Skeptic";
-}
-
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -170,6 +174,16 @@ function fillPngRect(pixels, x, y, width, height, color) {
   }
 }
 
+async function getShareLabelImage(quadrant) {
+  if (!shareLabelImageCache.has(quadrant)) {
+    shareLabelImageCache.set(
+      quadrant,
+      sharp(SHARE_LABEL_IMAGES[quadrant]).negate({ alpha: false }).png().toBuffer(),
+    );
+  }
+  return shareLabelImageCache.get(quadrant);
+}
+
 async function createSharePreviewPng(scores) {
   const pixels = Buffer.alloc(
     SHARE_IMAGE_WIDTH * SHARE_IMAGE_HEIGHT * 4,
@@ -195,6 +209,7 @@ async function createSharePreviewPng(scores) {
   const markerY =
     centerY - Math.max(-1, Math.min(1, scores.y)) * (gridHeight / 2) -
     SHARE_IMAGE_MARKER_SIZE / 2;
+  const labelImage = await getShareLabelImage(quadrant);
 
   fillPngRect(
     pixels,
@@ -286,7 +301,10 @@ async function createSharePreviewPng(scores) {
     createPngChunk("IEND"),
   ]);
 
-  return sharp(basePng).png().toBuffer();
+  return sharp(basePng)
+    .composite([{ input: labelImage, left: 0, top: 0 }])
+    .png()
+    .toBuffer();
 }
 
 function getClientIp(req) {
