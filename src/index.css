@@ -89,7 +89,7 @@
 }
 
 .ai-compass-public.is-light-mode {
-  --ai-bg: #f5f5f2;
+  --ai-bg: #f9f9f7;
   --ai-surface: #ffffff;
   --ai-surface-strong: #ecece7;
   --ai-border: #d4d4cc;
@@ -457,6 +457,7 @@ h6 {
 .ai-results-compass-column {
   min-width: 0;
   border-left: 1px solid var(--ai-border);
+  background: var(--ai-surface);
 }
 
 .ai-result-hero {
@@ -476,7 +477,7 @@ h6 {
   grid-template-rows: minmax(0, 1fr) auto;
   min-height: 0;
   border-bottom: 0;
-  background: var(--ai-surface);
+  background: var(--ai-bg);
 }
 
 .ai-result-identity {
