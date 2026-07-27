@@ -1515,13 +1515,19 @@ h6 {
   margin: 0 auto;
 }
 
-@media (max-width: 780px) {
+@media (max-width: 1024px) {
   .site-header-sticky-region.has-quiz-progress .site-header {
     border-bottom-color: var(--ai-border);
   }
 
   .site-header-quiz-progress {
     display: none;
+  }
+}
+
+@media (max-width: 780px) {
+  .ai-quiz-shell {
+    padding-top: 20px;
   }
 }
 
