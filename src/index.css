@@ -73,7 +73,7 @@
   --color-accent: var(--ai-accent);
   --user-button: var(--ai-accent);
   --tab-bg-outer: transparent;
-  --tab-bg-form: transparent;
+  --tab-bg-form: var(--ai-surface);
   --tab-bg-menu: var(--ai-surface);
   --tab-border-color: var(--ai-border);
   --tab-border-color-strong: var(--ai-accent);
@@ -740,7 +740,7 @@ h6 {
 
 .filter-control-root {
   min-width: 0;
-  background: var(--ai-bg);
+  background: var(--ai-surface);
   border-left: 1px solid var(--ai-border);
 }
 
@@ -754,7 +754,7 @@ h6 {
   padding: 0 28px;
   border: 0;
   border-radius: 0;
-  background: transparent;
+  background: var(--ai-surface);
   color: var(--ai-text);
   cursor: pointer;
   outline: none;
@@ -785,7 +785,7 @@ h6 {
 .filter-dropdown-value {
   justify-self: end;
   max-width: 16ch;
-  color: var(--filter-value-color, var(--ai-text));
+  color: var(--ai-muted);
   overflow: hidden;
   white-space: nowrap;
   text-align: right;

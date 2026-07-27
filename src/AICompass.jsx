@@ -2133,6 +2133,7 @@ function SingleSelectDropdown({
   const previewLabel = isFilterVariant
     ? truncateFilterPreviewLabel(rawPreviewLabel)
     : rawPreviewLabel;
+  const hasSelection = value !== undefined && value !== null && value !== "";
 
   useEffect(() => {
     if (!open) return;
@@ -2158,7 +2159,7 @@ function SingleSelectDropdown({
               position: "relative",
               border: tabBorder(),
               borderRadius: TAB_STYLE_VARS.borderRadius,
-              background: TAB_STYLE_VARS.outerBackground,
+              background: TAB_STYLE_VARS.formBackground,
               padding: "8px 10px",
             }
       }
@@ -2212,9 +2213,9 @@ function SingleSelectDropdown({
                 width: "100%",
                 height: 34,
                 padding: "8px 10px",
-                background: TAB_STYLE_VARS.outerBackground,
+                background: TAB_STYLE_VARS.formBackground,
                 border: tabBorder(),
-                color: textColor,
+                color: hasSelection ? textColor : "var(--ai-muted)",
                 borderRadius: TAB_STYLE_VARS.borderRadius,
                 outline: "none",
                 boxSizing: "border-box",
@@ -4004,14 +4005,8 @@ function QuizPage({
               marginTop: i === 0 ? 0 : 0,
               marginBottom: 20,
               padding: "80px 40px",
-              background:
-                answerValue !== undefined
-                  ? "color-mix(in oklab, var(--color-ink) 1.5%, var(--color-paper))"
-                  : THEME.SiteBG,
-              border:
-                answerValue !== undefined
-                  ? `1px solid ${THEME.SiteText}`
-                  : `1px solid ${THEME.SiteBorder}`,
+              background: "var(--ai-surface)",
+              border: tabBorder(),
               borderRadius: "var(--radius-base)",
               transition: "background-color 1s ease, border-color 1s ease",
             }}
