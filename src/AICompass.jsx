@@ -5527,7 +5527,7 @@ export default function AICompass() {
       copy: "With every passing year, the debate over AI has grown both more urgent and more contentious. Yet high-level discourse threatens to obscure a range of individual opinions that have gone either unspoken or unheard.",
     },
     {
-      copy: "The AI Compass serves as a live, interactive visual of public opinion on AI, with the horizontal axis charting approval and the vertical axis charting belief in its capability.",
+      copy: "The AI Compass serves as a live, interactive map of public opinion on AI, with the horizontal axis charting approval and the vertical axis charting belief in its capability.",
     },
     {
       copy: "We encourage you to add your own position and commentary.",
@@ -5649,14 +5649,13 @@ export default function AICompass() {
   const publicFooter = (
     <footer className="ai-public-footer">
       <p className="type-body-sm ai-public-footer-note">
-        AI Compass is an informal public opinion map, not a scientific survey.
-        Results reflect participants who chose to take the quiz and should be
-        read as a snapshot, not a measurement of public opinion at large.
+        The AI Compass is an informal public opinion map and not a scientific
+        survey.
       </p>
       <div className="type-caption ai-public-footer-credit">
         Created by{" "}
         <a
-          href="https://www.linkedin.com/in/keithherrmann/"
+          href="https://linktr.ee/keithherrmann"
           target="_blank"
           rel="noopener noreferrer"
         >
