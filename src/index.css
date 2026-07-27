@@ -1639,6 +1639,12 @@ h6 {
   cursor: pointer;
 }
 
+.admin-page button:disabled {
+  background: color-mix(in oklab, var(--color-ink) 10%, var(--color-paper));
+  color: color-mix(in oklab, var(--color-ink) 48%, var(--color-paper));
+  cursor: not-allowed;
+}
+
 .admin-header {
   display: flex;
   align-items: flex-start;
@@ -1691,17 +1697,112 @@ h6 {
   font-size: 28px;
 }
 
-.admin-day-grid,
+.admin-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.admin-section-header h2 {
+  margin-bottom: 4px;
+}
+
+.admin-pagination {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.admin-pagination span {
+  color: color-mix(in oklab, var(--color-ink) 65%, var(--color-paper));
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
 .admin-breakdown-list {
   display: grid;
   gap: 6px;
 }
 
-.admin-day-grid {
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+.admin-chart-wrap {
+  width: 100%;
+  overflow-x: auto;
 }
 
-.admin-day-row,
+.admin-dot-chart {
+  display: block;
+  width: 100%;
+  min-width: 620px;
+  height: auto;
+  overflow: visible;
+}
+
+.admin-chart-gridline line {
+  stroke: color-mix(in oklab, var(--color-ink) 10%, var(--color-paper));
+  stroke-width: 1;
+}
+
+.admin-chart-gridline text,
+.admin-chart-x-label {
+  fill: color-mix(in oklab, var(--color-ink) 62%, var(--color-paper));
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.admin-chart-axis {
+  stroke: color-mix(in oklab, var(--color-ink) 22%, var(--color-paper));
+  stroke-width: 1;
+}
+
+.admin-chart-line {
+  fill: none;
+  stroke: color-mix(in oklab, var(--color-ink) 28%, var(--color-paper));
+  stroke-width: 2;
+}
+
+.admin-chart-point-group {
+  outline: none;
+}
+
+.admin-chart-point-hitbox {
+  fill: transparent;
+}
+
+.admin-chart-point {
+  fill: var(--color-ink);
+  stroke: var(--color-paper);
+  stroke-width: 2;
+  transition:
+    r 140ms ease,
+    fill 140ms ease;
+}
+
+.admin-chart-point-group:hover .admin-chart-point,
+.admin-chart-point-group:focus .admin-chart-point {
+  fill: var(--color-accent);
+  r: 6;
+}
+
+.admin-chart-tooltip {
+  opacity: 0;
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: var(--color-paper);
+  stroke-width: 5px;
+  fill: var(--color-ink);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.admin-chart-point-group:hover .admin-chart-tooltip,
+.admin-chart-point-group:focus .admin-chart-tooltip {
+  opacity: 1;
+}
+
 .admin-breakdown-row {
   display: flex;
   justify-content: space-between;
@@ -1743,6 +1844,14 @@ h6 {
 
   .admin-header {
     display: block;
+  }
+
+  .admin-section-header {
+    display: grid;
+  }
+
+  .admin-pagination {
+    justify-content: space-between;
   }
 }
 

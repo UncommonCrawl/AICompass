@@ -24,10 +24,13 @@ const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || "")
   .split(",")
   .map((email) => email.trim().toLowerCase())
   .filter(Boolean);
-const RECENT_LIMIT = 50;
+const RAW_SUBMISSIONS_LIMIT = 1000;
+const RAW_SUBMISSIONS_PAGE_SIZE = 100;
 const DAY_MS = 24 * 60 * 60 * 1000;
-const THIRTY_DAY_CUTOFF = Date.now() - 30 * DAY_MS;
 const DASHBOARD_TITLE = "AI Compass Dashboard";
+const CHART_WIDTH = 920;
+const CHART_HEIGHT = 280;
+const CHART_MARGIN = { top: 28, right: 26, bottom: 44, left: 48 };
 
 function getAuthErrorMessage(authError) {
   const code = authError?.code || "";
@@ -83,6 +86,14 @@ function formatDay(timestamp) {
   return new Date(timestamp).toISOString().slice(0, 10);
 }
 
+function formatChartDay(day) {
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(`${day}T00:00:00`));
+}
+
 function formatNumber(value, digits = 2) {
   return Number.isFinite(value) ? value.toFixed(digits) : "N/A";
 }
@@ -100,6 +111,35 @@ function increment(map, key) {
 
 function sortedBreakdown(map) {
   return [...map.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+}
+
+function buildDailySeries(submissions) {
+  const dayCounts = new Map();
+  let firstTimestamp = null;
+
+  for (const submission of submissions) {
+    if (!submission.timestamp) continue;
+    firstTimestamp =
+      firstTimestamp === null
+        ? submission.timestamp
+        : Math.min(firstTimestamp, submission.timestamp);
+    increment(dayCounts, formatDay(submission.timestamp));
+  }
+
+  if (firstTimestamp === null) return [];
+
+  const firstDay = formatDay(firstTimestamp);
+  const currentDay = formatDay(Date.now());
+  const firstDayMs = Date.parse(`${firstDay}T00:00:00.000Z`);
+  const currentDayMs = Date.parse(`${currentDay}T00:00:00.000Z`);
+  const series = [];
+
+  for (let dayMs = firstDayMs; dayMs <= currentDayMs; dayMs += DAY_MS) {
+    const day = formatDay(dayMs);
+    series.push({ day, count: dayCounts.get(day) || 0 });
+  }
+
+  return series;
 }
 
 function normalizeSubmission(docSnap) {
@@ -149,6 +189,131 @@ function mergePrivateSubmissionFields(submission, privateData) {
   };
 }
 
+function SubmissionsByDayChart({ days, loading }) {
+  if (!days.length) {
+    return <p className="admin-muted">{loading ? "Loading..." : "No data"}</p>;
+  }
+
+  const plotWidth = CHART_WIDTH - CHART_MARGIN.left - CHART_MARGIN.right;
+  const plotHeight = CHART_HEIGHT - CHART_MARGIN.top - CHART_MARGIN.bottom;
+  const maxCount = Math.max(1, ...days.map(({ count }) => count));
+  const pointRadius = days.length > 180 ? 2.75 : days.length > 90 ? 3.25 : 4;
+  const xFor = (index) =>
+    CHART_MARGIN.left +
+    (days.length === 1 ? plotWidth / 2 : (index / (days.length - 1)) * plotWidth);
+  const yFor = (count) =>
+    CHART_MARGIN.top + plotHeight - (count / maxCount) * plotHeight;
+  const linePath = days
+    .map(({ count }, index) => `${index === 0 ? "M" : "L"} ${xFor(index)} ${yFor(count)}`)
+    .join(" ");
+  const yTicks = [...new Set([0, Math.ceil(maxCount / 2), maxCount])];
+  const midIndex = Math.floor((days.length - 1) / 2);
+  const xTicks = [
+    { label: formatChartDay(days[0].day), index: 0, anchor: "start" },
+    ...(days.length > 2
+      ? [{ label: formatChartDay(days[midIndex].day), index: midIndex, anchor: "middle" }]
+      : []),
+    {
+      label: formatChartDay(days[days.length - 1].day),
+      index: days.length - 1,
+      anchor: "end",
+    },
+  ];
+
+  return (
+    <div className="admin-chart-wrap" aria-label="Submissions by day chart">
+      <svg
+        className="admin-dot-chart"
+        role="img"
+        viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
+      >
+        <title>
+          Submissions by day from {formatChartDay(days[0].day)} to{" "}
+          {formatChartDay(days[days.length - 1].day)}
+        </title>
+        {yTicks.map((tick) => {
+          const y = yFor(tick);
+          return (
+            <g className="admin-chart-gridline" key={tick}>
+              <line
+                x1={CHART_MARGIN.left}
+                x2={CHART_WIDTH - CHART_MARGIN.right}
+                y1={y}
+                y2={y}
+              />
+              <text x={CHART_MARGIN.left - 12} y={y + 4} textAnchor="end">
+                {tick}
+              </text>
+            </g>
+          );
+        })}
+        <line
+          className="admin-chart-axis"
+          x1={CHART_MARGIN.left}
+          x2={CHART_WIDTH - CHART_MARGIN.right}
+          y1={CHART_MARGIN.top + plotHeight}
+          y2={CHART_MARGIN.top + plotHeight}
+        />
+        <line
+          className="admin-chart-axis"
+          x1={CHART_MARGIN.left}
+          x2={CHART_MARGIN.left}
+          y1={CHART_MARGIN.top}
+          y2={CHART_MARGIN.top + plotHeight}
+        />
+        <path className="admin-chart-line" d={linePath} />
+        {days.map(({ day, count }, index) => {
+          const x = xFor(index);
+          const y = yFor(count);
+          const label = `${formatChartDay(day)}: ${count} ${
+            count === 1 ? "submission" : "submissions"
+          }`;
+          return (
+            <g
+              className="admin-chart-point-group"
+              key={day}
+              tabIndex="0"
+              aria-label={label}
+            >
+              <circle
+                className="admin-chart-point-hitbox"
+                cx={x}
+                cy={y}
+                r={Math.max(8, pointRadius + 4)}
+              />
+              <circle
+                className="admin-chart-point"
+                cx={x}
+                cy={y}
+                r={pointRadius}
+              />
+              <text
+                className="admin-chart-tooltip"
+                x={Math.min(Math.max(x, 80), CHART_WIDTH - 80)}
+                y={Math.max(18, y - 12)}
+                textAnchor="middle"
+              >
+                {label}
+              </text>
+            </g>
+          );
+        })}
+        {xTicks.map(({ label, index, anchor }) => (
+          <text
+            className="admin-chart-x-label"
+            key={`${label}-${index}`}
+            x={xFor(index)}
+            y={CHART_HEIGHT - 12}
+            textAnchor={anchor}
+          >
+            {label}
+          </text>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
 function BreakdownList({ entries }) {
   if (!entries.length) return <p className="admin-muted">No data</p>;
   return (
@@ -171,6 +336,7 @@ function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
   const [error, setError] = useState("");
+  const [rawSubmissionsPage, setRawSubmissionsPage] = useState(1);
 
   useEffect(() => {
     const previousTitle = document.title;
@@ -264,7 +430,7 @@ function AdminDashboard() {
           .map(normalizeSubmission)
           .filter((submission) => !submission.isDev);
         const privateDocs = await Promise.all(
-          normalized.slice(0, RECENT_LIMIT).map(async (submission) => {
+          normalized.slice(0, RAW_SUBMISSIONS_LIMIT).map(async (submission) => {
             try {
               const privateSnap = await getDoc(
                 doc(db, SUBMISSION_PRIVATE_COLLECTION, submission.id),
@@ -303,7 +469,6 @@ function AdminDashboard() {
     const ages = new Map();
     const countries = new Map();
     const industries = new Map();
-    const dayCounts = new Map();
     let xTotal = 0;
     let xCount = 0;
     let yTotal = 0;
@@ -314,9 +479,6 @@ function AdminDashboard() {
       increment(ages, submission.ageRange);
       increment(countries, submission.country);
       increment(industries, submission.industry);
-      if (submission.timestamp >= THIRTY_DAY_CUTOFF) {
-        increment(dayCounts, formatDay(submission.timestamp));
-      }
       if (Number.isFinite(submission.x)) {
         xTotal += submission.x;
         xCount += 1;
@@ -334,11 +496,29 @@ function AdminDashboard() {
       ages: sortedBreakdown(ages),
       countries: sortedBreakdown(countries),
       industries: sortedBreakdown(industries),
-      days: [...dayCounts.entries()].sort(([a], [b]) => a.localeCompare(b)),
+      days: buildDailySeries(submissions),
     };
   }, [submissions]);
 
-  const recentSubmissions = submissions.slice(0, RECENT_LIMIT);
+  const rawSubmissions = submissions.slice(0, RAW_SUBMISSIONS_LIMIT);
+  const rawSubmissionsTotalPages = Math.max(
+    1,
+    Math.ceil(rawSubmissions.length / RAW_SUBMISSIONS_PAGE_SIZE),
+  );
+  const displayedRawSubmissionsPage = Math.min(
+    rawSubmissionsPage,
+    rawSubmissionsTotalPages,
+  );
+  const rawSubmissionsPageStart =
+    (displayedRawSubmissionsPage - 1) * RAW_SUBMISSIONS_PAGE_SIZE;
+  const rawSubmissionsPageEnd = Math.min(
+    rawSubmissionsPageStart + RAW_SUBMISSIONS_PAGE_SIZE,
+    rawSubmissions.length,
+  );
+  const recentSubmissions = rawSubmissions.slice(
+    rawSubmissionsPageStart,
+    rawSubmissionsPageEnd,
+  );
 
   if (!authReady) {
     return <main className="admin-page">Loading...</main>;
@@ -423,19 +603,8 @@ function AdminDashboard() {
       </section>
 
       <section className="admin-section">
-        <h2>Submissions by day, last 30 days</h2>
-        <div className="admin-day-grid">
-          {stats.days.length ? (
-            stats.days.map(([day, count]) => (
-              <div className="admin-day-row" key={day}>
-                <span>{day}</span>
-                <strong>{count}</strong>
-              </div>
-            ))
-          ) : (
-            <p className="admin-muted">{loading ? "Loading..." : "No data"}</p>
-          )}
-        </div>
+        <h2>Submissions by day</h2>
+        <SubmissionsByDayChart days={stats.days} loading={loading} />
       </section>
 
       <section className="admin-breakdown-grid">
@@ -458,7 +627,40 @@ function AdminDashboard() {
       </section>
 
       <section className="admin-section">
-        <h2>Recent raw submissions</h2>
+        <div className="admin-section-header">
+          <div>
+            <h2>Recent raw submissions</h2>
+            <p className="admin-muted">
+              {rawSubmissions.length
+                ? `Showing ${rawSubmissionsPageStart + 1}-${rawSubmissionsPageEnd} of ${rawSubmissions.length} most recent submissions`
+                : loading
+                  ? "Loading..."
+                  : "No submissions found"}
+              {submissions.length > RAW_SUBMISSIONS_LIMIT
+                ? `, capped at ${RAW_SUBMISSIONS_LIMIT}`
+                : ""}
+            </p>
+          </div>
+          <div className="admin-pagination" aria-label="Recent submissions pagination">
+            <button
+              type="button"
+              onClick={() => setRawSubmissionsPage(displayedRawSubmissionsPage - 1)}
+              disabled={displayedRawSubmissionsPage <= 1}
+            >
+              Previous
+            </button>
+            <span>
+              Page {displayedRawSubmissionsPage} of {rawSubmissionsTotalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setRawSubmissionsPage(displayedRawSubmissionsPage + 1)}
+              disabled={displayedRawSubmissionsPage >= rawSubmissionsTotalPages}
+            >
+              Next
+            </button>
+          </div>
+        </div>
         <div className="admin-table-wrap">
           <table className="admin-table">
             <thead>
