@@ -5266,9 +5266,19 @@ export default function AICompass() {
   const visibleArchivePoints = devDotDisplayEnabled
     ? archivePoints
     : archivePoints.filter((point) => !isDevRecord(point));
+  const filtersAreAtDefault =
+    disabledAges.length === 0 &&
+    disabledCountries.length === 0 &&
+    disabledIndustries.length === 0 &&
+    selectedArchetype === "";
+  const archiveLayerIsNeeded =
+    filtersAreAtDefault &&
+    Number(dotCountSummary?.valid) > INTERACTIVE_DOT_LIMIT;
   const effectiveArchivePoints = devPerfValves.noFirestore
     ? []
-    : visibleArchivePoints;
+    : archiveLayerIsNeeded
+      ? visibleArchivePoints
+      : [];
   const effectiveQuestionAveragesById = devPerfValves.noFirestore
     ? {}
     : questionAveragesById;
