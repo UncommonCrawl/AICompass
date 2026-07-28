@@ -274,24 +274,28 @@ const QUESTION_MEDIAN_BY_ID = Object.fromEntries(
 const QUADRANT_INFO = {
   topRight: {
     name: "The Singulatarian",
+    coordinateLabel: "[+X, +Y]",
     compassLabel: "Singulatarians",
     desc: "Believes transformative AI is near and wants to accelerate toward it.",
     color: "var(--color-ink)",
   },
   topLeft: {
     name: "The Sentinel",
+    coordinateLabel: "[-X, +Y]",
     compassLabel: "Sentinels",
     desc: "Believes powerful AI is coming but fears what happens without guardrails.",
     color: "var(--color-ink)",
   },
   bottomRight: {
     name: "The Synthesist",
+    coordinateLabel: "[+X, -Y]",
     compassLabel: "Synthesists",
     desc: "Wary of grand AI claims while believing in real-world applications.",
     color: "var(--color-ink)",
   },
   bottomLeft: {
     name: "The Skeptic",
+    coordinateLabel: "[-X, -Y]",
     compassLabel: "Skeptics",
     desc: "Doubts transformative potential and favors strong restrictions.",
     color: "var(--color-ink)",
@@ -5603,7 +5607,7 @@ export default function AICompass() {
       {/* Keep homepage body content here so it appears in both home and results states. */}
       <section className="ai-section ai-types-section">
         <div className="ai-types-grid">
-          {ARCHETYPE_GRID_ORDER.map((key, index) => {
+          {ARCHETYPE_GRID_ORDER.map((key) => {
             const val = QUADRANT_INFO[key];
             const isSelected = selectedArchetype === val.name;
             const isResultArchetype =
@@ -5633,7 +5637,7 @@ export default function AICompass() {
                     isResultArchetype ? "is-result" : ""
                   }`}
                 >
-                  Type {String(index + 1).padStart(2, "0")}
+                  {val.coordinateLabel}
                   {isResultArchetype ? " / Your Result" : ""}
                 </div>
                 <div className="ai-type-name">{val.name}</div>
