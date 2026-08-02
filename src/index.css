@@ -1297,9 +1297,11 @@ h6 {
 
 .site-header-logo {
   min-width: 0;
+  width: fit-content;
+  max-width: 100%;
   padding: 0;
   display: block;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   border: 0;
   background: none;
   color: var(--ai-text);
@@ -1308,7 +1310,7 @@ h6 {
 }
 
 .site-header-wordmark {
-  display: grid;
+  display: inline-grid;
   gap: 6px;
 }
 
@@ -1373,12 +1375,12 @@ h6 {
   }
 
   .site-header-logo {
-    width: 100%;
+    width: fit-content;
     flex: 0 0 auto;
   }
 
   .site-header-title {
-    width: 80%;
+    width: auto;
     font-size: var(--site-header-title-font-size);
     justify-content: flex-start;
   }
