@@ -2778,6 +2778,12 @@ function Compass({
       sy: cy - filterAverageScores.y * yRange,
     };
   }, [filterAverageScores, cx, cy, xRange, yRange]);
+  const totalAverageLabelIsCrowded =
+    showQuestionFilterAverages &&
+    totalAveragePoint &&
+    filterAveragePoint &&
+    Math.abs(totalAveragePoint.sx - filterAveragePoint.sx) < 28 &&
+    Math.abs(totalAveragePoint.sy - filterAveragePoint.sy) < 16;
   const markerLabelOutlineProps = {
     stroke: THEME.SiteBG,
     strokeWidth: 1.5,
@@ -3435,17 +3441,23 @@ function Compass({
                   height={COMPASS_DOT_GEOMETRY.size}
                   fill={GRAY}
                 />
-                <text
-                  className="type-caption color-muted"
-                  x={totalAveragePoint.sx}
-                  y={totalAveragePoint.sy - COMPASS_DOT_GEOMETRY.radius - 4}
-                  fill="currentColor"
-                  textAnchor="middle"
-                  style={markerLabelTextStyle}
-                  {...markerLabelOutlineProps}
-                >
-                  AVG
-                </text>
+                {!totalAverageLabelIsCrowded && (
+                  <text
+                    className="type-caption color-muted"
+                    x={totalAveragePoint.sx}
+                    y={
+                      totalAveragePoint.sy -
+                      COMPASS_DOT_GEOMETRY.radius -
+                      4
+                    }
+                    fill="currentColor"
+                    textAnchor="middle"
+                    style={markerLabelTextStyle}
+                    {...markerLabelOutlineProps}
+                  >
+                    {showQuestionFilterAverages ? "ALL" : "AVG"}
+                  </text>
+                )}
               </>
             )}
             {showAverageMarker &&
@@ -3472,7 +3484,7 @@ function Compass({
                     style={markerLabelTextStyle}
                     {...markerLabelOutlineProps}
                   >
-                    FILTER
+                  AVG
                   </text>
                 </>
               )}
@@ -4165,12 +4177,12 @@ function QuizPage({
         };
         const totalAverageMarker = buildAverageMarker(
           questionTotalAveragesById[q.id],
-          "AVG",
+          showQuestionFilterAverages ? "ALL" : "AVG",
           GRAY,
         );
         const filterAverageMarker = buildAverageMarker(
           questionFilterAveragesById[q.id],
-          "FILTER",
+          "AVG",
           filterAverageMarkerColor,
         );
         const showTotalAverageMarker =
@@ -4208,7 +4220,7 @@ function QuizPage({
         const showTotalAverageLabel =
           showTotalAverageMarker && !totalOverlapsThumb && !averagesOverlap;
         const showFilterAverageLabel =
-          showFilterAverageMarker && !filterOverlapsThumb && !averagesOverlap;
+          showFilterAverageMarker && !filterOverlapsThumb;
         return (
           <div
             key={q.id}
@@ -5003,6 +5015,7 @@ export default function AICompass() {
   useEffect(() => {
     if (
       devPerfValves.noFirestore ||
+      selectedArchetype !== "" ||
       publicDotFiltersAreAtDefault(
         disabledAges,
         disabledCountries,
@@ -5570,10 +5583,12 @@ export default function AICompass() {
       ? visibleArchivePoints
       : [];
   const effectiveQuestionTotalAveragesById = devPerfValves.noFirestore
+    || selectedArchetype !== ""
     ? {}
     : questionAveragesById;
   const effectiveQuestionFilterAveragesById =
     devPerfValves.noFirestore ||
+    selectedArchetype !== "" ||
     filtersAreAtDefault ||
     filteredQuestionAveragesLoading ||
     filteredQuestionAverageSubmissionCount < 2
@@ -5581,6 +5596,7 @@ export default function AICompass() {
       : filteredQuestionAveragesById;
   const showQuestionFilterAverages =
     !devPerfValves.noFirestore &&
+    selectedArchetype === "" &&
     !filtersAreAtDefault &&
     !filteredQuestionAveragesLoading &&
     filteredQuestionAverageSubmissionCount >= 2;
@@ -6341,7 +6357,9 @@ export default function AICompass() {
                             disabledIndustries={disabledIndustries}
                             onCanvasDraw={handleHomeCanvasDraw}
                             dotCountSummary={dotCountSummary}
-                            showAverageMarker={showCompassView}
+                            showAverageMarker={
+                              showCompassView && selectedArchetype === ""
+                            }
                             questionTotalAveragesById={
                               effectiveQuestionTotalAveragesById
                             }
