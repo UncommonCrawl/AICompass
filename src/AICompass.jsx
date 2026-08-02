@@ -194,6 +194,15 @@ const QUESTION_AVERAGES_DOC_ID = "question-averages-v1";
 const COMPASS_SUBMIT_ENDPOINT = (
   import.meta.env.VITE_COMPASS_SUBMIT_ENDPOINT || ""
 ).trim();
+const COMPASS_QUESTION_AVERAGES_ENDPOINT = (
+  import.meta.env.VITE_COMPASS_QUESTION_AVERAGES_ENDPOINT ||
+  (COMPASS_SUBMIT_ENDPOINT
+    ? COMPASS_SUBMIT_ENDPOINT.replace(
+        /\/submitCompassResult\/?$/,
+        "/questionAverages",
+      )
+    : "/api/question-averages")
+).trim();
 const DEVICE_ID_STORAGE_KEY = "ai_compass_device_id_v1";
 const SESSION_ID_STORAGE_KEY = "ai_compass_session_id_v1";
 const LAST_RESULT_STORAGE_KEY = "ai_compass_last_result_v1";
@@ -888,17 +897,87 @@ function buildQuestionAverageByIdMap(source) {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
     const avgTotal = Number(entry.avg_total);
     const countTotal = Number(entry.count_total);
+    const avgDefault = Number(entry.avg_default);
+    const countDefault = Number(entry.count_default);
+    const hasDefaultAggregate =
+      Number.isFinite(countDefault) &&
+      countDefault > 0 &&
+      Number.isFinite(avgDefault);
     const hasTotalAggregate =
       Number.isFinite(countTotal) &&
       countTotal > 0 &&
       Number.isFinite(avgTotal);
-    if (!hasTotalAggregate) continue;
+    if (!hasDefaultAggregate && !hasTotalAggregate) continue;
+    const averageValue = hasDefaultAggregate ? avgDefault : avgTotal;
     averagesById[question.id] = Math.max(
       RESPONSE_RANGE.min,
-      Math.min(RESPONSE_RANGE.max, avgTotal),
+      Math.min(RESPONSE_RANGE.max, averageValue),
     );
   }
   return averagesById;
+}
+
+function calculateScoresFromQuestionAverages(averagesById) {
+  if (!averagesById || typeof averagesById !== "object") return null;
+  const answers = {};
+  for (const question of QUESTIONS) {
+    const value = Number(averagesById[question.id]);
+    if (!Number.isFinite(value)) continue;
+    answers[question.id] = value;
+  }
+  return Object.keys(answers).length > 0 ? calculateScores(answers) : null;
+}
+
+function buildQuestionAverageFilterPayload(filterSelections) {
+  return Object.fromEntries(
+    Object.entries(filterSelections).map(([key, selection]) => [
+      key,
+      {
+        optionCount: selection.optionCount,
+        selectedValues: selection.selectedValues,
+      },
+    ]),
+  );
+}
+
+function publicDotFiltersAreAtDefault(
+  disabledAges,
+  disabledCountries,
+  disabledIndustries,
+  selectedArchetype,
+) {
+  return (
+    disabledAges.length === 0 &&
+    disabledCountries.length === 0 &&
+    disabledIndustries.length === 0 &&
+    selectedArchetype === ""
+  );
+}
+
+async function fetchQuestionAveragesByFilter(filterSelections) {
+  const response = await fetch(COMPASS_QUESTION_AVERAGES_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      filters: buildQuestionAverageFilterPayload(filterSelections),
+    }),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message =
+      typeof body?.error === "string" && body.error.trim() !== ""
+        ? body.error
+        : `HTTP ${response.status}`;
+    throw new Error(message);
+  }
+  return {
+    averagesById: buildQuestionAverageByIdMap(body?.questions_by_id),
+    submissionCount: Number.isFinite(Number(body?.submission_count))
+      ? Number(body.submission_count)
+      : 0,
+  };
 }
 
 function readQuestionResponseValueMap(result) {
@@ -2322,6 +2401,9 @@ function Compass({
   onCanvasDraw,
   dotCountSummary = null,
   showAverageMarker = false,
+  questionTotalAveragesById = {},
+  questionFilterAveragesById = {},
+  showQuestionFilterAverages = false,
   showResultMarkers = false,
   isLoading = false,
   animateLoadReveal = true,
@@ -2645,12 +2727,11 @@ function Compass({
       sy: cy - userScores.y * yRange,
     };
   }, [showResultMarkers, userScores, cx, cy, xRange, yRange]);
-  const globalAverageScores = useMemo(() => {
-    if (!showAverageMarker) return null;
+  const averageScoresFromResults = useCallback((sourceResults) => {
     let sumX = 0;
     let sumY = 0;
     let count = 0;
-    for (const result of results) {
+    for (const result of sourceResults) {
       const pointScores = extractScoresFromResult(result);
       if (!pointScores) continue;
       sumX += pointScores.x;
@@ -2662,14 +2743,41 @@ function Compass({
       x: sumX / count,
       y: sumY / count,
     };
-  }, [showAverageMarker, results]);
-  const globalAveragePoint = useMemo(() => {
-    if (!globalAverageScores) return null;
+  }, []);
+  const totalAverageScores = useMemo(() => {
+    if (!showAverageMarker) return null;
+    return (
+      calculateScoresFromQuestionAverages(questionTotalAveragesById) ||
+      averageScoresFromResults(results)
+    );
+  }, [
+    showAverageMarker,
+    questionTotalAveragesById,
+    averageScoresFromResults,
+    results,
+  ]);
+  const filterAverageScores = useMemo(() => {
+    if (!showAverageMarker || !showQuestionFilterAverages) return null;
+    return calculateScoresFromQuestionAverages(questionFilterAveragesById);
+  }, [
+    showAverageMarker,
+    showQuestionFilterAverages,
+    questionFilterAveragesById,
+  ]);
+  const totalAveragePoint = useMemo(() => {
+    if (!totalAverageScores) return null;
     return {
-      sx: cx + globalAverageScores.x * xRange,
-      sy: cy - globalAverageScores.y * yRange,
+      sx: cx + totalAverageScores.x * xRange,
+      sy: cy - totalAverageScores.y * yRange,
     };
-  }, [globalAverageScores, cx, cy, xRange, yRange]);
+  }, [totalAverageScores, cx, cy, xRange, yRange]);
+  const filterAveragePoint = useMemo(() => {
+    if (!filterAverageScores) return null;
+    return {
+      sx: cx + filterAverageScores.x * xRange,
+      sy: cy - filterAverageScores.y * yRange,
+    };
+  }, [filterAverageScores, cx, cy, xRange, yRange]);
   const markerLabelOutlineProps = {
     stroke: THEME.SiteBG,
     strokeWidth: 1.5,
@@ -3318,19 +3426,19 @@ function Compass({
                 </text>
               </>
             )}
-            {showAverageMarker && globalAveragePoint && (
+            {showAverageMarker && totalAveragePoint && (
               <>
                 <rect
-                  x={globalAveragePoint.sx - COMPASS_DOT_GEOMETRY.radius}
-                  y={globalAveragePoint.sy - COMPASS_DOT_GEOMETRY.radius}
+                  x={totalAveragePoint.sx - COMPASS_DOT_GEOMETRY.radius}
+                  y={totalAveragePoint.sy - COMPASS_DOT_GEOMETRY.radius}
                   width={COMPASS_DOT_GEOMETRY.size}
                   height={COMPASS_DOT_GEOMETRY.size}
                   fill={GRAY}
                 />
                 <text
                   className="type-caption color-muted"
-                  x={globalAveragePoint.sx}
-                  y={globalAveragePoint.sy - COMPASS_DOT_GEOMETRY.radius - 4}
+                  x={totalAveragePoint.sx}
+                  y={totalAveragePoint.sy - COMPASS_DOT_GEOMETRY.radius - 4}
                   fill="currentColor"
                   textAnchor="middle"
                   style={markerLabelTextStyle}
@@ -3340,6 +3448,34 @@ function Compass({
                 </text>
               </>
             )}
+            {showAverageMarker &&
+              showQuestionFilterAverages &&
+              filterAveragePoint && (
+                <>
+                  <rect
+                    x={filterAveragePoint.sx - COMPASS_DOT_GEOMETRY.radius}
+                    y={filterAveragePoint.sy - COMPASS_DOT_GEOMETRY.radius}
+                    width={COMPASS_DOT_GEOMETRY.size}
+                    height={COMPASS_DOT_GEOMETRY.size}
+                    fill={userDotColor}
+                  />
+                  <text
+                    className="type-caption color-ink"
+                    x={filterAveragePoint.sx}
+                    y={
+                      filterAveragePoint.sy -
+                      COMPASS_DOT_GEOMETRY.radius -
+                      4
+                    }
+                    fill="currentColor"
+                    textAnchor="middle"
+                    style={markerLabelTextStyle}
+                    {...markerLabelOutlineProps}
+                  >
+                    FILTER
+                  </text>
+                </>
+              )}
             {[pinnedPoint]
               .filter((point) => point && point.enabled)
               .map((point) => (
@@ -3576,7 +3712,9 @@ function QuizPage({
   editAnswersEnabled = false,
   editAnswersUnlocked = false,
   resetAnswersRequest = 0,
-  questionAveragesById = {},
+  questionTotalAveragesById = {},
+  questionFilterAveragesById = {},
+  showQuestionFilterAverages = false,
   submitError = "",
   colorMode = "dark",
 }) {
@@ -3728,6 +3866,11 @@ function QuizPage({
     colorMode === "light"
       ? LIGHT_MODE_LOCKED_SLIDER_ICON_COLOR
       : LOCKED_SLIDER_ICON_COLOR;
+  const filterAverageMarkerColor = readCssToken(
+    colorMode === "light"
+      ? LIGHT_MODE_USER_DOT_COLOR_TOKEN
+      : DEFAULT_USER_DOT_COLOR_TOKEN,
+  );
   const fieldLabelStyle = {
     color: "var(--color-ink)",
     display: "flex",
@@ -3962,13 +4105,17 @@ function QuizPage({
           width: ${RESPONSE_SLIDER_THUMB_SIZE_PX}px;
           height: ${RESPONSE_SLIDER_THUMB_SIZE_PX}px;
           border-radius: 50%;
-          background: ${GRAY};
-          border: 1px solid ${GRAY};
+          background: var(--avg-marker-color, ${GRAY});
+          border: 1px solid var(--avg-marker-color, ${GRAY});
           box-sizing: border-box;
           transform: translate(-50%, -50%);
           pointer-events: none;
           z-index: 2;
           opacity: 0;
+        }
+
+        .response-slider-avg-thumb.is-filter {
+          z-index: 2;
         }
 
         .response-slider-avg-thumb.is-visible {
@@ -3993,30 +4140,75 @@ function QuizPage({
         const sliderYouLabelLeft = `calc(${sliderThumbCenterLeft} + ${RESPONSE_SLIDER_YOU_LABEL_OFFSET_PX}px)`;
         const hasAnsweredValue = answerValue !== undefined;
         const showSliderYouLabel = isLabelSlidersState && hasAnsweredValue;
-        const avgValue = Number(questionAveragesById[q.id]);
-        const hasAverageValue = Number.isFinite(avgValue);
-        const avgThumbPercent = hasAverageValue
-          ? Math.max(
-              0,
-              Math.min(
-                100,
-                ((avgValue - RESPONSE_RANGE.min) /
-                  (RESPONSE_RANGE.max - RESPONSE_RANGE.min)) *
+        const buildAverageMarker = (averageValue, label, color) => {
+          const value = Number(averageValue);
+          const hasValue = Number.isFinite(value);
+          const percent = hasValue
+            ? Math.max(
+                0,
+                Math.min(
                   100,
-              ),
-            )
-          : 0;
-        const avgThumbCenterLeft = `calc(${RESPONSE_SLIDER_THUMB_SIZE_PX / 2}px + (${avgThumbPercent} * (100% - ${RESPONSE_SLIDER_THUMB_SIZE_PX}px) / 100))`;
-        const showSliderAvgMarker = isLabelSlidersState && hasAverageValue;
-        const thumbCenterDistancePx =
-          (Math.abs(sliderThumbPercent - avgThumbPercent) / 100) *
+                  ((value - RESPONSE_RANGE.min) /
+                    (RESPONSE_RANGE.max - RESPONSE_RANGE.min)) *
+                    100,
+                ),
+              )
+            : 0;
+          const centerLeft = `calc(${RESPONSE_SLIDER_THUMB_SIZE_PX / 2}px + (${percent} * (100% - ${RESPONSE_SLIDER_THUMB_SIZE_PX}px) / 100))`;
+          return {
+            hasValue,
+            percent,
+            centerLeft,
+            label,
+            color,
+          };
+        };
+        const totalAverageMarker = buildAverageMarker(
+          questionTotalAveragesById[q.id],
+          "AVG",
+          GRAY,
+        );
+        const filterAverageMarker = buildAverageMarker(
+          questionFilterAveragesById[q.id],
+          "FILTER",
+          filterAverageMarkerColor,
+        );
+        const showTotalAverageMarker =
+          isLabelSlidersState && totalAverageMarker.hasValue;
+        const showFilterAverageMarker =
+          isLabelSlidersState &&
+          showQuestionFilterAverages &&
+          filterAverageMarker.hasValue;
+        const markerDistancePx = (markerPercent) =>
+          (Math.abs(sliderThumbPercent - markerPercent) / 100) *
           Math.max(0, sliderVisualWidthPx - RESPONSE_SLIDER_THUMB_SIZE_PX);
-        const thumbsOverlap =
+        const markersDistancePx = (firstPercent, secondPercent) =>
+          (Math.abs(firstPercent - secondPercent) / 100) *
+          Math.max(0, sliderVisualWidthPx - RESPONSE_SLIDER_THUMB_SIZE_PX);
+        const totalOverlapsThumb =
           hasAnsweredValue &&
-          hasAverageValue &&
+          totalAverageMarker.hasValue &&
           sliderVisualWidthPx > 0 &&
-          thumbCenterDistancePx <= RESPONSE_SLIDER_THUMB_RADIUS_PX * 2;
-        const showSliderAvgLabel = showSliderAvgMarker && !thumbsOverlap;
+          markerDistancePx(totalAverageMarker.percent) <=
+            RESPONSE_SLIDER_THUMB_RADIUS_PX * 2;
+        const filterOverlapsThumb =
+          hasAnsweredValue &&
+          filterAverageMarker.hasValue &&
+          sliderVisualWidthPx > 0 &&
+          markerDistancePx(filterAverageMarker.percent) <=
+            RESPONSE_SLIDER_THUMB_RADIUS_PX * 2;
+        const averagesOverlap =
+          totalAverageMarker.hasValue &&
+          filterAverageMarker.hasValue &&
+          sliderVisualWidthPx > 0 &&
+          markersDistancePx(
+            totalAverageMarker.percent,
+            filterAverageMarker.percent,
+          ) <= RESPONSE_SLIDER_THUMB_RADIUS_PX * 2;
+        const showTotalAverageLabel =
+          showTotalAverageMarker && !totalOverlapsThumb && !averagesOverlap;
+        const showFilterAverageLabel =
+          showFilterAverageMarker && !filterOverlapsThumb && !averagesOverlap;
         return (
           <div
             key={q.id}
@@ -4065,24 +4257,49 @@ function QuizPage({
                     YOU
                   </span>
                 )}
-                {hasAverageValue && (
+                {totalAverageMarker.hasValue && (
                   <>
                     <span
                       className={`response-slider-avg-thumb ${
-                        showSliderAvgMarker ? "is-visible" : ""
+                        showTotalAverageMarker ? "is-visible" : ""
                       }`}
-                      style={{ left: avgThumbCenterLeft }}
+                      style={{
+                        left: totalAverageMarker.centerLeft,
+                        "--avg-marker-color": totalAverageMarker.color,
+                      }}
                     />
                     <span
                       className={`type-caption-small response-slider-user-label ${
-                        showSliderAvgLabel ? "is-visible" : ""
+                        showTotalAverageLabel ? "is-visible" : ""
                       }`}
-                      style={{ left: avgThumbCenterLeft }}
+                      style={{ left: totalAverageMarker.centerLeft }}
                     >
-                      AVG
+                      {totalAverageMarker.label}
                     </span>
                   </>
                 )}
+                {showQuestionFilterAverages &&
+                  filterAverageMarker.hasValue && (
+                    <>
+                      <span
+                        className={`response-slider-avg-thumb is-filter ${
+                          showFilterAverageMarker ? "is-visible" : ""
+                        }`}
+                        style={{
+                          left: filterAverageMarker.centerLeft,
+                          "--avg-marker-color": filterAverageMarker.color,
+                        }}
+                      />
+                      <span
+                        className={`type-caption-small response-slider-user-label ${
+                          showFilterAverageLabel ? "is-visible" : ""
+                        }`}
+                        style={{ left: filterAverageMarker.centerLeft }}
+                      >
+                        {filterAverageMarker.label}
+                      </span>
+                    </>
+                  )}
                 <input
                   className={`response-slider ${
                     answerValue === undefined ? "is-unanswered" : ""
@@ -4351,6 +4568,12 @@ export default function AICompass() {
     total: null,
   });
   const [questionAveragesById, setQuestionAveragesById] = useState({});
+  const [filteredQuestionAveragesById, setFilteredQuestionAveragesById] =
+    useState({});
+  const [filteredQuestionAverageSubmissionCount, setFilteredQuestionAverageSubmissionCount] =
+    useState(0);
+  const [filteredQuestionAveragesLoading, setFilteredQuestionAveragesLoading] =
+    useState(false);
   const [userResult, setUserResult] = useState(
     initialPersistedResultState.userResult,
   );
@@ -4749,6 +4972,11 @@ export default function AICompass() {
 
   useEffect(() => {
     if (devPerfValves.noFirestore) {
+      queueMicrotask(() => {
+        setFilteredQuestionAveragesById({});
+        setFilteredQuestionAverageSubmissionCount(0);
+        setFilteredQuestionAveragesLoading(false);
+      });
       return;
     }
     const questionAveragesRef = doc(
@@ -4771,6 +4999,63 @@ export default function AICompass() {
     );
     return unsubscribe;
   }, [devPerfValves.noFirestore]);
+
+  useEffect(() => {
+    if (
+      devPerfValves.noFirestore ||
+      publicDotFiltersAreAtDefault(
+        disabledAges,
+        disabledCountries,
+        disabledIndustries,
+        selectedArchetype,
+      )
+    ) {
+      queueMicrotask(() => {
+        setFilteredQuestionAveragesById({});
+        setFilteredQuestionAverageSubmissionCount(0);
+        setFilteredQuestionAveragesLoading(false);
+      });
+      return;
+    }
+
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setFilteredQuestionAveragesById({});
+      setFilteredQuestionAverageSubmissionCount(0);
+      setFilteredQuestionAveragesLoading(true);
+    });
+    const filterSelections = getPublicDotFilterSelections(
+      disabledAges,
+      disabledCountries,
+      disabledIndustries,
+      selectedArchetype,
+    );
+    fetchQuestionAveragesByFilter(filterSelections)
+      .then(({ averagesById, submissionCount }) => {
+        if (cancelled) return;
+        setFilteredQuestionAveragesById(averagesById);
+        setFilteredQuestionAverageSubmissionCount(submissionCount);
+        setFilteredQuestionAveragesLoading(false);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.error("Filtered question averages error:", error);
+        setFilteredQuestionAveragesById({});
+        setFilteredQuestionAverageSubmissionCount(0);
+        setFilteredQuestionAveragesLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    disabledAges,
+    disabledCountries,
+    disabledIndustries,
+    selectedArchetype,
+    devPerfValves.noFirestore,
+  ]);
   const handleHomeCanvasDraw = useCallback(() => {
     setHomeCanvasDrawn((prev) => (prev ? prev : true));
   }, []);
@@ -5270,11 +5555,12 @@ export default function AICompass() {
   const visibleArchivePoints = devDotDisplayEnabled
     ? archivePoints
     : archivePoints.filter((point) => !isDevRecord(point));
-  const filtersAreAtDefault =
-    disabledAges.length === 0 &&
-    disabledCountries.length === 0 &&
-    disabledIndustries.length === 0 &&
-    selectedArchetype === "";
+  const filtersAreAtDefault = publicDotFiltersAreAtDefault(
+    disabledAges,
+    disabledCountries,
+    disabledIndustries,
+    selectedArchetype,
+  );
   const archiveLayerIsNeeded =
     filtersAreAtDefault &&
     Number(dotCountSummary?.valid) > INTERACTIVE_DOT_LIMIT;
@@ -5283,9 +5569,21 @@ export default function AICompass() {
     : archiveLayerIsNeeded
       ? visibleArchivePoints
       : [];
-  const effectiveQuestionAveragesById = devPerfValves.noFirestore
+  const effectiveQuestionTotalAveragesById = devPerfValves.noFirestore
     ? {}
     : questionAveragesById;
+  const effectiveQuestionFilterAveragesById =
+    devPerfValves.noFirestore ||
+    filtersAreAtDefault ||
+    filteredQuestionAveragesLoading ||
+    filteredQuestionAverageSubmissionCount < 2
+      ? {}
+      : filteredQuestionAveragesById;
+  const showQuestionFilterAverages =
+    !devPerfValves.noFirestore &&
+    !filtersAreAtDefault &&
+    !filteredQuestionAveragesLoading &&
+    filteredQuestionAverageSubmissionCount >= 2;
   const isQuizScreen = screen === "quiz";
   const shouldMountCompassView =
     screen === "home" || screen === "results" || isQuizScreen;
@@ -6044,6 +6342,15 @@ export default function AICompass() {
                             onCanvasDraw={handleHomeCanvasDraw}
                             dotCountSummary={dotCountSummary}
                             showAverageMarker={showCompassView}
+                            questionTotalAveragesById={
+                              effectiveQuestionTotalAveragesById
+                            }
+                            questionFilterAveragesById={
+                              effectiveQuestionFilterAveragesById
+                            }
+                            showQuestionFilterAverages={
+                              showQuestionFilterAverages
+                            }
                             showResultMarkers={showResultsStrip}
                             isLoading={isCompassLoading}
                             animateLoadReveal={compassLoadRevealArmed}
@@ -6075,7 +6382,11 @@ export default function AICompass() {
                   editAnswersEnabled={quizEditAnswersEnabled}
                   editAnswersUnlocked={quizEditAnswersUnlocked}
                   resetAnswersRequest={quizResetAnswersRequest}
-                  questionAveragesById={effectiveQuestionAveragesById}
+                  questionTotalAveragesById={effectiveQuestionTotalAveragesById}
+                  questionFilterAveragesById={
+                    effectiveQuestionFilterAveragesById
+                  }
+                  showQuestionFilterAverages={showQuestionFilterAverages}
                   submitError={submitError}
                   colorMode={colorMode}
                 />

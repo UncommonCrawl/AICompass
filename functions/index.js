@@ -29,6 +29,9 @@ const IP_HARD_BLOCK_COUNT = 20;
 const SUSPICIOUS_PATTERN_WINDOW_MS = 10 * 60 * 1000;
 const SIGNAL_HISTORY_LIMIT = 120;
 const PUBLIC_SITE_URL = "https://theaicompass.io";
+const FIRESTORE_IN_FILTER_LIMIT = 10;
+const FILTER_AVERAGE_FIELDS = ["age", "country", "industry", "archetype"];
+const UNSPECIFIED_FILTER_VALUE = "__UNSPECIFIED__";
 const SHARE_TOKEN_SCALE = 10000;
 const SHARE_TOKEN_MAX_QUANTIZED = SHARE_TOKEN_SCALE * 2;
 const SHARE_TOKEN_X_MASK = 0x52ab;
@@ -576,6 +579,171 @@ function readRecentSignatureEntries(value) {
   }
   return entries;
 }
+
+function cleanFilterValues(value, maxItems = 300) {
+  if (!Array.isArray(value)) return [];
+  const values = [];
+  const seen = new Set();
+  for (const item of value) {
+    const cleaned = cleanString(item, 128);
+    if (!cleaned || seen.has(cleaned)) continue;
+    values.push(cleaned);
+    seen.add(cleaned);
+    if (values.length >= maxItems) break;
+  }
+  return values;
+}
+
+function toFirestoreFilterValue(value) {
+  return value === UNSPECIFIED_FILTER_VALUE ? "" : value;
+}
+
+function normalizeFilterValue(value) {
+  const cleaned = cleanString(value, 128);
+  return cleaned || UNSPECIFIED_FILTER_VALUE;
+}
+
+function cleanAverageFilterSelections(source) {
+  const filters = source && typeof source === "object" ? source : {};
+  const selections = {};
+  for (const field of FILTER_AVERAGE_FIELDS) {
+    const raw = filters[field] && typeof filters[field] === "object"
+      ? filters[field]
+      : {};
+    const optionCount = Math.max(0, Math.min(500, cleanNumber(raw.optionCount)));
+    const selectedValues = cleanFilterValues(raw.selectedValues);
+    selections[field] = { optionCount, selectedValues };
+  }
+  return selections;
+}
+
+function averageFiltersMatchRecord(record, filterSelections) {
+  // Older production submissions predate these flags. Treat missing values as
+  // eligible, while continuing to exclude records explicitly marked otherwise.
+  if (
+    record?.include_in_default_aggregate === false ||
+    record?.is_dev === true
+  ) {
+    return false;
+  }
+  for (const field of FILTER_AVERAGE_FIELDS) {
+    const { optionCount, selectedValues } = filterSelections[field];
+    if (selectedValues.length === 0) return false;
+    if (optionCount > 0 && selectedValues.length >= optionCount) continue;
+    const selectedSet = new Set(selectedValues);
+    if (!selectedSet.has(normalizeFilterValue(record?.[field]))) return false;
+  }
+  return true;
+}
+
+function pickAverageQueryField(filterSelections) {
+  let picked = null;
+  for (const field of FILTER_AVERAGE_FIELDS) {
+    const { optionCount, selectedValues } = filterSelections[field];
+    if (selectedValues.length === 0) return field;
+    if (optionCount > 0 && selectedValues.length >= optionCount) continue;
+    if (!picked || selectedValues.length < filterSelections[picked].selectedValues.length) {
+      picked = field;
+    }
+  }
+  return picked;
+}
+
+function buildQuestionAveragesFromSubmissions(docs, filterSelections) {
+  const totalsById = {};
+  let submissionCount = 0;
+  for (const docSnap of docs) {
+    const data = docSnap.data();
+    if (!averageFiltersMatchRecord(data, filterSelections)) continue;
+    submissionCount += 1;
+    for (const entry of cleanQuestionEntries(data)) {
+      const current = totalsById[entry.questionId] || {
+        question_id: entry.questionId,
+        question_key: entry.questionKey,
+        sum_total: 0,
+        count_total: 0,
+      };
+      current.sum_total = Number((current.sum_total + entry.value).toFixed(4));
+      current.count_total += 1;
+      current.avg_total = Number(
+        (current.sum_total / current.count_total).toFixed(4),
+      );
+      totalsById[entry.questionId] = current;
+    }
+  }
+  return { submissionCount, questionsById: totalsById };
+}
+
+async function readFilteredQuestionAverages(filterSelections) {
+  if (
+    FILTER_AVERAGE_FIELDS.some(
+      (field) => filterSelections[field].selectedValues.length === 0,
+    )
+  ) {
+    return { submissionCount: 0, questionsById: {} };
+  }
+
+  const queryField = pickAverageQueryField(filterSelections);
+  const baseQuery = db.collection(SUBMISSIONS_COLLECTION);
+  const snapshots = [];
+
+  if (!queryField) {
+    snapshots.push(await baseQuery.get());
+  } else {
+    const firestoreValues = filterSelections[queryField].selectedValues.map(
+      toFirestoreFilterValue,
+    );
+    for (let index = 0; index < firestoreValues.length; index += FIRESTORE_IN_FILTER_LIMIT) {
+      const chunk = firestoreValues.slice(index, index + FIRESTORE_IN_FILTER_LIMIT);
+      const nextQuery = chunk.length === 1
+        ? baseQuery.where(queryField, "==", chunk[0])
+        : baseQuery.where(queryField, "in", chunk);
+      snapshots.push(await nextQuery.get());
+    }
+  }
+
+  const docsById = new Map();
+  for (const snapshot of snapshots) {
+    for (const docSnap of snapshot.docs) {
+      docsById.set(docSnap.id, docSnap);
+    }
+  }
+
+  return buildQuestionAveragesFromSubmissions(
+    [...docsById.values()],
+    filterSelections,
+  );
+}
+
+export const questionAverages = onRequest(
+  {
+    cors: true,
+  },
+  async (req, res) => {
+    if (req.method === "OPTIONS") {
+      res.status(204).send("");
+      return;
+    }
+    if (req.method !== "POST") {
+      res.status(405).json({ error: "Method not allowed." });
+      return;
+    }
+
+    try {
+      const payload = readBody(req);
+      const filterSelections = cleanAverageFilterSelections(payload.filters);
+      const result = await readFilteredQuestionAverages(filterSelections);
+      res.set("Cache-Control", "private, max-age=60");
+      res.status(200).json({
+        submission_count: result.submissionCount,
+        questions_by_id: result.questionsById,
+      });
+    } catch (error) {
+      console.error("Question averages error:", error);
+      res.status(500).json({ error: "Question averages unavailable." });
+    }
+  },
+);
 
 export const shareImage = onRequest(
   {
