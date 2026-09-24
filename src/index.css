@@ -784,6 +784,7 @@ h6 {
 .filter-dropdown-title {
   min-width: 0;
   color: var(--ai-muted);
+  transition: color 160ms ease;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: clip;
@@ -793,10 +794,18 @@ h6 {
   justify-self: end;
   max-width: 16ch;
   color: var(--ai-muted);
+  transition: color 160ms ease;
   overflow: hidden;
   white-space: nowrap;
   text-align: right;
   text-overflow: clip;
+}
+
+.homepage-filter-grid .filter-dropdown-button:hover .filter-dropdown-title,
+.homepage-filter-grid .filter-dropdown-button:hover .filter-dropdown-value,
+.homepage-filter-grid .filter-dropdown-button:focus-visible .filter-dropdown-title,
+.homepage-filter-grid .filter-dropdown-button:focus-visible .filter-dropdown-value {
+  color: var(--ai-green-bright);
 }
 
 .filter-dropdown-menu {
@@ -858,9 +867,9 @@ h6 {
 
 .ai-type-card {
   position: relative;
-  min-height: 260px;
+  min-height: 180px;
   box-sizing: border-box;
-  padding: 32px;
+  padding: 64px;
   display: flex;
   flex-direction: column;
   background: var(--ai-bg);
@@ -905,7 +914,7 @@ h6 {
 }
 
 .ai-type-card:hover {
-  background: var(--ai-surface-strong);
+  background: var(--ai-bg);
 }
 
 .ai-type-card.is-active {
@@ -1297,7 +1306,7 @@ h6 {
   }
 
   .ai-type-card {
-    min-height: 220px;
+    min-height: 180px;
     border-right: 0;
   }
 
