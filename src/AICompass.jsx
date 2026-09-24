@@ -2248,10 +2248,9 @@ function SingleSelectDropdown({
           ? { position: "relative" }
           : {
               position: "relative",
-              border: tabBorder(),
-              borderRadius: TAB_STYLE_VARS.borderRadius,
-              background: TAB_STYLE_VARS.formBackground,
-              padding: "8px 10px",
+              border: "none",
+              background: "transparent",
+              padding: 0,
             }
       }
     >
@@ -3986,7 +3985,7 @@ function QuizPage({
       <style>{`
         .response-slider-wrap {
           --slider-thumb-color: ${THEME.SiteText};
-          --slider-rail-color: ${THEME.SiteText};
+          --slider-rail-color: var(--compass-dot-faded);
           position: relative;
           width: 100%;
           height: 18px;
@@ -3996,7 +3995,6 @@ function QuizPage({
 
         .response-slider-wrap.is-locked {
           --slider-thumb-color: ${GRAY};
-          --slider-rail-color: ${GRAY};
         }
 
         .response-slider-wrap.is-label-sliders {
@@ -4010,13 +4008,14 @@ function QuizPage({
           top: 50%;
           transform: translateY(-50%);
           height: 6px;
-          border: 1px solid var(--slider-rail-color);
+          border: 0;
           border-radius: 999px;
-          background: transparent;
+          background: var(--slider-rail-color);
+          opacity: 0.5;
           pointer-events: none;
           box-sizing: border-box;
           z-index: 1;
-          transition: border-color 1s ease;
+          transition: background-color 1s ease;
         }
 
         .response-slider {
@@ -4366,7 +4365,7 @@ function QuizPage({
         style={{
           display: "flex",
           flexDirection: "column",
-          gap: 12,
+          gap: 16,
           marginBottom: 18,
         }}
       >
