@@ -55,7 +55,7 @@
   --ai-green-bright: var(--color-green-bright);
   --ai-green-deep: var(--color-green-deep);
   --ai-cta-green: var(--ai-green-deep);
-  --ai-bg: #151515;
+  --ai-bg: #111111;
   --ai-surface: #111111;
   --ai-surface-strong: #1a1a1a;
   --ai-border: transparent;
@@ -89,7 +89,7 @@
 }
 
 .ai-compass-public.is-light-mode {
-  --ai-bg: #f9f9f7;
+  --ai-bg: #ffffff;
   --ai-surface: #ffffff;
   --ai-surface-strong: #ecece7;
   --ai-border: transparent;
