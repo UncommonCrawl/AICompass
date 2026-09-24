@@ -5920,6 +5920,9 @@ export default function AICompass() {
     <>
       {/* Keep homepage body content here so it appears in both home and results states. */}
       <section className="ai-section ai-types-section">
+        <div className="homepage-section-heading ai-section-label ai-types-heading">
+          ARCHETYPES
+        </div>
         <div className="ai-types-grid">
           {ARCHETYPE_GRID_ORDER.map((key) => {
             const val = QUADRANT_INFO[key];
@@ -5930,7 +5933,9 @@ export default function AICompass() {
             return (
               <div
                 key={key}
-                className={`ai-type-card ${isActive ? "is-active" : ""}`}
+                className={`ai-type-card ai-type-card--${key} ${
+                  isActive ? "is-active" : ""
+                }`}
                 role="button"
                 tabIndex={0}
                 aria-pressed={isSelected}

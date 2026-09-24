@@ -808,11 +808,19 @@ h6 {
   border-bottom: 1px solid var(--ai-border);
 }
 
+.ai-types-heading {
+  box-sizing: border-box;
+  margin-bottom: 24px;
+  padding: 48px var(--ai-shell-gutter) 0;
+}
+
 .ai-about-section {
   padding-top: 48px;
 }
 
 .ai-types-grid {
+  --ai-types-inner-rule: #2a2a2a;
+  position: relative;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-auto-rows: 1fr;
@@ -821,11 +829,40 @@ h6 {
   background: transparent;
 }
 
+.ai-types-grid::before,
+.ai-types-grid::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  background: var(--ai-types-inner-rule);
+  pointer-events: none;
+}
+
+.ai-types-grid::before {
+  top: 50%;
+  left: 20%;
+  width: 60%;
+  height: 1px;
+}
+
+.ai-types-grid::after {
+  top: 20%;
+  left: 50%;
+  width: 1px;
+  height: 60%;
+}
+
+.ai-compass-public.is-light-mode .ai-types-grid {
+  --ai-types-inner-rule: #d4d4cc;
+}
+
 .ai-type-card {
   position: relative;
   min-height: 260px;
   box-sizing: border-box;
   padding: 32px;
+  display: flex;
+  flex-direction: column;
   background: var(--ai-bg);
   border: 0;
   border-right: 1px solid var(--ai-border);
@@ -837,6 +874,26 @@ h6 {
   transition:
     background-color 160ms ease,
     box-shadow 160ms ease;
+}
+
+.ai-type-card--topLeft,
+.ai-type-card--topRight {
+  justify-content: flex-end;
+}
+
+.ai-type-card--bottomLeft,
+.ai-type-card--bottomRight {
+  justify-content: flex-start;
+}
+
+.ai-type-card--topLeft,
+.ai-type-card--bottomLeft {
+  text-align: right;
+}
+
+.ai-type-card--topRight,
+.ai-type-card--bottomRight {
+  text-align: left;
 }
 
 .ai-type-card:nth-child(even) {
@@ -1226,6 +1283,11 @@ h6 {
     grid-auto-rows: auto;
   }
 
+  .ai-types-grid::before,
+  .ai-types-grid::after {
+    display: none;
+  }
+
   .ai-type-card:nth-last-child(-n + 2) {
     border-bottom: 1px solid var(--ai-border);
   }
@@ -1241,6 +1303,18 @@ h6 {
 
   .ai-type-card:nth-last-child(2) {
     border-bottom: 1px solid var(--ai-border);
+  }
+
+  .ai-type-card:not(:last-child)::before {
+    content: "";
+    position: absolute;
+    left: 20%;
+    bottom: -1px;
+    z-index: 2;
+    width: 60%;
+    height: 1px;
+    background: var(--ai-types-inner-rule);
+    pointer-events: none;
   }
 
   .homepage-copy-body-stack {
