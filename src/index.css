@@ -58,7 +58,7 @@
   --ai-bg: #151515;
   --ai-surface: #111111;
   --ai-surface-strong: #1a1a1a;
-  --ai-border: #2a2a2a;
+  --ai-border: transparent;
   --ai-text: #f5f5f2;
   --ai-muted: #7a7a7a;
   --ai-secondary: #bdbdbd;
@@ -92,7 +92,7 @@
   --ai-bg: #f9f9f7;
   --ai-surface: #ffffff;
   --ai-surface-strong: #ecece7;
-  --ai-border: #d4d4cc;
+  --ai-border: transparent;
   --ai-text: #0a0a0a;
   --ai-muted: #77776f;
   --ai-secondary: #4f4f49;
@@ -100,6 +100,13 @@
   --ai-accent-dim: color-mix(in oklab, var(--ai-cta-green) 12%, transparent);
   --ai-compass-rule: #a1a1a1;
   --compass-dot-faded: #d6d6d0;
+}
+
+/* Keep the public UI borderless; the compass SVG owns the only visible rules. */
+.ai-compass-public *,
+.ai-compass-public *::before,
+.ai-compass-public *::after {
+  border-color: transparent !important;
 }
 
 .dev-controls-strip {
