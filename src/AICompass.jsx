@@ -1591,7 +1591,7 @@ function readColorModePreference() {
   const persistedMode = readLocalStorageItem(COLOR_MODE_STORAGE_KEY);
   return persistedMode === "dark" || persistedMode === "light"
     ? persistedMode
-    : "light";
+    : "dark";
 }
 
 function readDevResultPersistenceEnabled() {
