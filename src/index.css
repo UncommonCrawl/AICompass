@@ -1341,8 +1341,22 @@ h6 {
 
 .site-header-sticky-region {
   --site-header-action-size: 60px;
-  --site-header-theme-moon-color: #2f2f2f;
-  --site-header-theme-sun-color: #f5f5f2;
+  --ai-bg: #ffffff;
+  --ai-surface: #ffffff;
+  --ai-surface-strong: #ecece7;
+  --ai-text: #0a0a0a;
+  --ai-muted: #77776f;
+  --ai-secondary: #4f4f49;
+  --ai-accent: var(--ai-cta-green);
+  --ai-accent-dim: color-mix(in oklab, var(--ai-cta-green) 12%, transparent);
+  --ai-compass-rule: #a1a1a1;
+  --color-ink: var(--ai-text);
+  --color-muted: var(--ai-secondary);
+  --color-paper: var(--ai-bg);
+  --color-surface: var(--ai-surface);
+  --color-accent: var(--ai-accent);
+  --compass-dot-faded: #d6d6d0;
+  --site-header-theme-toggle-color: var(--ai-text);
   width: var(--ai-shell-width);
   position: sticky;
   top: 0;
@@ -1350,6 +1364,24 @@ h6 {
   z-index: 20;
   box-sizing: border-box;
   background: var(--ai-bg);
+}
+
+.ai-compass-public.is-light-mode .site-header-sticky-region {
+  --ai-bg: #111111;
+  --ai-surface: #111111;
+  --ai-surface-strong: #1a1a1a;
+  --ai-text: #f5f5f2;
+  --ai-muted: #7a7a7a;
+  --ai-secondary: #bdbdbd;
+  --ai-accent: var(--ai-green-bright);
+  --ai-accent-dim: color-mix(in oklab, var(--ai-accent) 12%, transparent);
+  --ai-compass-rule: #545454;
+  --color-ink: var(--ai-text);
+  --color-muted: var(--ai-secondary);
+  --color-paper: var(--ai-bg);
+  --color-surface: var(--ai-surface);
+  --color-accent: var(--ai-accent);
+  --compass-dot-faded: #2f2f2f;
 }
 
 .site-header {
@@ -1562,11 +1594,11 @@ h6 {
 }
 
 .theme-mode-toggle-icon-moon {
-  color: var(--site-header-theme-moon-color);
+  color: var(--site-header-theme-toggle-color);
 }
 
 .theme-mode-toggle-icon-sun {
-  color: var(--site-header-theme-sun-color);
+  color: var(--site-header-theme-toggle-color);
 }
 
 .theme-mode-toggle-icon circle {
