@@ -6042,6 +6042,13 @@ export default function AICompass() {
               {(screen === "home" || screen === "quiz" || showResultsStrip) && (
                 <button
                   className="type-caption compass-action-button site-header-action-button"
+                  aria-label={
+                    screen === "quiz"
+                      ? "VIEW COMPASS"
+                      : hasCompletedQuiz
+                        ? "YOUR ANSWERS"
+                        : "TAKE THE QUIZ"
+                  }
                   onClick={() => {
                     if (screen === "quiz") {
                       setScreen("home");
@@ -6065,11 +6072,20 @@ export default function AICompass() {
                   }}
                 >
                   <span className="site-header-action-label">
-                    {screen === "quiz"
-                      ? "VIEW COMPASS"
-                      : hasCompletedQuiz
-                        ? "YOUR ANSWERS"
-                        : "TAKE THE QUIZ"}
+                    <span className="site-header-action-label-wide">
+                      {screen === "quiz"
+                        ? "VIEW COMPASS"
+                        : hasCompletedQuiz
+                          ? "YOUR ANSWERS"
+                          : "TAKE THE QUIZ"}
+                    </span>
+                    <span className="site-header-action-label-compact">
+                      {screen === "quiz"
+                        ? "COMPASS"
+                        : hasCompletedQuiz
+                          ? "ANSWERS"
+                          : "QUIZ"}
+                    </span>
                   </span>
                 </button>
               )}
