@@ -5985,14 +5985,7 @@ export default function AICompass() {
         survey.
       </p>
       <div className="type-caption ai-public-footer-credit">
-        Created by{" "}
-        <a
-          href="https://linktr.ee/keithherrmann"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Keith Herrmann
-        </a>{" "}
+        CREATED BY UNCOMMONCRAWL{" "}
         • <a href="mailto:uncommoncrawl@gmail.com">Contact</a>
       </div>
     </footer>
